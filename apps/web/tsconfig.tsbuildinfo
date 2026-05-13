@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/appfallback.ts","./src/main.tsx","./src/vite-env.d.ts","./src/components/treepanel.tsx","./src/config/networks.ts","./src/lib/metaguildx.ts","./src/pages/support.tsx"],"version":"5.9.3"}

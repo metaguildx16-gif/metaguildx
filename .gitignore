@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+
+# build/cache
+dist/
+coverage/
+.turbo/
+
+# hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+
+# openzeppelin
+contracts/.openzeppelin/
+
+# temp files
+.tmp/
+.logs/
+.runlogs/
+
+contracts/.codex_tmp*
+contracts/scripts/__audit_*
+contracts/scripts/__final_*
+contracts/scripts/*temp*
+contracts/scripts/*tmp*
+
+# env
+.env
+.env.*
+.appdata/
+.localappdata/
+
+*.log
+
+contracts/artifacts-local/
+contracts/cache-local/

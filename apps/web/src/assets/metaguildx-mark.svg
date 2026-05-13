@@ -1,0 +1,36 @@
+<svg width="420" height="240" viewBox="0 0 420 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gold" x1="72" y1="16" x2="262" y2="210" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF4B0"/>
+      <stop offset="0.32" stop-color="#F6CF5A"/>
+      <stop offset="0.68" stop-color="#B77A16"/>
+      <stop offset="1" stop-color="#FFE082"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="64" y1="52" x2="336" y2="198" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#83F3FF"/>
+      <stop offset="1" stop-color="#1BB7EE"/>
+    </linearGradient>
+    <linearGradient id="plate" x1="88" y1="176" x2="334" y2="240" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#20242F"/>
+      <stop offset="1" stop-color="#0D1016"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="420" height="240" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#02060D" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <path d="M210 24L232 44L226 62L248 78L238 154L210 182L182 154L172 78L194 62L188 44L210 24Z" fill="url(#gold)" stroke="#6C4208" stroke-width="5"/>
+    <path d="M150 58L120 32L82 42L106 78L66 62L56 102L106 108L74 132L98 166L132 132L128 172L168 166L178 124L150 58Z" fill="url(#gold)" stroke="#6C4208" stroke-width="5"/>
+    <path d="M270 58L300 32L338 42L314 78L354 62L364 102L314 108L346 132L322 166L288 132L292 172L252 166L242 124L270 58Z" fill="url(#gold)" stroke="#6C4208" stroke-width="5"/>
+    <path d="M140 72L112 54L96 68L120 92L88 90L84 114L122 114L104 134L124 148L144 126L146 154L172 148L174 116L140 72Z" fill="url(#cyan)" fill-opacity="0.9"/>
+    <path d="M280 72L308 54L324 68L300 92L332 90L336 114L298 114L316 134L296 148L276 126L274 154L248 148L246 116L280 72Z" fill="url(#cyan)" fill-opacity="0.9"/>
+    <path d="M176 70H194L210 92L226 70H244V156H220V112L210 124L200 112V156H176V70Z" fill="#142233"/>
+    <path d="M154 96H174V156H154L132 128V156H112V70H132L154 96V70H174V96H154Z" fill="#142233"/>
+    <path d="M266 156H246V70H266V96H286V70H306V156H286V120H266V156Z" fill="#142233"/>
+    <ellipse cx="211" cy="40" rx="14" ry="10" fill="#FFF0A5"/>
+    <path d="M220 40L233 44L220 48V40Z" fill="#D09B24"/>
+    <path d="M94 178H326C338.15 178 348 187.85 348 200C348 212.15 338.15 222 326 222H94C81.85 222 72 212.15 72 200C72 187.85 81.85 178 94 178Z" fill="url(#plate)" stroke="#313846" stroke-width="4"/>
+    <text x="100" y="210" fill="#F4F5F7" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">MetaGuild</text>
+    <text x="291" y="210" fill="#55D7FF" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="800">X</text>
+  </g>
+</svg>

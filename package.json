@@ -1,0 +1,29 @@
+{
+  "name": "metaguildx",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "contracts"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace @metaguildx/web run dev",
+    "build:web": "npm --workspace @metaguildx/web run build",
+    "dev:contracts": "npm --workspace @metaguildx/contracts run node",
+    "build:contracts": "npm --workspace @metaguildx/contracts run compile",
+    "deploy:contracts": "npm --workspace @metaguildx/contracts run deploy",
+    "deploy:localhost": "npm --workspace @metaguildx/contracts exec -- hardhat run scripts/fresh-deploy-v3.ts --network localhost",
+    "reset:localhost": "node scripts/reset-localhost.mjs",
+    "deploy:opbnb:testnet": "npm --workspace @metaguildx/contracts exec -- hardhat run scripts/fresh-deploy-v3.ts --network opbnbTestnet",
+    "deploy:opbnb:mainnet": "npm --workspace @metaguildx/contracts exec -- hardhat run scripts/fresh-deploy-v3.ts --network opbnbMainnet",
+    "upgrade:localhost": "npm --workspace @metaguildx/contracts exec -- hardhat run scripts/upgrade.ts --network localhost",
+    "upgrade:opbnb:testnet": "npm --workspace @metaguildx/contracts exec -- hardhat run scripts/upgrade.ts --network opbnbTestnet",
+    "upgrade:opbnb:mainnet": "npm --workspace @metaguildx/contracts exec -- hardhat run scripts/upgrade.ts --network opbnbMainnet",
+    "seed:localhost": "npm --workspace @metaguildx/contracts exec -- hardhat run scripts/seed-localhost.ts --network localhost",
+    "sync:web": "npm --workspace @metaguildx/contracts run sync:web",
+    "sync:web:localhost": "npm --workspace @metaguildx/contracts exec -- hardhat run scripts/sync-frontend.ts --network localhost",
+    "sync:web:opbnb:testnet": "npm --workspace @metaguildx/contracts exec -- hardhat run scripts/sync-frontend.ts --network opbnbTestnet",
+    "sync:web:opbnb:mainnet": "npm --workspace @metaguildx/contracts exec -- hardhat run scripts/sync-frontend.ts --network opbnbMainnet",
+    "build": "npm run build:web && npm run build:contracts"
+  }
+}
