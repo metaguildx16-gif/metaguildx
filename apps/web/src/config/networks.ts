@@ -52,8 +52,9 @@ export const networkConfigs: Record<NetworkKey, NetworkConfig> = {
     chainId: parseChainId(import.meta.env.VITE_CHAIN_ID || import.meta.env.VITE_TESTNET_CHAIN_ID, 5611),
     rpcUrl: import.meta.env.VITE_TESTNET_RPC || import.meta.env.VITE_TESTNET_RPC_URL || "",
     contractAddress:
-      import.meta.env.VITE_ROUTER_ADDRESS ||
+      import.meta.env.VITE_CORE_ADDRESS ||
       import.meta.env.VITE_SYSTEM_ADDRESS ||
+      import.meta.env.VITE_ROUTER_ADDRESS ||
       import.meta.env.VITE_TESTNET_CONTRACT_ADDRESS ||
       import.meta.env.VITE_METAGUILDX_SYSTEM_ADDRESS ||
       "",

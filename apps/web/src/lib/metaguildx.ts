@@ -584,9 +584,10 @@ function readTrimmedEnv(...keys: string[]) {
   return "";
 }
 
-function getConfiguredRouterAddress() {
+function getConfiguredCoreAddress() {
   const configuredAddress = readTrimmedEnv(
-    "VITE_ROUTER_ADDRESS",
+    "VITE_CORE_ADDRESS",
+    "VITE_SYSTEM_PROXY_ADDRESS",
     "VITE_SYSTEM_ADDRESS",
     "VITE_CONTRACT_ADDRESS",
     "VITE_TESTNET_CONTRACT_ADDRESS",
@@ -596,20 +597,31 @@ function getConfiguredRouterAddress() {
 
   const normalizedAddress = configuredAddress.trim();
   if (!normalizedAddress || normalizedAddress.length !== 42) {
+    throw new Error(`Invalid core address in .env: ${normalizedAddress}`);
+  }
+
+  return normalizeAddress(normalizedAddress);
+}
+
+function getConfiguredRouterAddress() {
+  const configuredAddress = readTrimmedEnv("VITE_ROUTER_ADDRESS");
+
+  const normalizedAddress = configuredAddress.trim();
+  if (!normalizedAddress || normalizedAddress.length !== 42) {
     throw new Error(`Invalid router address in .env: ${normalizedAddress}`);
   }
 
   return normalizeAddress(normalizedAddress);
 }
 
+const configuredCoreAddress = getConfiguredCoreAddress();
 const configuredRouterAddress = getConfiguredRouterAddress();
 const configuredBinaryTreeAddress = readTrimmedEnv("VITE_BINARY_TREE_ADDRESS") || (activeNetworkConfig.key === "testnet" ? TESTNET_BINARY_TREE_ADDRESS : "");
 const configuredStakingAddress =
   readTrimmedEnv("VITE_MGX_STAKING_ADDRESS", "VITE_STAKING_ADDRESS") || (activeNetworkConfig.key === "testnet" ? TESTNET_STAKING_ADDRESS : "");
 const configuredCashbackAddress =
   readTrimmedEnv("VITE_CASHBACK_POOL_ADDRESS", "VITE_CASHBACK_ADDRESS") || (activeNetworkConfig.key === "testnet" ? TESTNET_CASHBACK_POOL_ADDRESS : "");
-const configuredIncomeRouterAddress =
-  readTrimmedEnv("VITE_INCOME_ROUTER_ADDRESS") || (activeNetworkConfig.key === "testnet" ? TESTNET_INCOME_ROUTER_ADDRESS : "");
+const configuredIncomeRouterAddress = configuredRouterAddress;
 const configuredIncomeAddress = readTrimmedEnv("VITE_INCOME_ENGINE_ADDRESS");
 const configuredUpgradeAddress = readTrimmedEnv("VITE_UPGRADE_ENGINE_ADDRESS");
 
@@ -1913,7 +1925,7 @@ async function ensureConfiguredChain() {
 }
 
 async function getWriteContracts() {
-  const coreAddress = configuredRouterAddress;
+  const coreAddress = configuredCoreAddress;
   if (!coreAddress) {
     throw new Error("The core contract address is missing. Check the frontend env settings and try again.");
   }
@@ -1957,7 +1969,7 @@ async function getWriteContracts() {
 }
 
 async function getReadCoreContract() {
-  const contractAddress = configuredRouterAddress;
+  const contractAddress = configuredCoreAddress;
   if (!contractAddress) {
     throw new Error("The core contract address is missing. Check the frontend env settings and try again.");
   }
@@ -2336,7 +2348,7 @@ export async function getRegistrationDistribution(
   }
 
   const provider = new BrowserProvider(window.ethereum);
-  const coreAddress = configuredRouterAddress;
+  const coreAddress = configuredCoreAddress;
   const incomeRouterAddress = configuredIncomeRouterAddress;
   const incomeEngineAddress = configuredIncomeAddress;
   const cashbackPoolAddress = configuredCashbackAddress;
@@ -2471,7 +2483,7 @@ export async function withdrawStakeTokens(input: { amount: number }) {
 }
 
 export async function getCreatorWalletConfig() {
-  const coreAddress = configuredRouterAddress;
+  const coreAddress = configuredCoreAddress;
   const routerAddress = configuredIncomeRouterAddress;
 
   if (!coreAddress || !routerAddress) {
@@ -2497,7 +2509,7 @@ export async function getCreatorWalletConfig() {
 
 export async function loadAdminOverview(): Promise<AdminOverview> {
   const provider = await getReadProvider();
-  const coreAddress = configuredRouterAddress || TESTNET_CORE_ADDRESS;
+  const coreAddress = configuredCoreAddress || TESTNET_CORE_ADDRESS;
   const binaryTreeAddress = configuredBinaryTreeAddress || TESTNET_BINARY_TREE_ADDRESS;
   const incomeRouterAddress = configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS;
   const cashbackPoolAddress = configuredCashbackAddress || TESTNET_CASHBACK_POOL_ADDRESS;
@@ -2650,7 +2662,7 @@ export async function getLevelRootId() {
 }
 
 export async function loadLevelTreePreview(connectedUserId: number | null): Promise<TreePreviewNode[]> {
-  if (!configuredRouterAddress || !configuredBinaryTreeAddress || getReadRpcUrls().length === 0) {
+  if (!configuredCoreAddress || !configuredBinaryTreeAddress || getReadRpcUrls().length === 0) {
     return [];
   }
   if (!connectedUserId || connectedUserId <= 0) {
@@ -2659,7 +2671,7 @@ export async function loadLevelTreePreview(connectedUserId: number | null): Prom
 
   const provider = await getReadProvider();
   const [coreCode, treeCode] = await Promise.all([
-    provider.getCode(configuredRouterAddress),
+    provider.getCode(configuredCoreAddress),
     provider.getCode(configuredBinaryTreeAddress)
   ]);
 
@@ -2667,7 +2679,7 @@ export async function loadLevelTreePreview(connectedUserId: number | null): Prom
     return [];
   }
 
-  const coreContract = new Contract(configuredRouterAddress, metaGuildXCoreAbi, provider);
+  const coreContract = new Contract(configuredCoreAddress, metaGuildXCoreAbi, provider);
   const treeContract = new Contract(configuredBinaryTreeAddress, binaryTreeAbi, provider);
   const incomeContract =
     configuredIncomeAddress && configuredIncomeAddress !== "0x0000000000000000000000000000000000000000"
@@ -2845,7 +2857,7 @@ export async function loadPersonalTreePreview(
   connectedUserId: number | null
 ): Promise<TreePreviewNode[]> {
   if (
-    !configuredRouterAddress ||
+    !configuredCoreAddress ||
     !configuredBinaryTreeAddress ||
     getReadRpcUrls().length === 0
   ) {
@@ -2862,7 +2874,7 @@ export async function loadPersonalTreePreview(
     provider
   );
   const coreContract = new Contract(
-    configuredRouterAddress,
+    configuredCoreAddress,
     metaGuildXCoreAbi,
     provider
   );
@@ -3007,7 +3019,7 @@ export async function upgradeUserPackage(input: { userId: number; newPackageLeve
 }
 
 export async function loadTreeNodeDetails(userId: number): Promise<TreeNodeDetails | null> {
-  const contractAddress = configuredRouterAddress;
+  const contractAddress = configuredCoreAddress;
   if (!contractAddress || !configuredBinaryTreeAddress || userId <= 0) {
     return null;
   }
@@ -3116,7 +3128,7 @@ export async function loadReferralSponsorPreview(userId: number): Promise<{
   packageLevel: number;
   directReferrals: number;
 } | null> {
-  const contractAddress = configuredRouterAddress;
+  const contractAddress = configuredCoreAddress;
   if (!contractAddress || userId <= 0) {
     return null;
   }
@@ -3242,13 +3254,13 @@ async function loadDirectReferralIncomeByUserId(input: {
 }
 
 export async function loadLiveWalletStakeState(walletAddress?: string | null): Promise<LiveWalletStakeState | null> {
-  if (!walletAddress || !configuredRouterAddress) {
+  if (!walletAddress || !configuredCoreAddress) {
     return null;
   }
 
   const normalizedWalletAddress = normalizeAddress(walletAddress);
   const provider = await getReadProvider();
-  const contract = new Contract(configuredRouterAddress, metaGuildXCoreAbi, provider);
+  const contract = new Contract(configuredCoreAddress, metaGuildXCoreAbi, provider);
   const stakingModule =
     configuredStakingAddress && configuredStakingAddress !== "0x0000000000000000000000000000000000000000"
       ? new Contract(configuredStakingAddress, mgxStakingAbi, provider)
@@ -3326,7 +3338,7 @@ export async function loadDashboardSnapshot(
   if (cachedSnapshot && Date.now() - cachedSnapshot.timestamp < SNAPSHOT_CACHE_TTL && !options?.forceRefresh) {
     return cachedSnapshot.data;
   }
-  const contractAddress = configuredRouterAddress;
+  const contractAddress = configuredCoreAddress;
   if (!contractAddress) {
     return {
       ...fallbackSnapshot,
@@ -3884,7 +3896,7 @@ export async function loadDashboardSnapshot(
       ...fallbackSnapshot,
       walletAddress: walletAddress ?? null,
       isConnected: Boolean(walletAddress),
-      hasContractConfig: Boolean(configuredRouterAddress),
+      hasContractConfig: Boolean(configuredCoreAddress),
       contractReady: false,
       contractWarning: error instanceof Error ? error.message : "Could not load dashboard data. Refresh the app and try again."
     };
