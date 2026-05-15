@@ -412,14 +412,14 @@ function App() {
               return sum;
             }
             const rawAmount = event.args?.amount;
-            return typeof rawAmount === "bigint" ? sum + Number(formatUnits(rawAmount, 1)) : sum;
+            return typeof rawAmount === "bigint" ? sum + metaguildx.formatPlatformAmountNumber(rawAmount) : sum;
           }, 0) +
           upgrades.reduce((sum, event) => {
             if (!("args" in event)) {
               return sum;
             }
             const rawAmount = event.args?.amount;
-            return typeof rawAmount === "bigint" ? sum + Number(formatUnits(rawAmount, 1)) : sum;
+            return typeof rawAmount === "bigint" ? sum + metaguildx.formatPlatformAmountNumber(rawAmount) : sum;
           }, 0);
 
         if (isActive) {

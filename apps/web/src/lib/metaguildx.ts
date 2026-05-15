@@ -153,6 +153,7 @@ const erc20ApprovalAbi = [
 ] as const;
 
 const PLATFORM_DECIMALS = 1;
+const DEFAULT_STABLECOIN_DECIMALS = 6;
 const fallbackPackages = [10, 20, 40, 80, 160, 320, 640, 1280, 2560, 5120];
 const fallbackBoxes = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0, 3.25];
 const PACKAGE_PRICES_USDT: Record<number, number> = {
@@ -552,13 +553,29 @@ const levelBreakdownCache = new Map<
 const genealogyCache = new Map<string, { data: Set<number>; timestamp: number }>();
 const SNAPSHOT_CACHE_TTL = 300_000;
 const GENEALOGY_CACHE_TTL = 300_000;
+const tokenDecimalsCache = new Map<string, number>();
 
-function formatTokenAmount(value: bigint, decimals = PLATFORM_DECIMALS) {
+function formatAmountWithDecimals(value: bigint, decimals: number) {
   const numericValue = decimals === 18 ? Number(formatEther(value)) : Number(formatUnits(value, decimals));
   return numericValue.toLocaleString(undefined, {
     minimumFractionDigits: 0,
-    maximumFractionDigits: decimals === 18 ? 6 : decimals
+    maximumFractionDigits: decimals === 18 ? 6 : Math.min(decimals, 6)
   });
+}
+
+function formatTokenAmount(value: bigint, decimals = PLATFORM_DECIMALS) {
+  return formatAmountWithDecimals(value, decimals);
+}
+
+function formatUsdAmount(value: number) {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+export function formatPlatformAmountNumber(value: bigint) {
+  return Number(formatUnits(value, PLATFORM_DECIMALS));
 }
 
 function compactAddress(value: string) {
@@ -582,6 +599,31 @@ function readTrimmedEnv(...keys: string[]) {
     }
   }
   return "";
+}
+
+async function getTokenDecimals(
+  provider: BrowserProvider | JsonRpcProvider,
+  tokenAddress: string | null | undefined
+) {
+  if (!tokenAddress || tokenAddress === "0x0000000000000000000000000000000000000000") {
+    return 18;
+  }
+
+  const normalizedAddress = normalizeAddress(tokenAddress);
+  const cachedDecimals = tokenDecimalsCache.get(normalizedAddress);
+  if (cachedDecimals !== undefined) {
+    return cachedDecimals;
+  }
+
+  try {
+    const token = new Contract(normalizedAddress, erc20ApprovalAbi, provider);
+    const decimals = Number(await token.decimals());
+    tokenDecimalsCache.set(normalizedAddress, decimals);
+    return decimals;
+  } catch {
+    tokenDecimalsCache.set(normalizedAddress, DEFAULT_STABLECOIN_DECIMALS);
+    return DEFAULT_STABLECOIN_DECIMALS;
+  }
 }
 
 function getConfiguredCoreAddress() {
@@ -716,23 +758,18 @@ async function buildUnregisteredSnapshot(input: {
   };
 }) {
   let defaultPaymentAsset = "0x0000000000000000000000000000000000000000";
-  let paymentUnitPrice = 0n;
 
   try {
     defaultPaymentAsset = (await input.contract.defaultPaymentAsset()) as string;
-    paymentUnitPrice =
-      defaultPaymentAsset
-        ? ((await input.contract.paymentAssetUnitPrice(defaultPaymentAsset)) as bigint)
-        : 0n;
   } catch {
-    // Keep fallback pricing at zero if the asset lookup is unavailable.
+    // Keep fallback asset state at zero if the asset lookup is unavailable.
   }
 
   const externalWalletBalanceRaw = await input.provider.getBalance(input.walletAddress);
   const connectedWalletPortfolio = await loadConnectedWalletAssets({
     walletAddress: input.walletAddress,
     nativeBalanceFormatted: formatTokenAmount(externalWalletBalanceRaw, 18),
-    nativeValueFormatted: settlementToPlatformValue(externalWalletBalanceRaw, paymentUnitPrice),
+    nativeValueFormatted: "$0.00",
     provider: input.provider,
     usdtAddress: defaultPaymentAsset
   });
@@ -771,7 +808,7 @@ async function buildUnregisteredSnapshot(input: {
     withdrawablePlatformBalance: "0",
     withdrawableSettlementBalance: "0",
     externalWalletBalance: formatTokenAmount(externalWalletBalanceRaw, 18),
-    connectedWalletValue: settlementToPlatformValue(externalWalletBalanceRaw, paymentUnitPrice),
+    connectedWalletValue: formatUsdAmount(connectedWalletPortfolio.nativeAssetUsdValue),
     connectedWalletAssets: connectedWalletPortfolio.assets,
     connectedWalletAssetsError: connectedWalletPortfolio.error,
     connectedWalletHistory: connectedWalletHistory.history,
@@ -1415,12 +1452,12 @@ function settlementToPlatformValue(settlementAmount: bigint, unitPrice: bigint) 
   return formatTokenAmount(settlementAmount / unitPrice);
 }
 
-function platformToSettlementValue(platformAmount: bigint, unitPrice: bigint) {
+function platformToSettlementValue(platformAmount: bigint, unitPrice: bigint, settlementDecimals = DEFAULT_STABLECOIN_DECIMALS) {
   if (unitPrice === 0n) {
     return "0";
   }
 
-  return formatTokenAmount(platformAmount * unitPrice, 18);
+  return formatAmountWithDecimals(platformAmount * unitPrice, settlementDecimals);
 }
 
 function formatPlatformUsdValue(platformAmount: bigint) {
@@ -1525,7 +1562,6 @@ async function loadConnectedWalletAssets(input: {
   provider?: BrowserProvider | JsonRpcProvider;
   usdtAddress?: string | null;
 }) {
-  const moralisChainParam = activeNetworkConfig.chainId === 204 ? "0xcc" : toHexChainId(activeNetworkConfig.chainId);
   const nativeAssetRow = {
     id: "native",
     name: activeNetworkConfig.nativeCurrency.symbol,
@@ -1564,80 +1600,19 @@ async function loadConnectedWalletAssets(input: {
     }
   }
 
-  const apiKey = import.meta.env.VITE_MORALIS_API_KEY;
-  if (!apiKey || activeNetworkConfig.key === "local") {
-    const usdtRow = await loadUsdtAssetRow();
-    return {
-      assets: usdtRow ? [nativeAssetRow, usdtRow] : [nativeAssetRow],
-      error: null as string | null
-    };
-  }
+  const usdtRow = await loadUsdtAssetRow();
+  const tokenRows = usdtRow ? [usdtRow] : [];
+  const hasNativeRow = tokenRows.some(
+    (token) => token.id.toLowerCase() === "native" ||
+    token.name === activeNetworkConfig.nativeCurrency.symbol
+  );
+  const assets = hasNativeRow ? tokenRows : [nativeAssetRow, ...tokenRows];
 
-  try {
-    const response = await fetch(
-      `https://deep-index.moralis.io/api/v2.2/wallets/${input.walletAddress}/tokens?chain=${encodeURIComponent(
-        moralisChainParam
-      )}&exclude_spam=true`,
-      {
-        headers: {
-          "X-API-Key": apiKey
-        }
-      }
-    );
-
-    if (!response.ok) {
-      const usdtRow = await loadUsdtAssetRow();
-      return {
-        assets: usdtRow ? [nativeAssetRow, usdtRow] : [nativeAssetRow],
-        error: `Moralis token fetch failed (${response.status})`
-      };
-    }
-
-    const payload = (await response.json()) as { result?: MoralisTokenBalance[] } | MoralisTokenBalance[];
-    const rawTokens = Array.isArray(payload) ? payload : (payload.result ?? []);
-
-    const tokenRows = rawTokens
-      .filter((token) => !token.possible_spam)
-      .sort((left, right) => (right.usd_value ?? 0) - (left.usd_value ?? 0))
-      .slice(0, 8)
-      .map((token, index) => ({
-        id: token.token_address || `token-${index}`,
-        name: token.symbol || token.name || "Token",
-        subtitle: token.native_token ? "Connected wallet native asset" : token.verified_contract ? "Verified OPBNB token" : "Connected wallet token",
-        amount: token.balance_formatted || "0",
-        value: typeof token.usd_value === "number" && token.usd_value > 0 ? `$${token.usd_value.toFixed(2)}` : "-",
-        tone: token.native_token ? "wallet-token-blue" : "wallet-token-slate",
-        logo: token.logo ?? token.thumbnail ?? null
-      }));
-
-    const hasNativeRow = tokenRows.some((token) => token.id.toLowerCase() === "native" || token.name === activeNetworkConfig.nativeCurrency.symbol);
-    const usdtRow = await loadUsdtAssetRow();
-    const tokensWithUsdt = usdtRow
-      ? [
-          usdtRow,
-          ...tokenRows.filter((token) => {
-            try {
-              return normalizeAddress(token.id) !== usdtRow.id;
-            } catch {
-              return token.id !== usdtRow.id;
-            }
-          })
-        ]
-      : tokenRows;
-    const assets = hasNativeRow ? tokensWithUsdt : [nativeAssetRow, ...tokensWithUsdt];
-
-    return {
-      assets,
-      error: null as string | null
-    };
-  } catch (error) {
-    console.error("Moralis connected wallet fetch failed", error);
-    const usdtRow = await loadUsdtAssetRow();
-    return {
-      assets: usdtRow ? [nativeAssetRow, usdtRow] : [nativeAssetRow],
-      error: "Unable to load connected wallet tokens from Moralis"
-    };
-  }
+  return {
+    assets,
+    error: null as string | null,
+    nativeAssetUsdValue: 0
+  };
 }
 
 export async function loadConnectedWalletHistory(address: string, cursor?: string | null) {
@@ -2408,12 +2383,12 @@ export async function getRegistrationDistribution(
   txHash;
 
   return {
-    directIncome: `${formatUnits(sponsorIncome, 18)} USDT (routed via income engine)`,
+    directIncome: `${formatTokenAmount(sponsorIncome)} USDT (routed via income engine)`,
     levelIncome: "4.0 USDT (distributed through router/income engine)",
-    cashbackPool: `${formatUnits(cashbackPoolBalance, 18)} USDT (pool total)`,
+    cashbackPool: `${formatTokenAmount(cashbackPoolBalance)} USDT (pool total)`,
     creatorFee: "1.0 USDT sent to creator wallet",
     sponsorWallet: sponsorProfile.account,
-    platformReserve: `${formatUnits(platformReserve, 18)} USDT`
+    platformReserve: `${formatTokenAmount(platformReserve)} USDT`
   };
 }
 
@@ -3663,6 +3638,7 @@ export async function loadDashboardSnapshot(
       safeBigIntRead(() => contract.userPlatformBalancesByAsset(userId, effectivePaymentAsset)),
       safeBigIntRead(() => contract.userAssetBalances(userId, effectivePaymentAsset))
     ]);
+    const settlementAssetDecimals = await getTokenDecimals(provider, effectivePaymentAsset);
 
     const joinedAt = Number(profile.joinedAt) * 1000;
     const now = Date.now();
@@ -3678,7 +3654,8 @@ export async function loadDashboardSnapshot(
         : "Available now";
     const effectiveInternalWalletBalance = internalWalletBalance + pendingCashback;
     const actualDownlineBusiness = BigInt(branchStats.leftBranchBusiness) + BigInt(branchStats.rightBranchBusiness);
-    const connectedWalletValue = settlementToPlatformValue(externalWalletBalanceRaw, paymentUnitPrice);
+    const connectedWalletValue =
+      settlementToPlatformValue(externalWalletBalanceRaw, paymentUnitPrice);
     const totalPersonalStaked = sumStakePositionAmounts(stakePositionsRaw);
     const availableMgxAllocation =
       BigInt(userTokenAllocation) > totalPersonalStaked ? BigInt(userTokenAllocation) - totalPersonalStaked : 0n;
@@ -3690,6 +3667,13 @@ export async function loadDashboardSnapshot(
       provider,
       usdtAddress: defaultPaymentAsset
     });
+    const usdtAsset = connectedWalletAssets.assets.find(
+      (asset) => asset.name === "USDT"
+    );
+
+    const correctedConnectedWalletValue = usdtAsset?.amount
+      ? `$${usdtAsset.amount}`
+      : connectedWalletValue;
       const connectedWalletHistory = await withTimeout(
         loadConnectedWalletHistory(normalizedWalletAddress),
         3000,
@@ -3738,7 +3722,7 @@ export async function loadDashboardSnapshot(
       joinedAt: Number(profile.joinedAt),
       packageLevel: Number(profile.packageLevel),
       isRebirthUser: Boolean(isRebirthUserRaw),
-      totalContribution: platformToSettlementValue(profile.totalContribution, paymentUnitPrice),
+      totalContribution: platformToSettlementValue(profile.totalContribution, paymentUnitPrice, settlementAssetDecimals),
       totalEarnings: formatPlatformUsdValue(totalIncomeRaw),
       directReferrals: Number(profile.directReferrals),
       totalTeamBusiness: formatTokenAmount(actualDownlineBusiness),
@@ -3749,9 +3733,9 @@ export async function loadDashboardSnapshot(
       currentPackageBucketEarnings: formatTokenAmount(currentPackageBucketEarningsRaw),
       packageOneBucketEarnings: formatTokenAmount(packageOneBucketEarningsRaw),
       withdrawablePlatformBalance: formatTokenAmount(withdrawablePlatformBalanceRaw),
-      withdrawableSettlementBalance: formatTokenAmount(withdrawableSettlementBalanceRaw),
+      withdrawableSettlementBalance: formatAmountWithDecimals(withdrawableSettlementBalanceRaw, settlementAssetDecimals),
       externalWalletBalance: formatTokenAmount(externalWalletBalanceRaw, 18),
-      connectedWalletValue,
+      connectedWalletValue: correctedConnectedWalletValue,
       connectedWalletAssets: connectedWalletAssets.assets,
       connectedWalletAssetsError: connectedWalletAssets.error,
       connectedWalletHistory: connectedWalletHistory.history,
