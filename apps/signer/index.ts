@@ -1,10 +1,26 @@
+import * as fs from "fs";
+import * as path from "path";
 import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import { ethers } from "ethers";
-import * as dotenv from "dotenv";
 
-dotenv.config();
+// Self-load env file
+const envPath = path.resolve("/etc/metaguildx/signer.env");
+if (fs.existsSync(envPath)) {
+  const lines = fs.readFileSync(envPath, "utf8").split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = trimmed.substring(0, eqIdx).trim();
+    const value = trimmed.substring(eqIdx + 1).trim();
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+}
 
 const app = express();
 app.set("trust proxy", 1);
