@@ -1524,11 +1524,10 @@ function App() {
   const platformWalletBalanceDisplay = parseDisplayNumber(snapshot.withdrawablePlatformBalance).toFixed(2);
   const outerUsdtBalanceDisplay = parseDisplayNumber(usdtWalletRow?.amount ?? "0").toFixed(2);
   const outerUsdtBalanceValue = parseDisplayNumber(usdtWalletRow?.amount ?? "0");
-  const connectedWalletBnbValue = parseDisplayNumber(snapshot.connectedWalletValue ?? "0");
   const opBnbGasDisplay = parseDisplayNumber(nativeWalletRow?.amount ?? snapshot.externalWalletBalance).toFixed(4);
   const mgxWalletBalanceDisplay = parseDisplayNumber(mgxWalletRow?.amount ?? displayedMgxAllocated).toFixed(2);
   const totalMgxAllocatedDisplay = parseDisplayNumber(displayedMgxAllocated).toFixed(2);
-  const connectedWalletTotalDisplay = (outerUsdtBalanceValue + connectedWalletBnbValue).toFixed(2);
+  const connectedWalletTotalDisplay = outerUsdtBalanceValue.toFixed(2);
   const frozenEscrowDisplay = parseDisplayNumber(escrowBalance).toFixed(2);
   const currentPackageEscrowDisplay = currentPackageEscrow.toFixed(2);
   const teamBusinessDisplay = parseDisplayNumber(snapshot.totalTeamBusiness).toFixed(2);
