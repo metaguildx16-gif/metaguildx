@@ -8,7 +8,9 @@ dotenv.config();
 
 const app = express();
 app.set("trust proxy", 1);
-const allowedOrigins = ["https://metaguildx.net", "https://www.metaguildx.net"];
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
+  : ["https://metaguildx.net", "https://www.metaguildx.net"];
 const AUTH_TOKEN = process.env.SIGNER_AUTH_TOKEN;
 const SIGNER_KEY = process.env.SIGNER_PRIVATE_KEY;
 
