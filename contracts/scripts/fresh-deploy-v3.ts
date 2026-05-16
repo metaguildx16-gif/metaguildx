@@ -27,6 +27,7 @@ type DeployedAddresses = {
 const CREATOR_WALLET = "0xbFF19De173697D07B904a4c7b79e4A524B456991";
 const PLACEMENT_SIGNER = "0xeD1b72f5891Da4C4e011Ac6D0F5B96202C4a4168";
 const FIXED_USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
+const USDT_UNIT_PRICE = 10n;
 const DEPLOYED_ADDRESSES_PATH = path.join(__dirname, "..", "deployed-addresses.json");
 const DEPLOYMENT_CHECKLIST_PATH = path.join(__dirname, "..", "DEPLOYMENT_CHECKLIST.md");
 
@@ -172,9 +173,33 @@ async function main() {
   await (await coreContract.setCreatorFeeWallet(creatorWallet)).wait();
   await (await coreContract.setPlacementSigner(placementSigner)).wait();
   await (await coreContract.setMgxTokenAddress(mgxTokenAddress)).wait();
+
+  console.log("\nConfiguring USDT payment asset...");
   await (await coreContract.setUsdtAddress(usdtAddress)).wait();
+  console.log("usdtAddress set ✅");
   await (await coreContract.setDefaultPaymentAsset(usdtAddress)).wait();
-  await (await coreContract.configurePaymentAsset(usdtAddress, true, false, 10n ** 17n)).wait();
+  console.log("defaultPaymentAsset set to USDT ✅");
+  await (await coreContract.configurePaymentAsset(usdtAddress, true, false, USDT_UNIT_PRICE)).wait();
+  console.log("USDT enabled as payment asset ✅");
+
+  const defaultAsset = await coreContract.defaultPaymentAsset();
+  const enabled = await coreContract.enabledPaymentAssets(usdtAddress);
+  const unitPrice = await coreContract.paymentAssetUnitPrice(usdtAddress);
+  const configuredUsdt = await coreContract.usdtAddress();
+
+  if (defaultAsset.toLowerCase() !== usdtAddress.toLowerCase()) {
+    throw new Error("defaultPaymentAsset not set correctly!");
+  }
+  if (configuredUsdt.toLowerCase() !== usdtAddress.toLowerCase()) {
+    throw new Error("usdtAddress not set correctly!");
+  }
+  if (!enabled) {
+    throw new Error("USDT payment asset was not enabled!");
+  }
+  if (unitPrice !== USDT_UNIT_PRICE) {
+    throw new Error(`USDT unit price mismatch: expected ${USDT_UNIT_PRICE.toString()}, got ${unitPrice.toString()}`);
+  }
+  console.log("Payment asset verified ✅");
 
   await (await routerContract.setCoreContract(core.proxyAddress)).wait();
   await (await routerContract.setIncomeEngineContract(income.proxyAddress)).wait();

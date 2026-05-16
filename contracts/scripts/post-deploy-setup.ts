@@ -17,6 +17,7 @@ type DeployedAddresses = {
 };
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployed-addresses.json");
+const FIXED_USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
 
 function loadAddresses(): DeployedAddresses {
   return JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf8")) as DeployedAddresses;
@@ -70,7 +71,32 @@ async function main() {
   await (await staking.adminFundStakingPool(fundAmount)).wait();
   console.log("Staking pool funded: 10,235,000 MGX ✅");
 
-  console.log("\n4. Verifying wiring...");
+  console.log("\n4. Verifying payment asset...");
+  const [
+    paymentAsset,
+    usdtAddress,
+    usdtEnabled,
+    usdtUnitPrice
+  ] = await Promise.all([
+    core.defaultPaymentAsset(),
+    core.usdtAddress(),
+    core.enabledPaymentAssets(FIXED_USDT),
+    core.paymentAssetUnitPrice(FIXED_USDT)
+  ]);
+
+  console.log("\n=== Payment Asset Verification ===");
+  console.log("defaultPaymentAsset:", paymentAsset);
+  console.log("usdtAddress:", usdtAddress);
+  console.log("USDT enabled:", usdtEnabled);
+  console.log("USDT unit price:", usdtUnitPrice.toString());
+
+  if (paymentAsset.toLowerCase() !== FIXED_USDT.toLowerCase()) {
+    console.error("CRITICAL: defaultPaymentAsset wrong!");
+    process.exit(1);
+  }
+  console.log("Payment asset correct");
+
+  console.log("\n5. Verifying wiring...");
   const [
     coreRouter,
     coreTree,

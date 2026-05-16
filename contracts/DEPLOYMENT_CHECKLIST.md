@@ -58,6 +58,38 @@ Verify: createRebirthUser placement logic
 ## Post-Deploy Verification Script
 Run: npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet
 
+## ⚠️ CRITICAL: Payment Asset Setup (MUST after fresh deploy)
+
+After `fresh-deploy-v3.ts` runs:
+
+1. `defaultPaymentAsset = 0xF4975eB104932bDBcA491A9Cb985439eA03863e0` ✅
+2. `usdtAddress = 0xF4975eB104932bDBcA491A9Cb985439eA03863e0` ✅
+3. `enabledPaymentAssets[USDT] = true` ✅
+4. `paymentAssetUnitPrice[USDT] = 10` ✅
+
+If NOT set correctly -> all registrations will fail distribution.
+
+Verify command:
+`npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet`
+
+Expected:
+`14 passed, 0 failed`
+
+## Fresh Deploy Order (EXACT)
+
+1. `npx hardhat compile`
+2. `npx hardhat run scripts/fresh-deploy-v3.ts --network opbnbTestnet`
+   -> deploys + wires + sets payment asset
+3. `npx hardhat run scripts/post-deploy-setup.ts --network opbnbTestnet`
+   -> root register + staking + verify payment asset
+4. `npx hardhat run scripts/update-env-after-deploy.ts --network opbnbTestnet`
+   -> updates .env files
+5. `npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet`
+   -> must show `14/14` pass
+6. Build web + admin
+7. Deploy to VPS
+8. Test registration -> verify distribution works
+
 ## Environment Variables (NEVER commit to git)
 - VITE_PLACEMENT_SIGNER_URL must point to the live signer service
 - VITE_PLACEMENT_SIGNER_TOKEN is browser-exposed and only a light gate
