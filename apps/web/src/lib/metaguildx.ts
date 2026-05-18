@@ -3,7 +3,7 @@ import { activeNetworkConfig, toHexChainId } from "../config/networks";
 
 async function withTimeout<T>(
   promise: Promise<T>,
-  ms = 10000,
+  ms = 15000,
   fallback?: T
 ): Promise<T> {
   const timeout = new Promise<T>(
@@ -23,14 +23,36 @@ async function withTimeout<T>(
   }
 }
 
+async function timedAsync<T>(label: string, action: () => Promise<T>): Promise<T> {
+  console.time(label);
+  try {
+    return await action();
+  } finally {
+    console.timeEnd(label);
+  }
+}
+
+async function getBlockNumberWithDiagnostics(
+  provider: BrowserProvider | JsonRpcProvider,
+  label: string
+) {
+  return timedAsync(label, () => withTimeout(provider.getBlockNumber(), 15000));
+}
+
+async function getLogsWithDiagnostics(
+  provider: BrowserProvider | JsonRpcProvider,
+  filter: Parameters<BrowserProvider["getLogs"]>[0],
+  label: string
+) {
+  return timedAsync(label, () => withTimeout(provider.getLogs(filter), 15000, []));
+}
+
 const TESTNET_CORE_ADDRESS = "0x9490E2C603c5a6D3c0E66af8494E766470dA1E4B";
 const TESTNET_BINARY_TREE_ADDRESS = "0x59f18c8A55e441EE86f92b76e506bac8D08E7365";
 const TESTNET_INCOME_ROUTER_ADDRESS = "0xd496eC1Cf0E66a7beECe21b8Bd908F335aBbDfe8";
 const TESTNET_CASHBACK_POOL_ADDRESS = "0x1F207B70812652b9fd9b9CC0FCfcef35CeeEe755";
 const TESTNET_STAKING_ADDRESS = "0x442f802836D42316544E64643dE177f5C466B3Aa";
-const OPBNB_TESTNET_DEPLOYMENT_START_BLOCK = Number(
-  readTrimmedEnv("VITE_DEPLOY_BLOCK") || "157058317"
-);
+const DEPLOYMENT_CACHE_STORAGE_KEY = "mgx_deployment_cache_key";
 
 function getHistoricalIncomeRouterAddresses(currentRouterAddress?: string | null) {
   return [currentRouterAddress].filter(
@@ -177,9 +199,22 @@ async function queryFilterChunked(
   chunkSize = 5000
 ) {
   const results: any[] = [];
-  for (let start = fromBlock; start <= toBlock; start += chunkSize) {
-    const end = Math.min(start + chunkSize - 1, toBlock);
-    const chunk = await contract.queryFilter(filter, start, end);
+  const totalRange = Math.max(0, toBlock - fromBlock);
+  const effectiveChunkSize = totalRange > 200_000 ? Math.min(chunkSize, 2_000) : chunkSize;
+  console.info("[MetaGuildX] queryFilterChunked", {
+    event: filter?.fragment?.name ?? filter?.name ?? "unknown",
+    fromBlock,
+    toBlock,
+    chunkSize: effectiveChunkSize
+  });
+
+  for (let start = fromBlock; start <= toBlock; start += effectiveChunkSize) {
+    const end = Math.min(start + effectiveChunkSize - 1, toBlock);
+    console.info("[MetaGuildX] queryFilterChunked range", { start, end });
+    const chunk = await timedAsync(
+      `queryFilter:${filter?.fragment?.name ?? filter?.name ?? "unknown"}:${start}-${end}`,
+      () => withTimeout(contract.queryFilter(filter, start, end), 15000, [])
+    );
     results.push(...chunk);
   }
   return results;
@@ -194,11 +229,24 @@ async function queryAllEvents(
 ) {
   const allEvents: any[] = [];
   let from = startBlock;
+  const totalRange = Math.max(0, endBlock - startBlock);
+  const effectiveChunkSize = totalRange > 200_000 ? Math.min(chunkSize, 5_000) : chunkSize;
+
+  console.info("[MetaGuildX] queryAllEvents", {
+    event: filter?.fragment?.name ?? filter?.name ?? "unknown",
+    startBlock,
+    endBlock,
+    chunkSize: effectiveChunkSize
+  });
 
   while (from <= endBlock) {
-    const to = Math.min(from + chunkSize, endBlock);
+    const to = Math.min(from + effectiveChunkSize, endBlock);
     try {
-      const events = await contract.queryFilter(filter, from, to);
+      console.info("[MetaGuildX] queryAllEvents range", { from, to });
+      const events = await timedAsync(
+        `queryAllEvents:${filter?.fragment?.name ?? filter?.name ?? "unknown"}:${from}-${to}`,
+        () => withTimeout(contract.queryFilter(filter, from, to), 15000, [])
+      );
       allEvents.push(...events);
     } catch {
       // Skip failed chunks so a single RPC window doesn't hide the whole history.
@@ -210,11 +258,7 @@ async function queryAllEvents(
 }
 
 function getEventQueryStartBlock(currentBlock: number) {
-  const configuredStartBlock = Number((activeNetworkConfig as typeof activeNetworkConfig & { startBlock?: number }).startBlock);
-  if (Number.isFinite(configuredStartBlock) && configuredStartBlock >= 0) {
-    return configuredStartBlock;
-  }
-  return Math.max(0, currentBlock - 500_000);
+  return getDeploymentAnalyticsStartBlock(currentBlock);
 }
 
 export type ConnectedWalletHistoryRow = {
@@ -555,6 +599,57 @@ const SNAPSHOT_CACHE_TTL = 300_000;
 const GENEALOGY_CACHE_TTL = 300_000;
 const tokenDecimalsCache = new Map<string, number>();
 
+function getConfiguredDeploymentStartBlockValue() {
+  const configuredBlock = Number(readTrimmedEnv("VITE_DEPLOY_BLOCK"));
+  if (Number.isFinite(configuredBlock) && configuredBlock >= 0) {
+    return configuredBlock;
+  }
+
+  const configuredStartBlock = Number((activeNetworkConfig as typeof activeNetworkConfig & { startBlock?: number }).startBlock);
+  if (Number.isFinite(configuredStartBlock) && configuredStartBlock >= 0) {
+    return configuredStartBlock;
+  }
+
+  return null;
+}
+
+function getDeploymentCacheNamespace() {
+  const configuredCoreAddressForCache =
+    readTrimmedEnv(
+      "VITE_CORE_ADDRESS",
+      "VITE_SYSTEM_PROXY_ADDRESS",
+      "VITE_SYSTEM_ADDRESS",
+      "VITE_CONTRACT_ADDRESS",
+      "VITE_TESTNET_CONTRACT_ADDRESS",
+      "VITE_LOCAL_CONTRACT_ADDRESS",
+      "VITE_MAINNET_CONTRACT_ADDRESS"
+    ) ||
+    activeNetworkConfig.contractAddress ||
+    "unknown-core";
+  const deployBlock = getConfiguredDeploymentStartBlockValue();
+
+  return `${configuredCoreAddressForCache.trim().toLowerCase()}:${deployBlock ?? "unset"}`;
+}
+
+function clearAnalyticsCaches() {
+  snapshotCache.clear();
+  levelBreakdownCache.clear();
+  genealogyCache.clear();
+}
+
+function syncAnalyticsCachesForDeployment() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const deploymentCacheNamespace = getDeploymentCacheNamespace();
+  const previousNamespace = window.localStorage.getItem(DEPLOYMENT_CACHE_STORAGE_KEY);
+  if (previousNamespace !== deploymentCacheNamespace) {
+    clearAnalyticsCaches();
+    window.localStorage.setItem(DEPLOYMENT_CACHE_STORAGE_KEY, deploymentCacheNamespace);
+  }
+}
+
 function formatAmountWithDecimals(value: bigint, decimals: number) {
   const numericValue = decimals === 18 ? Number(formatEther(value)) : Number(formatUnits(value, decimals));
   return numericValue.toLocaleString(undefined, {
@@ -600,6 +695,17 @@ function readTrimmedEnv(...keys: string[]) {
   }
   return "";
 }
+
+export function getDeploymentAnalyticsStartBlock(currentBlock?: number) {
+  const configuredBlock = getConfiguredDeploymentStartBlockValue();
+  if (configuredBlock !== null) {
+    return configuredBlock;
+  }
+
+  return currentBlock ?? 0;
+}
+
+const OPBNB_TESTNET_DEPLOYMENT_START_BLOCK = getDeploymentAnalyticsStartBlock();
 
 async function getTokenDecimals(
   provider: BrowserProvider | JsonRpcProvider,
@@ -1206,12 +1312,13 @@ async function loadBoxEarnings(input: {
     const end = Math.min(start + 48_999, currentBlock);
 
     try {
+      console.info("[MetaGuildX] provider.getLogs range", { start, end, routerAddress });
       const [modernDirectLogs, modernLevelLogs, crosslineLogs, legacyDirectLogs, legacyLevelLogs] = await Promise.all([
-        input.provider.getLogs({ address: routerAddress, fromBlock: start, toBlock: end, topics: modernDirectTopics }),
-        input.provider.getLogs({ address: routerAddress, fromBlock: start, toBlock: end, topics: modernLevelTopics }),
-        input.provider.getLogs({ address: routerAddress, fromBlock: start, toBlock: end, topics: crosslineTopics }),
-        input.provider.getLogs({ address: routerAddress, fromBlock: start, toBlock: end, topics: legacyDirectTopics }),
-        input.provider.getLogs({ address: routerAddress, fromBlock: start, toBlock: end, topics: legacyLevelTopics })
+        getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: modernDirectTopics }, `provider.getLogs:modernDirect:${start}-${end}`),
+        getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: modernLevelTopics }, `provider.getLogs:modernLevel:${start}-${end}`),
+        getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: crosslineTopics }, `provider.getLogs:crossline:${start}-${end}`),
+        getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: legacyDirectTopics }, `provider.getLogs:legacyDirect:${start}-${end}`),
+        getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: legacyLevelTopics }, `provider.getLogs:legacyLevel:${start}-${end}`)
       ]);
 
       for (const log of modernDirectLogs) {
@@ -1328,7 +1435,7 @@ async function loadCrosslineDisplayIncome(input: {
       return genealogy;
     }
 
-    const cacheKey = `genealogy-${input.userId}`;
+    const cacheKey = `genealogy-${getDeploymentCacheNamespace()}-${input.userId}`;
     const cachedGenealogy = genealogyCache.get(cacheKey);
     const userGenealogy =
       cachedGenealogy && Date.now() - cachedGenealogy.timestamp < GENEALOGY_CACHE_TTL
@@ -1712,7 +1819,7 @@ async function getReadProvider() {
   for (const rpcUrl of rpcUrls) {
     try {
       const provider = new JsonRpcProvider(rpcUrl);
-      await provider.getBlockNumber();
+      await getBlockNumberWithDiagnostics(provider, `provider.getBlockNumber:${rpcUrl}`);
       return provider;
     } catch (error) {
       lastError = error;
@@ -2152,23 +2259,28 @@ async function verifyWalletOwnership(address: string) {
 }
 
 export async function connectWalletSilently(expectedWallet?: string | null) {
-  if (!window.ethereum) {
-    throw new Error(getWalletUnavailableMessage());
-  }
+  return timedAsync("wallet reconnect", async () => {
+    if (!window.ethereum) {
+      throw new Error(getWalletUnavailableMessage());
+    }
 
-  await ensureConfiguredChain();
+    await withTimeout(ensureConfiguredChain(), 15000);
 
-  const accounts = await window.ethereum.request({ method: "eth_accounts" });
-  if (!Array.isArray(accounts) || accounts.length === 0 || typeof accounts[0] !== "string") {
-    throw new Error("Wallet session not found");
-  }
+    const accounts = await withTimeout(
+      window.ethereum.request({ method: "eth_accounts" }) as Promise<unknown>,
+      15000
+    );
+    if (!Array.isArray(accounts) || accounts.length === 0 || typeof accounts[0] !== "string") {
+      throw new Error("Wallet session not found");
+    }
 
-  const address = accounts[0];
-  if (expectedWallet && address.toLowerCase() !== expectedWallet.toLowerCase()) {
-    throw new Error("Saved wallet does not match the active MetaMask account");
-  }
+    const address = accounts[0];
+    if (expectedWallet && address.toLowerCase() !== expectedWallet.toLowerCase()) {
+      throw new Error("Saved wallet does not match the active MetaMask account");
+    }
 
-  return address;
+    return address;
+  });
 }
 
 export async function connectWallet() {
@@ -2483,30 +2595,33 @@ export async function getCreatorWalletConfig() {
 }
 
 export async function loadAdminOverview(): Promise<AdminOverview> {
-  const provider = await getReadProvider();
-  const coreAddress = configuredCoreAddress || TESTNET_CORE_ADDRESS;
-  const binaryTreeAddress = configuredBinaryTreeAddress || TESTNET_BINARY_TREE_ADDRESS;
-  const incomeRouterAddress = configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS;
-  const cashbackPoolAddress = configuredCashbackAddress || TESTNET_CASHBACK_POOL_ADDRESS;
-  const stakingAddress = configuredStakingAddress || TESTNET_STAKING_ADDRESS;
-  const usdtAddress = activeNetworkConfig.usdtAddress;
+  return timedAsync("getAdminOverview", async () => {
+    syncAnalyticsCachesForDeployment();
+    const provider = await getReadProvider();
+    const coreAddress = configuredCoreAddress || TESTNET_CORE_ADDRESS;
+    const binaryTreeAddress = configuredBinaryTreeAddress || TESTNET_BINARY_TREE_ADDRESS;
+    const incomeRouterAddress = configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS;
+    const cashbackPoolAddress = configuredCashbackAddress || TESTNET_CASHBACK_POOL_ADDRESS;
+    const stakingAddress = configuredStakingAddress || TESTNET_STAKING_ADDRESS;
+    const usdtAddress = activeNetworkConfig.usdtAddress;
 
-  const core = new Contract(coreAddress, metaGuildXCoreAbi, provider);
-  const router = new Contract(incomeRouterAddress, incomeRouterWriteAbi, provider);
-  const usdt = usdtAddress ? new Contract(usdtAddress, erc20ApprovalAbi, provider) : null;
-  const contractInterface = new Interface(metaGuildXCoreAbi);
+    const core = new Contract(coreAddress, metaGuildXCoreAbi, provider);
+    const router = new Contract(incomeRouterAddress, incomeRouterWriteAbi, provider);
+    const usdt = usdtAddress ? new Contract(usdtAddress, erc20ApprovalAbi, provider) : null;
+    const contractInterface = new Interface(metaGuildXCoreAbi);
 
-  const [nextUserIdRaw, totalTokenDistributedRaw, creatorWallet, productionMode, latestBlock] = await Promise.all([
-    core.nextUserId(),
-    core.totalTokenDistributed(),
-    core.creatorFeeWallet(),
-    core.productionMode(),
-    provider.getBlockNumber()
-  ]);
+    const [nextUserIdRaw, totalTokenDistributedRaw, creatorWallet, productionMode, latestBlock] = await Promise.all([
+      core.nextUserId(),
+      core.totalTokenDistributed(),
+      core.creatorFeeWallet(),
+      core.productionMode(),
+      getBlockNumberWithDiagnostics(provider, "provider.getBlockNumber:getAdminOverview")
+    ]);
+    const deploymentStartBlock = getDeploymentAnalyticsStartBlock(latestBlock);
 
   const [registrationEvents, upgradeEvents] = await Promise.all([
-    queryFilterChunked(core, core.filters.UserRegistered(), 0, await provider.getBlockNumber()),
-    queryFilterChunked(core, core.filters.PackageUpgraded(), 0, await provider.getBlockNumber())
+    queryFilterChunked(core, core.filters.UserRegistered(), deploymentStartBlock, latestBlock),
+    queryFilterChunked(core, core.filters.PackageUpgraded(), deploymentStartBlock, latestBlock)
   ]);
 
   const totalVolumeRaw =
@@ -2525,19 +2640,18 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
       return typeof amount === "bigint" ? sum + amount : sum;
     }, 0n);
 
-  const START_BLOCK = 156420051;
   const [recentRegistrationEvents, recentUpgradeEvents] = await Promise.all([
     queryFilterChunked(
       core,
       core.filters.UserRegistered(null, null, null, null, null, null, null),
-      START_BLOCK,
+      deploymentStartBlock,
       latestBlock,
       49_000
     ),
     queryFilterChunked(
       core,
       core.filters.PackageUpgraded(null, null, null, null),
-      START_BLOCK,
+      deploymentStartBlock,
       latestBlock,
       49_000
     )
@@ -2548,7 +2662,7 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
       recentRebirthEvents = await queryFilterChunked(
         core,
         core.filters.RebirthUserCreated(null, null, null),
-        START_BLOCK,
+        deploymentStartBlock,
         latestBlock,
         49_000
       );
@@ -2577,7 +2691,7 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
     .sort((left, right) => right.block - left.block)
     .slice(0, 10);
 
-  return {
+    return {
     totalUsers: Math.max(0, Number(nextUserIdRaw) - 1),
     totalUsdtCollected: formatTokenAmount(totalVolumeRaw),
     totalMgxDistributed: formatTokenAmount(totalTokenDistributedRaw, 18),
@@ -2592,7 +2706,8 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
       staking: stakingAddress || "Not configured"
     },
     recentEvents
-  };
+    };
+  });
 }
 
 export async function updateCreatorWallet(nextCreatorWallet: string) {
@@ -2735,7 +2850,7 @@ export async function loadLevelIncomeBreakdown(
     return fallbackRows;
   }
 
-  const levelCacheKey = `level-${userId}`;
+  const levelCacheKey = `level-${getDeploymentCacheNamespace()}-${userId}`;
   const cachedLevelBreakdown = levelBreakdownCache.get(levelCacheKey);
   if (cachedLevelBreakdown && Date.now() - cachedLevelBreakdown.timestamp < SNAPSHOT_CACHE_TTL) {
     return cachedLevelBreakdown.data;
@@ -2831,73 +2946,75 @@ export async function loadLevelIncomeBreakdown(
 export async function loadPersonalTreePreview(
   connectedUserId: number | null
 ): Promise<TreePreviewNode[]> {
-  if (
-    !configuredCoreAddress ||
-    !configuredBinaryTreeAddress ||
-    getReadRpcUrls().length === 0
-  ) {
-    return [];
-  }
-  if (!connectedUserId || connectedUserId <= 0) {
-    return [];
-  }
+  return timedAsync("getTreePreview", async () => {
+    if (
+      !configuredCoreAddress ||
+      !configuredBinaryTreeAddress ||
+      getReadRpcUrls().length === 0
+    ) {
+      return [];
+    }
+    if (!connectedUserId || connectedUserId <= 0) {
+      return [];
+    }
 
-  const provider = await getReadProvider();
-  const treeContract = new Contract(
-    configuredBinaryTreeAddress,
-    binaryTreeAbi,
-    provider
-  );
-  const coreContract = new Contract(
-    configuredCoreAddress,
-    metaGuildXCoreAbi,
-    provider
-  );
+    const provider = await getReadProvider();
+    const treeContract = new Contract(
+      configuredBinaryTreeAddress,
+      binaryTreeAbi,
+      provider
+    );
+    const coreContract = new Contract(
+      configuredCoreAddress,
+      metaGuildXCoreAbi,
+      provider
+    );
 
-  const visited = new Set<number>();
-  const queue: number[] = [connectedUserId];
-  const subtreeIds: number[] = [];
+    const visited = new Set<number>();
+    const queue: number[] = [connectedUserId];
+    const subtreeIds: number[] = [];
 
-  while (queue.length > 0) {
-    const currentId = queue.shift()!;
-    if (currentId <= 0 || visited.has(currentId)) continue;
-    visited.add(currentId);
-    subtreeIds.push(currentId);
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (currentId <= 0 || visited.has(currentId)) continue;
+      visited.add(currentId);
+      subtreeIds.push(currentId);
 
-    const node = await treeContract.nodes(currentId);
-    const left = Number(node.leftChildId);
-    const right = Number(node.rightChildId);
-    if (left > 0) queue.push(left);
-    if (right > 0) queue.push(right);
+      const node = await treeContract.nodes(currentId);
+      const left = Number(node.leftChildId);
+      const right = Number(node.rightChildId);
+      if (left > 0) queue.push(left);
+      if (right > 0) queue.push(right);
 
-    if (subtreeIds.length >= 63) break;
-  }
+      if (subtreeIds.length >= 63) break;
+    }
 
-  const previewDataByUserId = await loadPreviewUsers(
-    coreContract,
-    treeContract,
-    subtreeIds
-  );
+    const previewDataByUserId = await loadPreviewUsers(
+      coreContract,
+      treeContract,
+      subtreeIds
+    );
 
-  return subtreeIds
-    .map((id) => previewDataByUserId.get(id))
-    .filter(
-      (entry): entry is NonNullable<typeof entry> => Boolean(entry)
-    )
-    .map((entry) => ({
-      userId: entry.userId,
-      parentId: entry.parentId,
-      leftChildId: entry.leftChildId,
-      rightChildId: entry.rightChildId,
-      depth: entry.depth,
-      packageLevel: entry.packageLevel,
-      account: entry.account,
-      directReferrals: entry.directReferrals,
-      totalTeamBusiness: entry.totalTeamBusiness,
-      totalEarnings: entry.totalEarnings,
-      mgxAllocated: entry.mgxAllocated,
-      userActiveBoxId: entry.userActiveBoxId
-    }));
+    return subtreeIds
+      .map((id) => previewDataByUserId.get(id))
+      .filter(
+        (entry): entry is NonNullable<typeof entry> => Boolean(entry)
+      )
+      .map((entry) => ({
+        userId: entry.userId,
+        parentId: entry.parentId,
+        leftChildId: entry.leftChildId,
+        rightChildId: entry.rightChildId,
+        depth: entry.depth,
+        packageLevel: entry.packageLevel,
+        account: entry.account,
+        directReferrals: entry.directReferrals,
+        totalTeamBusiness: entry.totalTeamBusiness,
+        totalEarnings: entry.totalEarnings,
+        mgxAllocated: entry.mgxAllocated,
+        userActiveBoxId: entry.userActiveBoxId
+      }));
+  });
 }
 
 export async function moveInnerWalletToOuterWallet(input: {
@@ -3307,8 +3424,10 @@ export async function loadDashboardSnapshot(
   walletAddress?: string | null,
   options?: { forceRefresh?: boolean }
 ): Promise<DashboardSnapshot> {
+  return timedAsync("getDashboardSnapshot", async () => {
   try {
-  const cacheKey = `snapshot-${walletAddress ?? "__guest__"}`;
+  syncAnalyticsCachesForDeployment();
+  const cacheKey = `snapshot-${getDeploymentCacheNamespace()}-${walletAddress ?? "__guest__"}`;
   const cachedSnapshot = snapshotCache.get(cacheKey);
   if (cachedSnapshot && Date.now() - cachedSnapshot.timestamp < SNAPSHOT_CACHE_TTL && !options?.forceRefresh) {
     return cachedSnapshot.data;
@@ -3431,9 +3550,9 @@ export async function loadDashboardSnapshot(
     }));
   const registeredFeaturedUsers = featuredUsers.filter((user) => user.packageLevel > 0);
   const registeredTreePreview = treePreview.filter((node) => node.packageLevel > 0 && isRegisteredAccount(node.account));
-  const latestBlock = await provider.getBlockNumber();
-  const START_BLOCK = 156420051;
-  const ACTIVITY_START = Math.max(START_BLOCK, latestBlock - 50_000);
+  const latestBlock = await getBlockNumberWithDiagnostics(provider, "provider.getBlockNumber:getDashboardSnapshot");
+  const deploymentStartBlock = getDeploymentAnalyticsStartBlock(latestBlock);
+  const ACTIVITY_START = Math.max(deploymentStartBlock, latestBlock - 50_000);
   const activityRebirthPromise =
     contract.filters.RebirthUserCreated
       ? queryFilterChunked(
@@ -3885,6 +4004,7 @@ export async function loadDashboardSnapshot(
       contractWarning: error instanceof Error ? error.message : "Could not load dashboard data. Refresh the app and try again."
     };
   }
+  });
 }
 
 

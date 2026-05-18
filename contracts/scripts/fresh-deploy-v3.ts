@@ -27,7 +27,9 @@ type DeployedAddresses = {
 const CREATOR_WALLET = "0xbFF19De173697D07B904a4c7b79e4A524B456991";
 const PLACEMENT_SIGNER = "0xeD1b72f5891Da4C4e011Ac6D0F5B96202C4a4168";
 const FIXED_USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
-const USDT_UNIT_PRICE = 10n;
+const PLATFORM_DECIMALS = 1n;
+const SETTLEMENT_DECIMALS = 18n;
+const USDT_UNIT_PRICE = 10n ** (SETTLEMENT_DECIMALS - PLATFORM_DECIMALS);
 const DEPLOYED_ADDRESSES_PATH = path.join(__dirname, "..", "deployed-addresses.json");
 const DEPLOYMENT_CHECKLIST_PATH = path.join(__dirname, "..", "DEPLOYMENT_CHECKLIST.md");
 
@@ -227,7 +229,9 @@ async function main() {
 
   console.log("\nPost-deploy config...");
   console.log("Package prices are already set in MetaGuildXCore.initialize()");
-  await (await coreContract.setProductionMode(false, usdtAddress)).wait();
+  const testnetProductionMode = true;
+  await (await coreContract.setProductionMode(testnetProductionMode, usdtAddress)).wait();
+  console.log("productionMode set to:", testnetProductionMode, "✅");
 
   const deployBlock = await ethers.provider.getBlockNumber();
   const addresses: DeployedAddresses = {

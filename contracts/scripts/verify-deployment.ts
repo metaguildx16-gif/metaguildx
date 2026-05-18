@@ -18,6 +18,7 @@ type DeployedAddresses = {
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployed-addresses.json");
 const FIXED_USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
+const EXPECTED_USDT_UNIT_PRICE = 10n ** 17n;
 
 function loadAddresses(): DeployedAddresses | null {
   if (!fs.existsSync(ADDRESSES_PATH)) {
@@ -168,9 +169,9 @@ async function main() {
     return enabled === true;
   });
 
-  await check("USDT unit price = 10", async () => {
+  await check("USDT unit price = 1e17", async () => {
     const price = await core.paymentAssetUnitPrice(FIXED_USDT);
-    return Number(price) === 10;
+    return price === EXPECTED_USDT_UNIT_PRICE;
   });
 
   await check("Level Tree User 2 parent = User 1", async () => {
@@ -189,10 +190,10 @@ async function main() {
     return fn !== null;
   });
 
-  await check("Core productionMode check", async () => {
+  await check("productionMode = true", async () => {
     const mode = await core.productionMode();
     console.log(`   productionMode = ${mode}`);
-    return true;
+    return mode === true;
   });
 
   console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);

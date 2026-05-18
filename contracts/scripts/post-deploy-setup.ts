@@ -18,6 +18,7 @@ type DeployedAddresses = {
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployed-addresses.json");
 const FIXED_USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
+const EXPECTED_USDT_UNIT_PRICE = 10n ** 17n;
 
 function loadAddresses(): DeployedAddresses {
   return JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf8")) as DeployedAddresses;
@@ -26,6 +27,7 @@ function loadAddresses(): DeployedAddresses {
 async function main() {
   const addresses = loadAddresses();
   const [deployer] = await ethers.getSigners();
+  const network = await ethers.provider.getNetwork();
 
   console.log("=== Post-Deploy Setup ===");
   console.log("Deployer:", deployer.address);
@@ -33,8 +35,87 @@ async function main() {
   const core = await ethers.getContractAt("MetaGuildXCore", addresses.Core);
   const staking = await ethers.getContractAt("MGXStaking", addresses.MGXStaking);
   const token = await ethers.getContractAt("MGXToken", addresses.MGXToken);
+  const usdt = await ethers.getContractAt(
+    [
+      "function balanceOf(address) view returns (uint256)",
+      "function allowance(address,address) view returns (uint256)",
+      "function approve(address,uint256) returns (bool)",
+      "function decimals() view returns (uint8)",
+      "function mint(address,uint256)"
+    ],
+    FIXED_USDT,
+    deployer
+  );
 
-  console.log("\n1. Registering root user...");
+  console.log("\n1. Verifying payment asset and wiring...");
+  const [
+    paymentAsset,
+    usdtAddress,
+    usdtEnabled,
+    usdtUnitPrice,
+    productionMode,
+    creatorWallet,
+    routerAddress,
+    incomeAddress,
+    tokenEngineAddress,
+    binaryTreeAddress,
+    packagePrices
+  ] = await Promise.all([
+    core.defaultPaymentAsset(),
+    core.usdtAddress(),
+    core.enabledPaymentAssets(FIXED_USDT),
+    core.paymentAssetUnitPrice(FIXED_USDT),
+    core.productionMode(),
+    core.creatorFeeWallet(),
+    core.incomeRouterContract(),
+    core.incomeEngineContract(),
+    core.tokenEngineContract(),
+    core.binaryTreeContract(),
+    core.getPackagePrices()
+  ]);
+
+  console.log("defaultPaymentAsset:", paymentAsset);
+  console.log("usdtAddress:", usdtAddress);
+  console.log("USDT enabled:", usdtEnabled);
+  console.log("USDT unit price:", usdtUnitPrice.toString());
+  console.log("productionMode:", productionMode);
+  console.log("creatorWallet:", creatorWallet);
+  console.log("router:", routerAddress);
+  console.log("income:", incomeAddress);
+  console.log("tokenEngine:", tokenEngineAddress);
+  console.log("binaryTree:", binaryTreeAddress);
+
+  if (paymentAsset.toLowerCase() !== FIXED_USDT.toLowerCase()) {
+    throw new Error("CRITICAL: defaultPaymentAsset wrong!");
+  }
+  if (usdtAddress.toLowerCase() !== FIXED_USDT.toLowerCase()) {
+    throw new Error("CRITICAL: usdtAddress wrong!");
+  }
+  if (!usdtEnabled) {
+    throw new Error("CRITICAL: USDT payment asset not enabled!");
+  }
+  if (usdtUnitPrice !== EXPECTED_USDT_UNIT_PRICE) {
+    throw new Error(
+      `CRITICAL: paymentAssetUnitPrice wrong! Expected ${EXPECTED_USDT_UNIT_PRICE.toString()}, got ${usdtUnitPrice.toString()}`
+    );
+  }
+  if (!productionMode) {
+    throw new Error("CRITICAL: productionMode must be true before paid registrations!");
+  }
+  if (creatorWallet === ethers.ZeroAddress) {
+    throw new Error("CRITICAL: creator wallet not set!");
+  }
+  if (
+    routerAddress === ethers.ZeroAddress ||
+    incomeAddress === ethers.ZeroAddress ||
+    tokenEngineAddress === ethers.ZeroAddress ||
+    binaryTreeAddress === ethers.ZeroAddress
+  ) {
+    throw new Error("CRITICAL: core wiring incomplete!");
+  }
+  console.log("Payment asset and wiring verified");
+
+  console.log("\n2. Preparing paid root registration...");
   const placementSignerKey = process.env.PLACEMENT_SIGNER_PRIVATE_KEY;
   if (!placementSignerKey) {
     throw new Error("PLACEMENT_SIGNER_PRIVATE_KEY is required for root registration");
@@ -42,59 +123,68 @@ async function main() {
 
   const signerWallet = new ethers.Wallet(placementSignerKey, ethers.provider);
   const nonce = await core.nonces(deployer.address);
-  const contractAddress = addresses.Core;
-  const network = await ethers.provider.getNetwork();
   const hash = ethers.solidityPackedKeccak256(
     ["uint256", "address", "address", "uint256", "uint256"],
-    [network.chainId, contractAddress, deployer.address, 0n, nonce]
+    [network.chainId, addresses.Core, deployer.address, 0n, nonce]
   );
   const signature = await signerWallet.signMessage(ethers.getBytes(hash));
 
-  const nextUserId = await core.nextUserId();
-  if (nextUserId <= 1n) {
-    const tx = await core.registerWithPlacement(0n, 0n, true, signature, nonce);
-    await tx.wait();
-    console.log("Root user registered ✅");
-  } else {
-    console.log("Root already registered, skipping ✅");
+  const packageAmount = packagePrices[0];
+  const settlementAmount = packageAmount * usdtUnitPrice;
+  const [usdtDecimals, deployerUsdtBalance, deployerAllowance] = await Promise.all([
+    usdt.decimals(),
+    usdt.balanceOf(deployer.address),
+    usdt.allowance(deployer.address, addresses.Core)
+  ]);
+
+  console.log("root package raw:", packageAmount.toString());
+  console.log("required settlement raw:", settlementAmount.toString());
+  console.log("required settlement:", ethers.formatUnits(settlementAmount, usdtDecimals));
+  console.log("deployer USDT balance:", ethers.formatUnits(deployerUsdtBalance, usdtDecimals));
+  console.log("deployer allowance to core:", ethers.formatUnits(deployerAllowance, usdtDecimals));
+
+  if (deployerUsdtBalance < settlementAmount) {
+    if (network.chainId === 5611n) {
+      console.log("Insufficient deployer USDT on testnet. Attempting mint...");
+      const mintAmount = settlementAmount * 2n;
+      const mintTx = await usdt.mint(deployer.address, mintAmount);
+      await mintTx.wait();
+      console.log("Minted testnet USDT:", ethers.formatUnits(mintAmount, usdtDecimals));
+    } else {
+      throw new Error("Deployer USDT balance is insufficient for paid root registration");
+    }
   }
 
-  console.log("\n2. Setting lock multipliers...");
+  const allowanceAfterFunding = await usdt.allowance(deployer.address, addresses.Core);
+  if (allowanceAfterFunding < settlementAmount) {
+    console.log("Approving USDT to Core for root registration...");
+    const approveTx = await usdt.approve(addresses.Core, settlementAmount);
+    await approveTx.wait();
+    console.log("USDT approved for root registration");
+  }
+
+  const nextUserId = await core.nextUserId();
+  if (nextUserId <= 1n) {
+    console.log("Registering root user with paid flow...");
+    const tx = await core.registerWithPlacement(0n, 0n, true, signature, nonce);
+    await tx.wait();
+    console.log("Root user registered");
+    console.log("Root registration TX:", tx.hash);
+  } else {
+    console.log("Root already registered, skipping");
+  }
+
+  console.log("\n3. Setting lock multipliers...");
   const lockDays = [30, 90, 180, 365, 730];
   const multipliers = [100, 105, 110, 112, 115];
   await (await staking.setLockMultipliers(lockDays, multipliers)).wait();
-  console.log("Lock multipliers set ✅");
+  console.log("Lock multipliers set");
 
-  console.log("\n3. Funding staking pool...");
+  console.log("\n4. Funding staking pool...");
   const fundAmount = ethers.parseUnits("10235000", 18);
   await (await token.approve(addresses.MGXStaking, fundAmount)).wait();
   await (await staking.adminFundStakingPool(fundAmount)).wait();
-  console.log("Staking pool funded: 10,235,000 MGX ✅");
-
-  console.log("\n4. Verifying payment asset...");
-  const [
-    paymentAsset,
-    usdtAddress,
-    usdtEnabled,
-    usdtUnitPrice
-  ] = await Promise.all([
-    core.defaultPaymentAsset(),
-    core.usdtAddress(),
-    core.enabledPaymentAssets(FIXED_USDT),
-    core.paymentAssetUnitPrice(FIXED_USDT)
-  ]);
-
-  console.log("\n=== Payment Asset Verification ===");
-  console.log("defaultPaymentAsset:", paymentAsset);
-  console.log("usdtAddress:", usdtAddress);
-  console.log("USDT enabled:", usdtEnabled);
-  console.log("USDT unit price:", usdtUnitPrice.toString());
-
-  if (paymentAsset.toLowerCase() !== FIXED_USDT.toLowerCase()) {
-    console.error("CRITICAL: defaultPaymentAsset wrong!");
-    process.exit(1);
-  }
-  console.log("Payment asset correct");
+  console.log("Staking pool funded: 10,235,000 MGX");
 
   console.log("\n5. Verifying wiring...");
   const [

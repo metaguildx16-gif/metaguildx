@@ -1,96 +1,204 @@
 # MetaGuildX V3 - Deployment Checklist
 
 ## Contract Addresses (opBNB Testnet)
-Core:         0x63125067659EEC130Cd7df8fe7fA4319511EEE6E
-Income:       0x21B412C35B657D4a1e736b9cE459dA68D2EDf4A7
-Upgrade:      0x45bb87926f9248d92c1B1aca0d61ac3C59313B92
-Router:       0x3DAF4F9080af5bf877FF00bb80d42F3333A54c22
-BinaryTree:   0x84A5EA422114c4E230E4c085F01685437fECdA00
-CashbackPool: 0x2861e5Ec275605A22B237E866Ca14733F5a76a7d
-MGXStaking:   0x3836cDFE1a639A6eCdECCF4fC3c0E8E28F57A47F
-MGXToken:     0x3727D801165502dC1a0C39B36738F232d9eb4168
-TokenEngine:  0x53178455158Ee49399D7B7D227F1ec67fCF61635
+Core:         0x2e64Ece2658D96688C38d6F9D34Fc991299BFEc1
+Income:       0x3D9CaF8bc8dc2077486a01Fd923b09BbFa036D69
+Upgrade:      0x7a298d05b77D6aa43574732db951Aa11a22ee4eE
+Router:       0x1370280269adADbd4fa82bc8d3e47c46a395123D
+BinaryTree:   0xD8792404a33879860aC48ADca957668968b22B79
+CashbackPool: 0x7D52830c2089af34F1167992E41E7D73ae2C4287
+MGXStaking:   0x0B09B82F668b738E8DDE618bdD7A3B57fa54927C
+MGXToken:     0x6eE56edd0d6341F001c9A8387d5E428C341d6BD4
+TokenEngine:  0x7515F32B9D4C0D2aF50984BE64D7Ffa749E9a20C
 USDT:         0xF4975eB104932bDBcA491A9Cb985439eA03863e0
-Deploy Block: 158940507
+Deploy Block: 161029086
 
 ## Critical Bug Fixes Applied (MUST verify after any upgrade)
 
-### 1. resetIncome() - NO escrow wipe
-File: MetaGuildXIncome.sol
-Rule: resetIncome() must NOT zero escrowBalances
-Verify: escrowBalances preserved after rebirth
+### 1. `resetIncome()` - NO escrow wipe
+File: `MetaGuildXIncome.sol`
+Rule: `resetIncome()` must not zero `escrowBalances`
+Verify: escrow balances survive rebirth
 
-### 2. _findEligibleLevelUpline() - paidIds check
-File: IncomeRouter.sol
-Rule: Spillover cannot go to already-paid users
-Verify: L1 sponsor cannot receive L2+ spillover
+### 2. `_findEligibleLevelUpline()` - `paidIds` check
+File: `IncomeRouter.sol`
+Rule: spillover cannot go to already-paid users
+Verify: L1 sponsor cannot receive L2+ spillover twice
 
-### 3. _distributeLevelIncome() - sponsor-based start
-File: IncomeRouter.sol
-Rule: L1=sponsor, L2+ from placement chain with getBinaryParent fallback
-Verify: Level income chain correct after registration
+### 3. `_distributeLevelIncome()` - sponsor-based start
+File: `IncomeRouter.sol`
+Rule: L1 = sponsor, L2+ follow placement chain with `getBinaryParent` fallback
+Verify: level-income chain matches actual genealogy
 
-### 4. createRebirthUser() - _distributeCashbackAndCreator
-File: MetaGuildXCore.sol
-Rule: Rebirth must trigger cashback+creator payout
-Verify: $1.40 goes to Creator on each rebirth
+### 4. `createRebirthUser()` - cashback + creator payout
+File: `MetaGuildXCore.sol`
+Rule: rebirth must still trigger cashback and creator payout
+Verify: creator receives the rebirth creator share each time
 
 ### 5. Auto-upgrade remainder -> user wallet
-File: MetaGuildXUpgrade.sol
-Rule: Excess escrow after upgrade -> released to user
-Verify: No leftover in old pkg bucket
+File: `MetaGuildXUpgrade.sol`
+Rule: excess escrow after upgrade must be released to the user
+Verify: no stranded value remains in the old package bucket
 
-### 6. Level Tree - sponsor-based placement
-File: BinaryTree.sol
-Rule: New users placed under sponsor subtree, not global BFS
-Verify: getLevelParent(newUser) = correct sponsor chain
+### 6. Level tree - sponsor-based placement
+File: `BinaryTree.sol`
+Rule: new users must be placed under the sponsor subtree, not global BFS
+Verify: `getLevelParent(newUser)` matches expected sponsor chain
 
-### 7. RebirthCannotSponsor restriction - REMOVED
-File: MetaGuildXCore.sol
-Rule: Rebirth IDs CAN be sponsors/referrers
-Verify: Rebirth referral links work for registration
+### 7. `RebirthCannotSponsor` restriction removed
+File: `MetaGuildXCore.sol`
+Rule: rebirth IDs may act as sponsors/referrers
+Verify: rebirth referral links work in registration
 
 ### 8. Opposite-side rebirth placement
-File: MetaGuildXCore.sol
-Rule: When sponsor has no rebirth, place on opposite side
-Verify: createRebirthUser placement logic
+File: `MetaGuildXCore.sol`
+Rule: when sponsor has no rebirth, place on opposite side
+Verify: `createRebirthUser` placement logic is respected
+
+## Payment Normalization (Critical)
+
+- `PLATFORM_SCALE = 10`
+- Package 1 raw price = `100`
+- Correct USDT `paymentAssetUnitPrice = 100000000000000000` (`1e17`)
+
+Why `1e17` is required:
+- One raw platform unit represents `0.1` displayed USD
+- USDT uses `18` decimals on this testnet deployment
+- Raw package 1 price = `100`
+- Settlement formula is:
+  `settlementRaw = platformRaw * paymentAssetUnitPrice`
+- Therefore:
+  `100 * 1e17 = 1e19`
+- `1e19` with 18 USDT decimals = exactly `10 USDT`
+
+Critical warning:
+- DO NOT use `paymentAssetUnitPrice = 10`
+- `100 * 10 = 1000`
+- `1000` with 18 decimals = `0.000000000000001 USDT`
+- This creates microscopic dust transfers and economically invalid registrations
+
+## ProductionMode Safety
+
+`productionMode = true` enforces real payment collection.
+
+It must remain `false` until ALL of the following are complete:
+- router wired
+- income wired
+- creator wallet set
+- payment asset configured
+- `paymentAssetUnitPrice` verified as `1e17`
+
+Only enable `productionMode = true` after those checks pass.
+
+If `productionMode = false` during live user onboarding:
+- registration may appear to succeed
+- but real settlement collection is bypassed
+- this creates silent economic inconsistency
+
+## Allowance / Approval Requirements
+
+Post-deploy root registration is a paid ERC20 registration.
+
+Requirements:
+- deployer USDT balance must be `>= settlement amount`
+- deployer allowance to Core must be `>= settlement amount`
+- root registration must call `approve()` before `registerWithPlacement(...)`
+
+If allowance is missing:
+- Core payment collection fails at `transferFrom`
+- revert reason is `INCOME_TRANSFER_FAILED`
+
+Always verify before registration scripts:
+- `balanceOf(deployer)`
+- `allowance(deployer, core)`
+- estimated settlement amount
+
+## Critical Economic Validation
+
+Registration event success does NOT automatically prove payment success.
+
+Always verify:
+- actual ERC20 `Transfer` logs exist
+- the real settlement amount on explorer is correct
+- no microscopic dust transfers occurred
+- no free registrations occurred
+- `failedDistribution[userId] = false`
+
+For root registration specifically:
+- `UserRegistered` must exist
+- paid settlement must be visible as ERC20 transfer into Core
+- creator fallback distributions must be visible as real ERC20 transfers out of Core
+
+## Explorer Verification Checklist
+
+After every fresh deploy and first registration, verify on explorer:
+- real ERC20 `Transfer` from payer -> Core
+- correct settlement amount
+- creator distribution transfers
+- sponsor payout transfers where applicable
+- no dust transfers
+- no silent payment bypass
+- `failedDistribution = false`
+
+For the validated root registration on testnet, expected pattern was:
+- payer -> Core: `10.0 USDT`
+- Core -> creator fallback payouts totaling `10.0 USDT`
+- Core post-registration balance may legitimately be `0` if the full amount is distributed immediately
+
+## Known Critical Failure Modes
+
+- Microscopic dust transfers from wrong unit price (`10` instead of `1e17`)
+- Silent economic inconsistency when `productionMode = false`
+- Missing allowance causing `INCOME_TRANSFER_FAILED`
+- Frontend double-counting wallet values
+- Fake Moralis wallet balances
+- Registration event present while real payment was missing or invalid
 
 ## Post-Deploy Verification Script
-Run: npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet
-
-## ⚠️ CRITICAL: Payment Asset Setup (MUST after fresh deploy)
-
-After `fresh-deploy-v3.ts` runs:
-
-1. `defaultPaymentAsset = 0xF4975eB104932bDBcA491A9Cb985439eA03863e0` ✅
-2. `usdtAddress = 0xF4975eB104932bDBcA491A9Cb985439eA03863e0` ✅
-3. `enabledPaymentAssets[USDT] = true` ✅
-4. `paymentAssetUnitPrice[USDT] = 10` ✅
-
-If NOT set correctly -> all registrations will fail distribution.
-
-Verify command:
+Run:
 `npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet`
 
 Expected:
 `14 passed, 0 failed`
 
+This must verify at minimum:
+- `defaultPaymentAsset = correct USDT`
+- `enabledPaymentAssets[USDT] = true`
+- `paymentAssetUnitPrice[USDT] = 1e17`
+- `productionMode = true`
+
+## Payment Asset Setup (MUST after fresh deploy)
+
+After `fresh-deploy-v3.ts` runs:
+
+1. `defaultPaymentAsset = 0xF4975eB104932bDBcA491A9Cb985439eA03863e0`
+2. `usdtAddress = 0xF4975eB104932bDBcA491A9Cb985439eA03863e0`
+3. `enabledPaymentAssets[USDT] = true`
+4. `paymentAssetUnitPrice[USDT] = 100000000000000000` (`1e17`)
+5. `productionMode = true`
+
+If any of these are wrong, registrations are not production-safe.
+
 ## Fresh Deploy Order (EXACT)
 
 1. `npx hardhat compile`
 2. `npx hardhat run scripts/fresh-deploy-v3.ts --network opbnbTestnet`
-   -> deploys + wires + sets payment asset
-3. `npx hardhat run scripts/post-deploy-setup.ts --network opbnbTestnet`
-   -> root register + staking + verify payment asset
-4. `npx hardhat run scripts/update-env-after-deploy.ts --network opbnbTestnet`
-   -> updates .env files
-5. `npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet`
-   -> must show `14/14` pass
-6. Build web + admin
-7. Deploy to VPS
-8. Test registration -> verify distribution works
+   Deploys contracts, wires them, configures USDT, sets production mode
+3. `npx hardhat run scripts/debug-registration-flow.ts --network opbnbTestnet`
+   Confirms settlement amount, balance, allowance, and distribution targets
+4. `npx hardhat run scripts/post-deploy-setup.ts --network opbnbTestnet`
+   Performs root registration, staking setup, and post-deploy checks
+5. `npx hardhat run scripts/update-env-after-deploy.ts --network opbnbTestnet`
+   Updates frontend/admin env references
+6. `npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet`
+   Must show `14/14` pass
+7. Build web + admin
+8. Deploy to VPS
+9. Test registration and verify real ERC20 settlement on explorer
 
 ## Environment Variables (NEVER commit to git)
-- VITE_PLACEMENT_SIGNER_URL must point to the live signer service
-- VITE_PLACEMENT_SIGNER_TOKEN is browser-exposed and only a light gate
-- SIGNER_PRIVATE_KEY and SIGNER_AUTH_TOKEN must live outside the repo
+
+- `VITE_PLACEMENT_SIGNER_URL` must point to the live signer service
+- `VITE_PLACEMENT_SIGNER_TOKEN` is browser-exposed and only a light gate
+- `SIGNER_PRIVATE_KEY` and `SIGNER_AUTH_TOKEN` must live outside the repo
+- `PLACEMENT_SIGNER_PRIVATE_KEY` must be available for root registration scripts

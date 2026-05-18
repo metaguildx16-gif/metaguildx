@@ -1,91 +1,104 @@
 import { ethers } from "hardhat";
-import * as dotenv from "dotenv";
-import * as fs from "fs";
-import * as path from "path";
-
-dotenv.config();
-
-type DeploymentRecord = {
-  deployment?: {
-    address?: string;
-  };
-  configuration?: {
-    usdtToken?: string;
-  };
-};
-
-function loadDeploymentUsdt(): string | null {
-  const deploymentDir = path.resolve(__dirname, "../deployments");
-  const candidates = ["opbnbTestnet.json", "testnet-fresh.json"];
-
-  for (const file of candidates) {
-    const fullPath = path.join(deploymentDir, file);
-    if (!fs.existsSync(fullPath)) {
-      continue;
-    }
-
-    const parsed = JSON.parse(fs.readFileSync(fullPath, "utf8")) as DeploymentRecord;
-    if (parsed.deployment?.address?.toLowerCase() === process.env.SYSTEM_PROXY_ADDRESS?.toLowerCase()) {
-      return parsed.configuration?.usdtToken ?? null;
-    }
-  }
-
-  return null;
-}
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  const coreAddress = process.env.SYSTEM_PROXY_ADDRESS!;
-  const deploymentUsdt = loadDeploymentUsdt();
-  const desiredUsdt = deploymentUsdt ?? process.env.USDT_ADDRESS ?? process.env.MOCK_USDT_ADDRESS;
+  console.log("Deployer:", deployer.address);
 
-  if (!desiredUsdt) {
-    throw new Error("No desired USDT address found in deployments or env");
-  }
+  const CORE = "0x63125067659EEC130Cd7df8fe7fA4319511EEE6E";
+  const CORRECT_USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
+  const usdtPriceInPlatformUnits = 10n ** 17n;
 
-  const core = await ethers.getContractAt("MetaGuildXCore", coreAddress);
+  const coreAbi = [
+    "function defaultPaymentAsset() view returns (address)",
+    "function usdtAddress() view returns (address)",
+    "function setDefaultPaymentAsset(address) external",
+    "function setUsdtAddress(address) external",
+    "function configurePaymentAsset(address,bool,bool,uint256) external",
+    "function enabledPaymentAssets(address) view returns (bool)",
+    "function paymentAssetUnitPrice(address) view returns (uint256)",
+    "function owner() view returns (address)"
+  ];
 
-  console.log("Fixing payment asset...");
-  console.log("Core proxy          :", coreAddress);
-  console.log("Signer              :", deployer.address);
-  console.log("Deployment USDT      :", deploymentUsdt ?? "not found for current live core");
-  console.log("Desired USDT         :", desiredUsdt);
+  const core = new ethers.Contract(CORE, coreAbi, deployer);
+
+  const owner = await core.owner();
+  console.log("Core owner:", owner);
+  console.log("Deployer:", deployer.address);
 
   const currentDefault = await core.defaultPaymentAsset();
   const currentUsdt = await core.usdtAddress();
-  const enabled = await core.enabledPaymentAssets(desiredUsdt);
-  const unitPrice = await core.paymentAssetUnitPrice(desiredUsdt);
+  const enabled = await core.enabledPaymentAssets(CORRECT_USDT);
+  const unitPrice = await core.paymentAssetUnitPrice(CORRECT_USDT);
 
-  console.log("Current default asset:", currentDefault);
-  console.log("Current core USDT    :", currentUsdt);
-  console.log("Desired enabled      :", enabled);
-  console.log("Desired unit price   :", unitPrice.toString());
+  console.log("Current defaultPaymentAsset:", currentDefault);
+  console.log("Current usdtAddress:", currentUsdt);
+  console.log("Correct USDT:", CORRECT_USDT);
+  console.log("USDT enabled:", enabled);
+  console.log("USDT unit price:", unitPrice.toString());
 
   if (
-    currentDefault.toLowerCase() === desiredUsdt.toLowerCase() &&
-    currentUsdt.toLowerCase() === desiredUsdt.toLowerCase()
+    currentDefault.toLowerCase() === CORRECT_USDT.toLowerCase() &&
+    currentUsdt.toLowerCase() === CORRECT_USDT.toLowerCase() &&
+    enabled &&
+    unitPrice === usdtPriceInPlatformUnits
   ) {
-    console.log("Payment asset already matches desired USDT. No update needed ✅");
-  } else {
-    if (!enabled || unitPrice === 0n) {
-      throw new Error("Desired USDT is not enabled/configured on core");
-    }
-
-    if (currentUsdt.toLowerCase() !== desiredUsdt.toLowerCase()) {
-      const tx = await core.setUsdtAddress(desiredUsdt);
-      await tx.wait();
-      console.log("setUsdtAddress() applied ✅", tx.hash);
-    }
-
-    if (currentDefault.toLowerCase() !== desiredUsdt.toLowerCase()) {
-      const tx = await core.setDefaultPaymentAsset(desiredUsdt);
-      await tx.wait();
-      console.log("setDefaultPaymentAsset() applied ✅", tx.hash);
-    }
+    console.log("Already correct! No fix needed.");
+    return;
   }
 
-  console.log("Verified defaultPaymentAsset:", await core.defaultPaymentAsset());
-  console.log("Verified usdtAddress        :", await core.usdtAddress());
+  let configureTxHash = "";
+  let setUsdtTxHash = "";
+  let setDefaultTxHash = "";
+
+  if (!enabled || unitPrice !== usdtPriceInPlatformUnits) {
+    console.log("\nConfiguring correct USDT payment asset...");
+    const configureTx = await core.configurePaymentAsset(
+      CORRECT_USDT,
+      true,
+      false,
+      usdtPriceInPlatformUnits
+    );
+    await configureTx.wait();
+    configureTxHash = configureTx.hash;
+    console.log("configurePaymentAsset tx:", configureTxHash);
+  }
+
+  if (currentUsdt.toLowerCase() !== CORRECT_USDT.toLowerCase()) {
+    console.log("\nSetting correct USDT as usdtAddress...");
+    const setUsdtTx = await core.setUsdtAddress(CORRECT_USDT);
+    await setUsdtTx.wait();
+    setUsdtTxHash = setUsdtTx.hash;
+    console.log("setUsdtAddress tx:", setUsdtTxHash);
+  }
+
+  if (currentDefault.toLowerCase() !== CORRECT_USDT.toLowerCase()) {
+    console.log("\nSetting correct USDT as default payment asset...");
+    const setDefaultTx = await core.setDefaultPaymentAsset(CORRECT_USDT);
+    await setDefaultTx.wait();
+    setDefaultTxHash = setDefaultTx.hash;
+    console.log("setDefaultPaymentAsset tx:", setDefaultTxHash);
+  }
+
+  const newDefault = await core.defaultPaymentAsset();
+  const newUsdt = await core.usdtAddress();
+  const newEnabled = await core.enabledPaymentAssets(CORRECT_USDT);
+  const newUnitPrice = await core.paymentAssetUnitPrice(CORRECT_USDT);
+
+  console.log("\nVerified defaultPaymentAsset:", newDefault);
+  console.log("Verified usdtAddress:", newUsdt);
+  console.log("Verified enabled:", newEnabled);
+  console.log("Verified unit price:", newUnitPrice.toString());
+
+  if (
+    newDefault.toLowerCase() === CORRECT_USDT.toLowerCase() &&
+    newUsdt.toLowerCase() === CORRECT_USDT.toLowerCase()
+  ) {
+    console.log("\n✅ Payment asset fix complete!");
+    console.log("Users can now register with correct USDT");
+  }
+
+  console.log("\nNote: User 2 failedDistribution=true");
+  console.log("After Core receives the correct settlement flow, run adminRetryDistribution(2)");
 }
 
 main().catch((error) => {

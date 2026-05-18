@@ -33,6 +33,25 @@ type DashboardView =
   | "support";
 type WalletSubView = "main" | "transfer" | "mgxboxes" | "stakingclaim" | "stake" | "myStake" | "cashback";
 type StakeDurationKey = "30D" | "90D" | "180D" | "1Y" | "2Y";
+type DashboardLoadPhase =
+  | "idle"
+  | "connecting wallet"
+  | "reading core config"
+  | "loading user profile"
+  | "loading analytics"
+  | "loading tree"
+  | "loading earnings"
+  | "complete"
+  | "error";
+type StartupDiagnostics = {
+  deployBlock: number;
+  currentBlock: number | null;
+  rpcUrl: string;
+  coreAddress: string;
+  scanRange: string;
+  walletConnected: boolean;
+  registeredUserId: number | null;
+};
 const TESTNET_ADMIN_WALLET = "0xbFF19De173697D07B904a4c7b79e4A524B456991";
 const DEFAULT_ADMIN_PANEL_PORT = "4174";
 const AUTH_EXPIRY_MS = 24 * 60 * 60 * 1000;
@@ -46,6 +65,7 @@ const lockPeriods: { label: string; days: number; bonus: string; multiplier: num
 const WALLET_STORAGE_KEY = "mgx_wallet";
 const WALLET_CONNECTED_KEY = "mgx_connected";
 const WALLET_AUTH_TIMESTAMP_KEY = "mgx_auth_timestamp";
+const DASHBOARD_LOAD_TIMEOUT_MS = 15000;
 
 function resolveAdminPanelUrl() {
   const configuredUrl = import.meta.env.VITE_ADMIN_PANEL_URL?.trim();
@@ -111,6 +131,19 @@ function App() {
   const [connectError, setConnectError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadStage, setLoadStage] = useState<"profile" | "income" | "complete">("profile");
+  const [loadPhase, setLoadPhase] = useState<DashboardLoadPhase>("reading core config");
+  const [loadStartedAt, setLoadStartedAt] = useState<number>(() => Date.now());
+  const [loadElapsedSeconds, setLoadElapsedSeconds] = useState(0);
+  const [loadFailure, setLoadFailure] = useState<string | null>(null);
+  const [startupDiagnostics, setStartupDiagnostics] = useState<StartupDiagnostics>({
+    deployBlock: metaguildx.getDeploymentAnalyticsStartBlock(),
+    currentBlock: null,
+    rpcUrl: activeNetworkConfig.rpcUrl || "Not configured",
+    coreAddress: activeNetworkConfig.contractAddress || "Not configured",
+    scanRange: `${metaguildx.getDeploymentAnalyticsStartBlock()} -> pending`,
+    walletConnected: false,
+    registeredUserId: null
+  });
   const [screen, setScreen] = useState<Screen>(isAdminRoute || isCommunityDashboardRoute ? "dashboard" : "landing");
   const [dashboardView, setDashboardView] = useState<DashboardView>("overview");
   const [treeMode, setTreeMode] = useState<"personal" | "level">("personal");
@@ -163,6 +196,81 @@ function App() {
   const [isCheckingAdminAccess, setIsCheckingAdminAccess] = useState(false);
   const [currentWalletChainId, setCurrentWalletChainId] = useState<number | null>(null);
   const [liveWalletStakeState, setLiveWalletStakeState] = useState<LiveWalletStakeState | null>(null);
+
+  function beginLoadPhase(phase: DashboardLoadPhase, nextStatus?: string) {
+    setLoadPhase(phase);
+    if (phase !== "complete" && phase !== "error") {
+      setIsLoading(true);
+    }
+    if (nextStatus) {
+      setStatus(nextStatus);
+    }
+  }
+
+  function startLoadingSession(phase: DashboardLoadPhase, nextStatus?: string) {
+    setLoadStartedAt(Date.now());
+    setLoadElapsedSeconds(0);
+    setLoadFailure(null);
+    beginLoadPhase(phase, nextStatus);
+  }
+
+  function finishLoadingSession(phase: DashboardLoadPhase = "complete") {
+    setLoadPhase(phase);
+    setIsLoading(false);
+  }
+
+  function markLoadFailure(message: string) {
+    setLoadFailure(message);
+    setLoadPhase("error");
+    setStatus(message);
+    setIsLoading(false);
+  }
+
+  async function withDashboardTimeout<T>(promise: Promise<T>, label: string) {
+    console.time(label);
+    try {
+      return await Promise.race<T>([
+        promise,
+        new Promise<T>((_, reject) =>
+          window.setTimeout(() => reject(new Error(`${label} timed out after 15s`)), DASHBOARD_LOAD_TIMEOUT_MS)
+        )
+      ]);
+    } finally {
+      console.timeEnd(label);
+    }
+  }
+
+  async function refreshStartupDiagnostics(walletConnected: boolean, registeredUserId: number | null) {
+    const deployBlock = metaguildx.getDeploymentAnalyticsStartBlock();
+    let currentBlock: number | null = null;
+
+    if (activeNetworkConfig.rpcUrl) {
+      try {
+        console.time("provider.getBlockNumber [startup diagnostics]");
+        const provider = new JsonRpcProvider(activeNetworkConfig.rpcUrl);
+        currentBlock = await Promise.race<number>([
+          provider.getBlockNumber(),
+          new Promise<number>((_, reject) =>
+            window.setTimeout(() => reject(new Error("provider.getBlockNumber timed out after 15s")), DASHBOARD_LOAD_TIMEOUT_MS)
+          )
+        ]);
+      } catch (error) {
+        console.warn("Startup diagnostics block read failed", error);
+      } finally {
+        console.timeEnd("provider.getBlockNumber [startup diagnostics]");
+      }
+    }
+
+    setStartupDiagnostics({
+      deployBlock,
+      currentBlock,
+      rpcUrl: activeNetworkConfig.rpcUrl || "Not configured",
+      coreAddress: activeNetworkConfig.contractAddress || "Not configured",
+      scanRange: `${deployBlock} -> ${currentBlock ?? "pending"}`,
+      walletConnected,
+      registeredUserId
+    });
+  }
 
   function getFriendlyErrorMessage(error: unknown) {
     const message = error instanceof Error ? error.message : String(error ?? "Transaction failed");
@@ -309,19 +417,44 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [snapshot.walletAddress, snapshot.userId, snapshot.isRegistered, snapshot.mgxAllocated, snapshot.personalStaked, snapshot.pendingStakingReward]);
+  }, [snapshot.walletAddress, snapshot.userId, snapshot.isRegistered]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setLoadElapsedSeconds(Math.max(0, Math.floor((Date.now() - loadStartedAt) / 1000)));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isLoading, loadStartedAt]);
+
+  useEffect(() => {
+    void refreshStartupDiagnostics(Boolean(snapshot.walletAddress), snapshot.userId ?? null);
+  }, [snapshot.walletAddress, snapshot.userId]);
 
   useEffect(() => {
     let isActive = true;
     setIsLoading(true);
     setLoadStage("profile");
+    startLoadingSession("reading core config", "Reading core config...");
     startTransition(() => {
       const { savedWallet, wasConnected, isExpired } = hasValidWalletSession();
       const boot = async () => {
         if (savedWallet && wasConnected && !isExpired) {
           try {
-            const restoredAddress = await metaguildx.connectWalletSilently(savedWallet);
-            const restoredSnapshot = await metaguildx.loadDashboardSnapshot(restoredAddress);
+            beginLoadPhase("connecting wallet", "Connecting wallet...");
+            const restoredAddress = await withDashboardTimeout(
+              metaguildx.connectWalletSilently(savedWallet),
+              "wallet reconnect"
+            );
+            beginLoadPhase("loading user profile", "Loading user profile...");
+            const restoredSnapshot = await withDashboardTimeout(
+              metaguildx.loadDashboardSnapshot(restoredAddress),
+              "fetchDashboardData"
+            );
             if (!isActive) {
               return;
             }
@@ -331,8 +464,12 @@ function App() {
             setSelectedTreeUserId(restoredSnapshot.userId ?? restoredSnapshot.rootUserId ?? null);
             setStatus("Wallet restored. Loading your dashboard now.");
             setLoadStage("income");
+            beginLoadPhase("loading analytics", "Loading analytics...");
             setSnapshot(restoredSnapshot);
+            beginLoadPhase("loading tree", "Loading tree...");
+            beginLoadPhase("loading earnings", "Loading earnings...");
             setLoadStage("complete");
+            finishLoadingSession("complete");
             return;
           } catch {
             clearWalletSession();
@@ -346,24 +483,35 @@ function App() {
           }
         }
 
-        const nextSnapshot = await metaguildx.loadDashboardSnapshot(null);
+        beginLoadPhase("loading user profile", "Loading user profile...");
+        const nextSnapshot = await withDashboardTimeout(
+          metaguildx.loadDashboardSnapshot(null),
+          "fetchDashboardData"
+        );
         if (!isActive) {
           return;
         }
         setLoadStage("income");
+        beginLoadPhase("loading analytics", "Loading analytics...");
         setSnapshot(nextSnapshot);
+        beginLoadPhase("loading tree", "Loading tree...");
+        beginLoadPhase("loading earnings", "Loading earnings...");
         setLoadStage("complete");
+        finishLoadingSession("complete");
       };
 
       Promise.resolve(boot())
-        .catch(() => {
+        .catch((error) => {
           if (isActive) {
             setSnapshot(fallbackSnapshot);
+            markLoadFailure(getFriendlyErrorMessage(error));
           }
         })
         .finally(() => {
           if (isActive) {
-            setIsLoading(false);
+            if (!loadFailure) {
+              setIsLoading(false);
+            }
           }
         });
     });
@@ -401,10 +549,14 @@ function App() {
       try {
         const provider = new JsonRpcProvider(rpcUrl);
         const core = new Contract(contractAddress, landingStatsCoreAbi, provider);
-        const nextId = await core.nextUserId();
+        const [nextId, latestBlock] = await Promise.all([
+          core.nextUserId(),
+          provider.getBlockNumber()
+        ]);
+        const deploymentStartBlock = metaguildx.getDeploymentAnalyticsStartBlock(latestBlock);
         const [registrations, upgrades] = await Promise.all([
-          core.queryFilter(core.filters.UserRegistered(), 0, "latest"),
-          core.queryFilter(core.filters.PackageUpgraded(), 0, "latest")
+          core.queryFilter(core.filters.UserRegistered(), deploymentStartBlock, latestBlock),
+          core.queryFilter(core.filters.PackageUpgraded(), deploymentStartBlock, latestBlock)
         ]);
         const aggregateVolume =
           registrations.reduce((sum, event) => {
@@ -816,7 +968,7 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [dashboardView, treeMode, selectedTreeUserId, snapshot.userId, snapshot.levelIncome]);
+  }, [dashboardView, treeMode, snapshot.userId, snapshot.levelIncome]);
 
   useEffect(() => {
     if (!snapshot.userId || snapshot.userId <= 0) {
@@ -895,21 +1047,31 @@ function App() {
   }, [dashboardView, treeMode, snapshot.userId, treeViewUserId]);
 
   async function refreshSnapshot(walletAddress?: string | null) {
+    startLoadingSession("loading user profile", "Loading user profile...");
     setLoadStage("profile");
-    const nextSnapshot = await metaguildx.loadDashboardSnapshot(walletAddress ?? snapshot.walletAddress, { forceRefresh: true });
+    const nextSnapshot = await withDashboardTimeout(
+      metaguildx.loadDashboardSnapshot(walletAddress ?? snapshot.walletAddress, { forceRefresh: true }),
+      "fetchDashboardData"
+    );
     setLoadStage("income");
+    beginLoadPhase("loading analytics", "Loading analytics...");
     setSnapshot(nextSnapshot);
+    beginLoadPhase("loading tree", "Loading tree...");
+    beginLoadPhase("loading earnings", "Loading earnings...");
     setLoadStage("complete");
+    finishLoadingSession("complete");
     return nextSnapshot;
   }
 
   async function handleConnectWallet(targetView: DashboardView = "overview") {
-    setIsLoading(true);
+    startLoadingSession("connecting wallet", "Connecting wallet. Please approve the wallet connection in MetaMask, then sign the authentication message. No gas fee is charged for the signature.");
     setConnectError(null);
-    setStatus("Connecting wallet. Please approve the wallet connection in MetaMask, then sign the authentication message. No gas fee is charged for the signature.");
 
     try {
-      const address = await metaguildx.connectWallet();
+      const address = await withDashboardTimeout(
+        metaguildx.connectWallet(),
+        "connect wallet"
+      );
       if (!address) {
         throw new Error("Wallet address was not returned");
       }
@@ -921,13 +1083,19 @@ function App() {
         setActionFeedback(null);
         setRegistrationSummary(null);
         setIsJustConnected(false);
-        setStatus("Wallet ownership verified. Loading your dashboard now.");
+        beginLoadPhase("loading user profile", "Wallet ownership verified. Loading your dashboard now.");
 
-      const nextSnapshot = await metaguildx.loadDashboardSnapshot(address);
+      const nextSnapshot = await withDashboardTimeout(
+        metaguildx.loadDashboardSnapshot(address),
+        "fetchDashboardData"
+      );
       setSnapshot(nextSnapshot);
       setIsJustConnected(!nextSnapshot.isRegistered);
       setDashboardView(nextSnapshot.isRegistered ? "overview" : targetView);
       setSelectedTreeUserId(nextSnapshot.userId ?? nextSnapshot.rootUserId ?? null);
+      beginLoadPhase("loading analytics", "Loading analytics...");
+      beginLoadPhase("loading tree", "Loading tree...");
+      beginLoadPhase("loading earnings", "Loading earnings...");
       setStatus(
         !nextSnapshot.contractReady
           ? nextSnapshot.contractWarning ?? "Contract not ready"
@@ -945,6 +1113,7 @@ function App() {
           detail: "Wallet connected only. No USDT approval has happened yet. Review the dashboard, then tap Activate Now for Package 1."
         });
       }
+      finishLoadingSession("complete");
       return nextSnapshot;
     } catch (error) {
       clearWalletSession();
@@ -952,7 +1121,7 @@ function App() {
       replaceAppPath("/");
       setScreen("landing");
       const message = getFriendlyErrorMessage(error);
-      setStatus(message);
+      markLoadFailure(message);
       setConnectError(message);
       return null;
     } finally {
@@ -1094,6 +1263,16 @@ function App() {
     setActionFeedback(null);
   } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleRetryDashboardLoad() {
+    setConnectError(null);
+    setActionFeedback(null);
+    try {
+      await refreshSnapshot(snapshot.walletAddress);
+    } catch (error) {
+      markLoadFailure(getFriendlyErrorMessage(error));
     }
   }
 
@@ -1276,6 +1455,25 @@ function App() {
       month: "2-digit",
       year: "numeric"
     }).format(new Date(timestampSeconds * 1000));
+  }
+
+  function renderStartupDiagnosticsPanel() {
+    return (
+      <div className="info-card" style={{ marginTop: 16, textAlign: "left", maxWidth: 680 }}>
+        <strong>Startup Diagnostics</strong>
+        <ul className="metric-list" style={{ marginTop: 12 }}>
+          <li>Phase: {loadPhase}</li>
+          <li>Elapsed: {loadElapsedSeconds}s</li>
+          <li>Deploy block: {startupDiagnostics.deployBlock}</li>
+          <li>Current block: {startupDiagnostics.currentBlock ?? "Loading..."}</li>
+          <li>RPC URL: {startupDiagnostics.rpcUrl || "Not configured"}</li>
+          <li>Core address: {startupDiagnostics.coreAddress || "Not configured"}</li>
+          <li>Scan range: {startupDiagnostics.scanRange}</li>
+          <li>Wallet connected: {startupDiagnostics.walletConnected ? "Yes" : "No"}</li>
+          <li>Registered user id: {startupDiagnostics.registeredUserId ?? "Not registered"}</li>
+        </ul>
+      </div>
+    );
   }
 
   function extractActivityAmount(activitySecondary: string) {
@@ -2831,11 +3029,24 @@ function App() {
 
         ) : null}
         <main className="dashboard-content">
-          {isLoading ? (
-            <div className="loading-text">Loading data...</div>
-          ) : hasError ? (
-            <div className="error-text">
-              Unable to load data. Please reconnect your wallet or try again.
+            {isLoading ? (
+            <div className="center-box">
+              <div className="loading-text">{`Loading dashboard... ${loadElapsedSeconds}s`}</div>
+              <div className="status-text">{`Current phase: ${loadPhase}`}</div>
+              <div className="status-text">{status}</div>
+              {renderStartupDiagnosticsPanel()}
+            </div>
+            ) : loadFailure ? (
+              <div className="center-box">
+                <div className="error-text">{loadFailure}</div>
+                <button type="button" className="btn-primary" onClick={() => void handleRetryDashboardLoad()}>
+                  Retry Dashboard Load
+                </button>
+                {renderStartupDiagnosticsPanel()}
+              </div>
+            ) : hasError ? (
+              <div className="error-text">
+                Unable to load data. Please reconnect your wallet or try again.
             </div>
           ) : isAdminRoute && !snapshot.walletAddress ? (
             <div className="center-box">Connect wallet to continue</div>

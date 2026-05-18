@@ -1,34 +1,116 @@
 # Mainnet Preparation Checklist
 
 ## Security
-- [ ] VITE_LOCAL_PLACEMENT_SIGNER_KEY removed from .env
+- [ ] `VITE_LOCAL_PLACEMENT_SIGNER_KEY` removed from all env files
 - [ ] Placement signer = hardware wallet address
-- [ ] Owner = hardware wallet (multisig preferred)
+- [ ] Owner = hardware wallet or multisig
 - [ ] Creator fee wallet = separate hardware wallet
 - [ ] Treasury wallet = separate hardware wallet
-- [ ] Private keys never in codebase
+- [ ] Private keys never stored in repo
+
+## Payment Normalization (Critical)
+
+Mainnet must preserve the same economic scale used by the validated testnet flow:
+- `PLATFORM_SCALE = 10`
+- Package 1 raw price = `100`
+- Correct USDT `paymentAssetUnitPrice = 100000000000000000` (`1e17`)
+
+Why this matters:
+- raw settlement is calculated as `platformRaw * paymentAssetUnitPrice`
+- package 1 raw = `100`
+- `100 * 1e17 = 1e19`
+- `1e19` with 18 decimals = exactly `10 USDT`
+
+Never use:
+- `paymentAssetUnitPrice = 10`
+
+That would produce:
+- `100 * 10 = 1000`
+- `1000` with 18 decimals = `0.000000000000001 USDT`
+
+That is an economically broken dust transfer.
 
 ## Payment Asset (Critical for Registration)
-- [ ] defaultPaymentAsset = mainnet USDT address
-- [ ] usdtAddress = mainnet USDT address
-- [ ] enabledPaymentAssets[mainnet USDT] = true
-- [ ] paymentAssetUnitPrice[mainnet USDT] = 10
-- [ ] Test registration -> verify income distributed
-- [ ] Core USDT balance = 0 before first registration ✅ (correct)
-      (USDT comes IN when user registers)
+- [ ] `defaultPaymentAsset = mainnet USDT address`
+- [ ] `usdtAddress = mainnet USDT address`
+- [ ] `enabledPaymentAssets[mainnet USDT] = true`
+- [ ] `paymentAssetUnitPrice[mainnet USDT] = 100000000000000000` (`1e17`)
+- [ ] `productionMode = true` only after wiring and payment checks are complete
+- [ ] Test paid registration and verify real income distribution
+- [ ] Core USDT balance starts at `0` before first registration
+
+## ProductionMode Safety
+
+`productionMode = true` enforces real settlement collection.
+
+Do not enable it until ALL of the following are true:
+- [ ] router wired
+- [ ] income wired
+- [ ] creator wallet set
+- [ ] payment asset configured
+- [ ] `paymentAssetUnitPrice` verified as `1e17`
+- [ ] allowance + approval logic tested in scripts
+
+If `productionMode = false` while users register:
+- registration can appear successful
+- but real payment collection is bypassed
+- this creates silent economic inconsistency
+
+## Allowance / Approval Requirements
+
+Every paid registration depends on ERC20 approval.
+
+Before any root-registration or scripted registration:
+- [ ] payer USDT balance `>= required settlement`
+- [ ] payer allowance to Core `>= required settlement`
+- [ ] scripts explicitly perform `approve()` before registration
+
+Missing allowance causes:
+- `INCOME_TRANSFER_FAILED`
+
+This failure happens at the initial `transferFrom`, before sponsor/creator distributions run.
+
+## Critical Economic Validation
+
+Do not rely on high-level success signals alone.
+
+Must validate:
+- [ ] registration event success matches real payment success
+- [ ] actual ERC20 `Transfer` logs exist
+- [ ] settlement amount on explorer is correct
+- [ ] no microscopic dust transfers
+- [ ] no free registrations
+- [ ] `failedDistribution = false`
+
+Root-registration validation must prove:
+- [ ] payer -> Core `10 USDT`
+- [ ] creator fallback distributions are real ERC20 transfers
+- [ ] Core balance behavior matches intended distribution flow
+
+## Explorer Verification Checklist
+
+After first paid registrations, verify on explorer:
+- [ ] real ERC20 `Transfer` from payer -> Core
+- [ ] correct settlement amount
+- [ ] creator distributions
+- [ ] sponsor payouts
+- [ ] no dust transfers
+- [ ] no silent payment bypass
+- [ ] no `INCOME_TRANSFER_FAILED`
+- [ ] `failedDistribution = false`
 
 ## Contracts
 - [ ] Security audit completed
-- [ ] All contract sizes < 24KB (Core = 21.23KB ✅)
+- [ ] All contract sizes < 24KB
 - [ ] Gas optimization reviewed
-- [ ] verify-deployment.ts passes all checks
+- [ ] `verify-deployment.ts` passes all checks
 - [ ] UUPS upgrade keys secured
 
 ## Frontend
-- [ ] productionMode = true in Core
-- [ ] All VITE_ env vars set for mainnet
+- [ ] `productionMode = true` in Core before live traffic
+- [ ] All `VITE_` env vars set for mainnet
 - [ ] No localhost URLs
-- [ ] Error tracking enabled (Sentry etc.)
+- [ ] Error tracking enabled
 - [ ] Analytics setup
 
 ## Testing
@@ -37,16 +119,37 @@
 - [ ] Rebirth tested
 - [ ] Level income distribution verified
 - [ ] Admin panel verified
+- [ ] Wallet balance display verified after Moralis removal
 
 ## Launch
 - [ ] Fund staking pool with MGX
 - [ ] Set initial package prices
 - [ ] Wire all contracts
-- [ ] Run verify-deployment.ts ✅
+- [ ] Run `npx hardhat run scripts/debug-registration-flow.ts --network <network>`
+- [ ] Run `npx hardhat run scripts/post-deploy-setup.ts --network <network>`
+- [ ] Run `npx hardhat run scripts/verify-deployment.ts --network <network>`
 - [ ] Root user registered
 
+## Known Critical Failure Modes
+
+- Wrong unit price caused microscopic dust transfers
+- `productionMode = false` allowed economically invalid registrations
+- Missing allowance caused `INCOME_TRANSFER_FAILED`
+- Frontend double-counted wallet values
+- Fake Moralis wallet balances polluted connected-wallet views
+- Registration event success could exist without valid real-money behavior if explorer transfer logs were not checked
+
 ## Known Issue History
-- [ ] opBNB Testnet deploy block 158940507:
-      defaultPaymentAsset was set to mock USDT `0xF80Dd7c09539093d48e5Fd629d9731eA684d078F`
-      causing `TRANSFER_FAILED` on all registrations
-      fixed with `fix-payment-asset.ts`
+
+- opBNB Testnet deploy block `158940507`
+  - `defaultPaymentAsset` was set to mock USDT `0xF80Dd7c09539093d48e5Fd629d9731eA684d078F`
+  - registrations failed with `TRANSFER_FAILED`
+  - fixed with `fix-payment-asset.ts`
+
+- Later testnet debugging discovered:
+  - `paymentAssetUnitPrice = 10` produced dust transfers
+  - missing allowance on root registration caused `INCOME_TRANSFER_FAILED`
+  - root registration only became economically valid after:
+    - correct unit price (`1e17`)
+    - `productionMode = true`
+    - deployer USDT approval to Core
