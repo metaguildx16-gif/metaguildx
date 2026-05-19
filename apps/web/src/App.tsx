@@ -1683,7 +1683,7 @@ function App() {
   const currentBucketEarnings = parseDisplayNumber(snapshot.currentPackageBucketEarnings);
   const packageOneBucketEarnings = parseDisplayNumber(snapshot.packageOneBucketEarnings);
   const currentPackageEscrow = parseDisplayNumber(snapshot.currentPackageEscrow);
-  const pkg1UnitsToRebirth = Math.max(500 - packageOneBucketEarnings, 0);
+  const pkg1UnitsToRebirth = Math.max(((snapshot.packagePrices?.[0] ?? 10) * 5) - packageOneBucketEarnings, 0);
   const boxEarningsDisplay = (() => {
     const result: Record<number, string> = {};
 
@@ -1814,15 +1814,15 @@ function App() {
   const StakingSummary = () => (
     <div className="staking-summary-shell">
       <div className="staking-summary-hero-grid">
-        <StatCard title="Staked Amount" value={`${displayedPersonalStaked} MGX`} icon="◈" accent="cyan" />
-        <StatCard title="Pending Reward" value={`${displayedPendingStakingReward} MGX`} icon="✦" accent="gold" />
+        <StatCard title="Staked Amount" value={`${displayedPersonalStaked} MGX`} icon="?" accent="cyan" />
+        <StatCard title="Pending Reward" value={`${displayedPendingStakingReward} MGX`} icon="?" accent="gold" />
         <StatCard
           title="Daily Earnings"
           value={stakingDataLoading ? "Loading..." : `${calcDailyEarnings().toFixed(4)} MGX`}
-          icon="◎"
+          icon="?"
           accent="success"
         />
-        <StatCard title="Your Share" value={`${stakingSharePercent}%`} icon="◌" accent="cyan" badge="LIVE" />
+        <StatCard title="Your Share" value={`${stakingSharePercent}%`} icon="?" accent="cyan" badge="LIVE" />
       </div>
 
       <div className="staking-countdown-card">
@@ -2268,7 +2268,7 @@ function App() {
   const rebirthPkgLevel = rebirthNodeDetails?.packageLevel ?? selectedRebirthRow?.packageLevel ?? 1;
   const rebirthFrozenAmount = parseDisplayNumber(rebirthNodeDetails?.internalWalletBalance ?? "0");
   const rebirthPkgPrice = snapshot.packagePrices[rebirthPkgLevel - 1] ?? 0;
-  const rebirthNeededAmount = rebirthPkgPrice * 2;
+  const rebirthNeededAmount = rebirthPkgPrice * 5;
   const rebirthEscrowProgress = rebirthNeededAmount > 0 ? (rebirthFrozenAmount / rebirthNeededAmount) * 100 : 0;
   const rebirthXSlotStep = Math.min(5, Math.max((rebirthNodeDetails?.xCount ?? 0) + 1, 1));
   const showDashboardSkeleton = isLoading && loadStage !== "complete";
@@ -2786,7 +2786,7 @@ function App() {
               </a>
             </div>
 
-            <div className="footer-copy">© 2025 MetaGuildX. Powered by OPBNB Blockchain.</div>
+            <div className="footer-copy">� 2025 MetaGuildX. Powered by OPBNB Blockchain.</div>
           </div>
         </footer>
 
@@ -3034,7 +3034,7 @@ function App() {
               <div className="loading-text">{`Loading dashboard... ${loadElapsedSeconds}s`}</div>
               <div className="status-text">{`Current phase: ${loadPhase}`}</div>
               <div className="status-text">{status}</div>
-              {renderStartupDiagnosticsPanel()}
+              {/* renderStartupDiagnosticsPanel() */}
             </div>
             ) : loadFailure ? (
               <div className="center-box">
@@ -3042,7 +3042,7 @@ function App() {
                 <button type="button" className="btn-primary" onClick={() => void handleRetryDashboardLoad()}>
                   Retry Dashboard Load
                 </button>
-                {renderStartupDiagnosticsPanel()}
+                {/* renderStartupDiagnosticsPanel() */}
               </div>
             ) : hasError ? (
               <div className="error-text">
@@ -3064,8 +3064,8 @@ function App() {
               <div>
                 <h2>{snapshot.userId ? `Welcome back, User #${snapshot.userId}` : "Welcome back"}</h2>
                 <p>
-                  {snapshot.packageLevel ? `Package ${snapshot.packageLevel}` : "Package pending"} ·{" "}
-                  {snapshot.isRegistered ? "Active member" : "Activation pending"} · Since {memberSinceLabel}
+                  {snapshot.packageLevel ? `Package ${snapshot.packageLevel}` : "Package pending"}{" · "}
+                  {snapshot.isRegistered ? "Active member" : "Activation pending"}{" · Since "}{memberSinceLabel}
                 </p>
                 {safeContractWarning ? <p className="warning-text">{safeContractWarning}</p> : null}
               </div>
@@ -3095,7 +3095,7 @@ function App() {
                   <span>{actionFeedback.detail}</span>
                 </div>
                 <button type="button" className="toast-dismiss" onClick={() => setActionFeedback(null)} aria-label="Dismiss notification">
-                  ✕
+                  ?
                 </button>
               </div>
             ) : null}
@@ -3161,12 +3161,12 @@ function App() {
                         </>
                       ) : (
                         <>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">🟢 Direct Left</span><span className={`income-amount ${directLeftNode ? "" : "text-amber"}`}>{directLeftNode ? `User #${directLeftNode.userId}` : "Empty slot"}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">🟢 Direct Right</span><span className={`income-amount ${directRightNode ? "" : "text-amber"}`}>{directRightNode ? `User #${directRightNode.userId}` : "Empty slot"}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">📊 Level Left</span><span className="income-amount">{snapshot.levelTreeLeft ?? 0}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">📊 Level Right</span><span className="income-amount">{snapshot.levelTreeRight ?? 0}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">👥 Total Team</span><span className="income-amount">{totalTeamLabel}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">⚖️ Left | Right</span><span className="income-amount">{snapshot.leftBranchNodes} | {snapshot.rightBranchNodes}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Left</span><span className={`income-amount ${directLeftNode ? "" : "text-amber"}`}>{directLeftNode ? `User #${directLeftNode.userId}` : "Empty slot"}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Right</span><span className={`income-amount ${directRightNode ? "" : "text-amber"}`}>{directRightNode ? `User #${directRightNode.userId}` : "Empty slot"}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Level Left</span><span className="income-amount">{snapshot.levelTreeLeft ?? 0}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Level Right</span><span className="income-amount">{snapshot.levelTreeRight ?? 0}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Total Team</span><span className="income-amount">{totalTeamLabel}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Left | Right</span><span className="income-amount">{snapshot.leftBranchNodes} | {snapshot.rightBranchNodes}</span></div>
                           <button
                             type="button"
                             className="btn-primary-large mt-4 dashboard-tree-cta"
@@ -3188,19 +3188,19 @@ function App() {
               <p className="section-label">Network</p>
               <div className="summary-strip referrals-summary-strip premium-network-stats w-full max-w-full">
                 <article className="summary-chip premium-network-card">
-                  <span>👥 Direct Referrals</span>
+                  <span>?? Direct Referrals</span>
                   <strong>{snapshot.directReferrals}</strong>
                 </article>
                 <article className="summary-chip premium-network-card">
-                  <span>🌐 Total Team</span>
+                  <span>Total Team</span>
                   <strong>{totalTeamLabel}</strong>
                 </article>
                 <article className="summary-chip premium-network-card">
-                  <span>⚖️ Left | Right</span>
+                  <span>Left | Right</span>
                   <strong>{snapshot.leftBranchNodes} | {snapshot.rightBranchNodes}</strong>
                 </article>
                 <article className="summary-chip premium-network-card team-business">
-                  <span>💹 Team Business</span>
+                  <span>?? Team Business</span>
                   <strong>${teamBusinessDisplay}</strong>
                 </article>
               </div>
@@ -3245,7 +3245,7 @@ function App() {
                               onClick={handleCopyReferralLink}
                               disabled={!referralLink}
                             >
-                              <span aria-hidden="true">📋</span>
+                              <span aria-hidden="true">??</span>
                               <span>Copy</span>
                             </button>
                             <button
@@ -3379,7 +3379,7 @@ function App() {
                         <ul className="metric-list compact progress-list">
                           {networkBonusHistoryRows.length > 0 ? networkBonusHistoryRows.map((item) => (
                             <li key={`network-log-${item.txHash}`}>
-                              <strong>{item.fromUserId ? `From User #${item.fromUserId}` : "Rebirth network"}</strong> · {item.dateLabel}<br />
+                              <strong>{item.fromUserId ? `From User #${item.fromUserId}` : "Rebirth network"}</strong> � {item.dateLabel}<br />
                               <span className="text-secondary">{`Amount: $${item.amount}`}</span>
                             </li>
                           )) : <li>No network income log yet.</li>}
@@ -3398,7 +3398,7 @@ function App() {
               <div className="stats-grid premium-earnings-strip">
                 <article className="stat-card premium-earnings-stat"><p className="stat-card-label">Direct Income</p><p className="stat-card-value">${directIncomeDisplay}</p></article>
                 <article className="stat-card premium-earnings-stat"><p className="stat-card-label">Level Income</p><p className="stat-card-value">${levelIncomeDisplay}</p></article>
-                <article className="stat-card premium-earnings-stat" title="Display only · Network activity"><p className="stat-card-label">Crossline Income</p><p className="stat-card-value">${networkBonusDisplay}</p></article>
+                <article className="stat-card premium-earnings-stat" title="Display only � Network activity"><p className="stat-card-label">Crossline Income</p><p className="stat-card-value">${networkBonusDisplay}</p></article>
                 <article className="stat-card premium-earnings-total"><p className="stat-card-label">Total Earned</p><p className="stat-card-value">${totalReceivedDisplay}</p></article>
               </div>
 
@@ -3427,7 +3427,7 @@ function App() {
                       <div className="section-card-header">
                         <h3 className="section-card-title">My Earnings</h3>
                         <button type="button" className="btn-refresh-reward" onClick={() => void handleRefreshSection("Earnings")} disabled={isLoading}>
-                          ↻ Refresh
+                          ? Refresh
                         </button>
                       </div>
                       <div className="section-card-body">
@@ -3435,16 +3435,16 @@ function App() {
                           renderSkeletonRows(6)
                         ) : (
                           <>
-                            <div className="income-row premium-income-row"><span className="income-label">💸 Direct Income</span><span className="income-amount">${directIncomeDisplay}</span></div>
-                            <div className="income-row premium-income-row"><span className="income-label">📈 Level Income</span><span className="income-amount">${levelIncomeDisplay}</span></div>
-                            <div className="income-row premium-income-row total"><span className="income-label">💰 Total Earned</span><span className="income-amount">${totalReceivedDisplay}</span></div>
-                            <div className="income-row premium-income-row muted"><span className="income-label">🔒 Frozen (Auto-Upgrade)</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
-                            <div className="income-row income-row-secondary" title="Display only · Network activity">
-                              <span className="income-label">🔀 Crossline (Display)</span>
+                            <div className="income-row premium-income-row"><span className="income-label">?? Direct Income</span><span className="income-amount">${directIncomeDisplay}</span></div>
+                            <div className="income-row premium-income-row"><span className="income-label">?? Level Income</span><span className="income-amount">${levelIncomeDisplay}</span></div>
+                            <div className="income-row premium-income-row total"><span className="income-label">?? Total Earned</span><span className="income-amount">${totalReceivedDisplay}</span></div>
+                            <div className="income-row premium-income-row muted"><span className="income-label">?? Frozen (Auto-Upgrade)</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
+                            <div className="income-row income-row-secondary" title="Display only � Network activity">
+                              <span className="income-label">?? Crossline (Display)</span>
                               <span className="income-amount">${networkBonusDisplay}</span>
                             </div>
                             <div className="income-row premium-income-row amber">
-                              <span className="income-label">🌊 Spillover (Display)</span>
+                              <span className="income-label">?? Spillover (Display)</span>
                               <span className="income-amount">${spilloverIncomeDisplay}</span>
                             </div>
                             <p className="premium-income-note">Network activity record only.</p>
@@ -3529,14 +3529,14 @@ function App() {
 
                       <article className="section-card premium-panel">
                         <div className="section-card-header">
-                          <h3 className="section-card-title" title="Display only · Network activity">Crossline Income</h3>
+                          <h3 className="section-card-title" title="Display only � Network activity">Crossline Income</h3>
                         </div>
                         <div className="section-card-body">
-                          <p className="text-secondary">Display only · Network activity.</p>
+                          <p className="text-secondary">Display only � Network activity.</p>
                           <ul className="metric-list compact progress-list mt-4">
                             {networkBonusHistoryRows.length > 0 ? networkBonusHistoryRows.map((item) => (
                               <li key={`crossline-${item.txHash}`}>
-                                <strong>{item.fromUserId ? `From User #${item.fromUserId} (rebirth network)` : "Rebirth network"}</strong> · {item.dateLabel}<br />
+                                <strong>{item.fromUserId ? `From User #${item.fromUserId} (rebirth network)` : "Rebirth network"}</strong> � {item.dateLabel}<br />
                                 <span className="text-secondary">{`Amount: $${item.amount}`}</span>
                               </li>
                             )) : <li>No crossline income yet.</li>}
@@ -3555,7 +3555,7 @@ function App() {
                         <ul className="metric-list compact progress-list">
                           {recentActivityRows.length > 0 ? recentActivityRows.slice(0, 5).map((item, index) => (
                             <li key={`recent-income-${item.blockNumber ?? "na"}-${item.primary}-${item.secondary}-${index}`}>
-                              <strong>{item.primary}</strong> · {item.timestampLabel ?? "Live"}<br />
+                              <strong>{item.primary}</strong> � {item.timestampLabel ?? "Live"}<br />
                               <span className="text-secondary">{item.secondary}</span>
                             </li>
                           )) : <li>No activity yet.</li>}
@@ -3601,7 +3601,7 @@ function App() {
                         onClick={handleCopyReferralLink}
                         disabled={!referralLink}
                       >
-                        <span aria-hidden="true">📋</span>
+                        <span aria-hidden="true">??</span>
                         <span>Copy</span>
                       </button>
                     </div>
@@ -3682,7 +3682,7 @@ function App() {
                         >
                           <strong>{`Level ${row.levelNumber}`}</strong>
                           <span className={`level-status-badge ${row.isUnlocked ? "active" : "locked"}`}>
-                            {row.isUnlocked ? "✅ Active" : "🔒 Locked"}
+                            {row.isUnlocked ? "? Active" : "?? Locked"}
                           </span>
                           <span className="level-status-rate">4%</span>
                         </article>
@@ -3786,7 +3786,7 @@ function App() {
                             }}
                             className="rebirth-back-btn"
                           >
-                            ← Back
+                            ? Back
                           </button>
                           <div className="rebirth-subdash-headline">
                             <span className="rebirth-detail-badge">ACTIVE ID</span>
@@ -3796,11 +3796,11 @@ function App() {
 
                         <div className="rebirth-stats-row">
                           {[
-                            { label: "Package", value: selectedRebirthRow ? `Pkg ${selectedRebirthRow.packageLevel}` : "Pkg 1", icon: "⬢" },
-                            { label: "Direct Income", value: `$${rebirthNodeDetails?.directIncome ?? "0"}`, cyan: true, icon: "↗" },
-                            { label: "Level Income", value: `$${rebirthNodeDetails?.levelIncome ?? "0"}`, cyan: true, icon: "⇡" },
-                            { label: "Total Team", value: String((rebirthNodeDetails?.leftBranchNodes ?? 0) + (rebirthNodeDetails?.rightBranchNodes ?? 0)), icon: "◉" },
-                            { label: "Direct Referrals", value: String(rebirthNodeDetails?.directReferrals ?? 0), icon: "◎" },
+                            { label: "Package", value: selectedRebirthRow ? `Pkg ${selectedRebirthRow.packageLevel}` : "Pkg 1", icon: "📦" },
+                            { label: "Direct Income", value: `$${rebirthNodeDetails?.directIncome ?? "0"}`, cyan: true, icon: "💰" },
+                            { label: "Level Income", value: `$${rebirthNodeDetails?.levelIncome ?? "0"}`, cyan: true, icon: "📊" },
+                            { label: "Total Team", value: String((rebirthNodeDetails?.leftBranchNodes ?? 0) + (rebirthNodeDetails?.rightBranchNodes ?? 0)), icon: "👥" },
+                            { label: "Direct Referrals", value: String(rebirthNodeDetails?.directReferrals ?? 0), icon: "🤝" },
                             {
                               label: "Total Earnings",
                               value: `$${
@@ -3812,7 +3812,7 @@ function App() {
                                   : "0"
                               }`,
                               gold: true,
-                              icon: "✦"
+                              icon: "🏆"
                             }
                           ].map((stat, index) => (
                             <div key={`rebirth-stat-${index}`} className="rebirth-stat-card">
@@ -3867,7 +3867,7 @@ function App() {
                                 <div className="section-card-body">
                                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                                     <div className="flex items-center justify-between gap-3">
-                                      <span className="text-sm font-medium text-white">🔒 Auto-Upgrade Escrow</span>
+                                      <span className="text-sm font-medium text-white">?? Auto-Upgrade Escrow</span>
                                       <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
                                         {`xSlot ${rebirthXSlotStep} / 5`}
                                       </span>
@@ -3909,7 +3909,7 @@ function App() {
                                         .sort((a, b) => Number(a[0]) - Number(b[0]))
                                         .map(([pkg, amount]) => (
                                           <div key={`rebirth-box-${pkg}`} className="income-row premium-income-row">
-                                            <span className="income-label">{`Box 1 · Pkg ${pkg}`}</span>
+                                            <span className="income-label">{`Box 1 � Pkg ${pkg}`}</span>
                                             <span className="income-amount">{`$${Number(amount).toFixed(2)}`}</span>
                                           </div>
                                         ))}
@@ -4086,10 +4086,10 @@ function App() {
                   </div>
                   <div className="section-card-body">
                     <ul className="space-y-3 text-sm text-gray-200">
-                      <li><span className="text-cyan-400">•</span> Rebirth triggers after completing the Package 1 five-cycle journey.</li>
-                      <li><span className="text-cyan-400">•</span> Your rebirth ID uses the same wallet but starts fresh as a new earning identity.</li>
-                      <li><span className="text-cyan-400">•</span> Original and rebirth IDs continue earning independently inside the same ecosystem.</li>
-                      <li><span className="text-cyan-400">•</span> Use the tree viewer above to inspect each rebirth ID’s placement and live income progress.</li>
+                      <li><span className="text-cyan-400">�</span> Rebirth triggers after completing the Package 1 five-cycle journey.</li>
+                      <li><span className="text-cyan-400">�</span> Your rebirth ID uses the same wallet but starts fresh as a new earning identity.</li>
+                      <li><span className="text-cyan-400">�</span> Original and rebirth IDs continue earning independently inside the same ecosystem.</li>
+                      <li><span className="text-cyan-400">�</span> Use the tree viewer above to inspect each rebirth ID�s placement and live income progress.</li>
                     </ul>
                   </div>
                 </article>
@@ -4120,7 +4120,7 @@ function App() {
                     </div>
                   </div>
 
-                  <div className="transfer-arrow">↕</div>
+                  <div className="transfer-arrow">→</div>
 
                   <div className="transfer-section">
                     <label className="transfer-label">TO</label>
@@ -4187,7 +4187,7 @@ function App() {
                     <div className="balance-label">Total Balance</div>
                     <div className="mgx-allocation-hero-ring">
                       <div className="balance-amount-large">{totalMgxAllocatedDisplay} MGX</div>
-                      <div className="balance-usd">{`≈ $${totalMgxAllocatedDisplay}`}</div>
+                      <div className="balance-usd">{`� $${totalMgxAllocatedDisplay}`}</div>
                     </div>
                   </div>
 
@@ -4206,7 +4206,7 @@ function App() {
                         </div>
                         <div className="token-amount-right">
                           <span className="amount-main">{row.amount} MGX</span>
-                          <span className="amount-sub">{`≈ $${row.usdApprox}`}</span>
+                          <span className="amount-sub">{`� $${row.usdApprox}`}</span>
                         </div>
                       </div>
                     ))}
@@ -4450,7 +4450,7 @@ function App() {
                               "Submitting stake...",
                               "Stake updated",
                               () => ({
-                                title: "✅ Stake confirmed",
+                                title: "? Stake confirmed",
                                 detail: "Position updated"
                               })
                             );
@@ -4663,7 +4663,7 @@ function App() {
                     </div>
                     <div className="flex justify-center sm:justify-start">
                       <button type="button" className="btn-primary-large cashback-view-btn w-full sm:w-auto" title="Available after mainnet launch" disabled>
-                        View Cashback →
+                        View Cashback ?
                       </button>
                     </div>
                     {parseDisplayNumber(snapshot.pendingCashback) === 0 ? (
@@ -4677,7 +4677,7 @@ function App() {
                   <div className="section-header">
                     <span className="section-badge blue">CONNECTED WALLET</span>
                     <button type="button" className="btn-refresh-reward" onClick={() => void handleRefreshSection("Wallet")} disabled={isLoading}>
-                      ↻ Refresh
+                      ? Refresh
                     </button>
                   </div>
                 <div className="wallet-address-row">
@@ -4698,8 +4698,8 @@ function App() {
                   </div>
                   <div className="wallet-action-buttons premium-action-grid">
                     <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("mgxboxes"); }}>
-                      <span className="premium-action-icon">💸</span>
-                      <span className="premium-action-title">Inner → Wallet</span>
+                      <span className="premium-action-icon">??</span>
+                      <span className="premium-action-title">Inner ? Wallet</span>
                       <span className="premium-action-subtitle">Transfer earnings to wallet</span>
                     </button>
                     <button
@@ -4710,12 +4710,12 @@ function App() {
                         setWalletSubView("stakingclaim");
                       }}
                     >
-                      <span className="premium-action-icon">🎁</span>
-                      <span className="premium-action-title">Reward → Wallet</span>
+                      <span className="premium-action-icon">??</span>
+                      <span className="premium-action-title">Reward ? Wallet</span>
                       <span className="premium-action-subtitle">Claim platform rewards</span>
                     </button>
                     <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("stake"); }}>
-                      <span className="premium-action-icon">🔒</span>
+                      <span className="premium-action-icon">??</span>
                       <span className="premium-action-title">Staking</span>
                       <span className="premium-action-subtitle">Stake MGX tokens</span>
                       {parseDisplayNumber(displayedPersonalStaked) > 0 ? (
@@ -4723,7 +4723,7 @@ function App() {
                       ) : null}
                     </button>
                     <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("cashback"); }}>
-                      <span className="premium-action-icon">💰</span>
+                      <span className="premium-action-icon">??</span>
                       <span className="premium-action-title">Cashback Pool</span>
                       <span className="premium-action-subtitle">View cashback status</span>
                     </button>
@@ -4884,7 +4884,7 @@ function App() {
                         <div className="upgrade-milestone-head">
                           <div className="upgrade-milestone-title-wrap">
                             <span className="upgrade-milestone-icon" aria-hidden="true">
-                              {isCompleted ? "✅" : isActive ? "⬆" : "🔒"}
+                              {isCompleted ? "?" : isActive ? "?" : "??"}
                             </span>
                             <div>
                               <h4>{`Pkg ${milestone.fromPkg} → ${typeof milestone.toPkg === "number" ? `Pkg ${milestone.toPkg}` : milestone.toPkg}`}</h4>
@@ -4899,21 +4899,21 @@ function App() {
                             </div>
                           </div>
                           <span className={`upgrade-milestone-badge ${isCompleted ? "done" : ""} ${isActive ? "active" : ""} ${isLocked ? "locked" : ""}`}>
-                            {isCompleted ? "✓ DONE" : isActive ? "ACTIVE" : "🔒 LOCKED"}
+                            {isCompleted ? "? DONE" : isActive ? "ACTIVE" : "?? LOCKED"}
                           </span>
                         </div>
 
                         {isCompleted ? (
                           <div className="upgrade-milestone-complete">
                             <div className="upgrade-milestone-meta">
-                              <span className="upgrade-milestone-meta-label">📅 Upgraded</span>
+                              <span className="upgrade-milestone-meta-label">?? Upgraded</span>
                               <span className="upgrade-milestone-cost">{`Cost Paid: ${milestoneCostLabel}`}</span>
                             </div>
                             <div className="upgrade-milestone-progress" aria-hidden="true">
                               <span className="upgrade-milestone-progress-fill" style={{ width: "100%" }} />
                             </div>
                             <div className="upgrade-milestone-meta">
-                              <span className="upgrade-milestone-complete-copy">Milestone Complete! 🎉</span>
+                              <span className="upgrade-milestone-complete-copy">Milestone Complete! ??</span>
                               <span className="upgrade-milestone-percent">100%</span>
                             </div>
                           </div>
@@ -4961,12 +4961,12 @@ function App() {
                                 )
                               }
                             >
-                              🔒 Upgrade Now
+                              ?? Upgrade Now
                             </button>
                           </>
                         ) : null}
 
-                        {isActive && isMaxMilestone ? <div className="upgrade-max-state">You're at Maximum Package 🎖️</div> : null}
+                        {isActive && isMaxMilestone ? <div className="upgrade-max-state">You're at Maximum Package ???</div> : null}
                       </article>
                     );
                   })}

@@ -600,7 +600,7 @@ const GENEALOGY_CACHE_TTL = 300_000;
 const tokenDecimalsCache = new Map<string, number>();
 
 function getConfiguredDeploymentStartBlockValue() {
-  const configuredBlock = Number(readTrimmedEnv("VITE_DEPLOY_BLOCK"));
+  const configuredBlock = Number(readTrimmedEnv("VITE_DEPLOY_BLOCK") || "161228800");
   if (Number.isFinite(configuredBlock) && configuredBlock >= 0) {
     return configuredBlock;
   }
