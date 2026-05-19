@@ -1,6 +1,9 @@
 import { BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEther, formatUnits, getAddress, getBytes, parseUnits, solidityPackedKeccak256, verifyMessage, type ContractRunner } from "ethers";
 import { activeNetworkConfig, toHexChainId } from "../config/networks";
 
+const DEBUG_EVENTS = false;
+const BLOCK_CHUNK_SIZE = 10_000;
+
 async function withTimeout<T>(
   promise: Promise<T>,
   ms = 15000,
@@ -23,12 +26,29 @@ async function withTimeout<T>(
   }
 }
 
+function shouldTimeLabel(label: string) {
+  if (DEBUG_EVENTS) {
+    return true;
+  }
+
+  return !(
+    label.startsWith("queryFilter:") ||
+    label.startsWith("queryAllEvents:") ||
+    label.startsWith("provider.getLogs:")
+  );
+}
+
 async function timedAsync<T>(label: string, action: () => Promise<T>): Promise<T> {
-  console.time(label);
+  const shouldTrace = shouldTimeLabel(label);
+  if (shouldTrace) {
+    console.time(label);
+  }
   try {
     return await action();
   } finally {
-    console.timeEnd(label);
+    if (shouldTrace) {
+      console.timeEnd(label);
+    }
   }
 }
 
@@ -196,21 +216,13 @@ async function queryFilterChunked(
   filter: any,
   fromBlock: number,
   toBlock: number,
-  chunkSize = 5000
+  chunkSize = BLOCK_CHUNK_SIZE
 ) {
   const results: any[] = [];
   const totalRange = Math.max(0, toBlock - fromBlock);
-  const effectiveChunkSize = totalRange > 200_000 ? Math.min(chunkSize, 2_000) : chunkSize;
-  console.info("[MetaGuildX] queryFilterChunked", {
-    event: filter?.fragment?.name ?? filter?.name ?? "unknown",
-    fromBlock,
-    toBlock,
-    chunkSize: effectiveChunkSize
-  });
-
+  const effectiveChunkSize = totalRange > 200_000 ? Math.max(chunkSize, BLOCK_CHUNK_SIZE) : chunkSize;
   for (let start = fromBlock; start <= toBlock; start += effectiveChunkSize) {
     const end = Math.min(start + effectiveChunkSize - 1, toBlock);
-    console.info("[MetaGuildX] queryFilterChunked range", { start, end });
     const chunk = await timedAsync(
       `queryFilter:${filter?.fragment?.name ?? filter?.name ?? "unknown"}:${start}-${end}`,
       () => withTimeout(contract.queryFilter(filter, start, end), 15000, [])
@@ -225,24 +237,15 @@ async function queryAllEvents(
   filter: any,
   startBlock: number,
   endBlock: number,
-  chunkSize = 49_000
+  chunkSize = BLOCK_CHUNK_SIZE
 ) {
   const allEvents: any[] = [];
   let from = startBlock;
   const totalRange = Math.max(0, endBlock - startBlock);
-  const effectiveChunkSize = totalRange > 200_000 ? Math.min(chunkSize, 5_000) : chunkSize;
-
-  console.info("[MetaGuildX] queryAllEvents", {
-    event: filter?.fragment?.name ?? filter?.name ?? "unknown",
-    startBlock,
-    endBlock,
-    chunkSize: effectiveChunkSize
-  });
-
+  const effectiveChunkSize = totalRange > 200_000 ? Math.max(chunkSize, BLOCK_CHUNK_SIZE) : chunkSize;
   while (from <= endBlock) {
     const to = Math.min(from + effectiveChunkSize, endBlock);
     try {
-      console.info("[MetaGuildX] queryAllEvents range", { from, to });
       const events = await timedAsync(
         `queryAllEvents:${filter?.fragment?.name ?? filter?.name ?? "unknown"}:${from}-${to}`,
         () => withTimeout(contract.queryFilter(filter, from, to), 15000, [])
@@ -1312,7 +1315,6 @@ async function loadBoxEarnings(input: {
     const end = Math.min(start + 48_999, currentBlock);
 
     try {
-      console.info("[MetaGuildX] provider.getLogs range", { start, end, routerAddress });
       const [modernDirectLogs, modernLevelLogs, crosslineLogs, legacyDirectLogs, legacyLevelLogs] = await Promise.all([
         getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: modernDirectTopics }, `provider.getLogs:modernDirect:${start}-${end}`),
         getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: modernLevelTopics }, `provider.getLogs:modernLevel:${start}-${end}`),

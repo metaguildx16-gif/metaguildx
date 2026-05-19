@@ -65,7 +65,7 @@ const lockPeriods: { label: string; days: number; bonus: string; multiplier: num
 const WALLET_STORAGE_KEY = "mgx_wallet";
 const WALLET_CONNECTED_KEY = "mgx_connected";
 const WALLET_AUTH_TIMESTAMP_KEY = "mgx_auth_timestamp";
-const DASHBOARD_LOAD_TIMEOUT_MS = 15000;
+const DASHBOARD_LOAD_TIMEOUT_MS = 90_000;
 
 function resolveAdminPanelUrl() {
   const configuredUrl = import.meta.env.VITE_ADMIN_PANEL_URL?.trim();
@@ -121,6 +121,7 @@ function hasValidWalletSession() {
 }
 
 function App() {
+  const loadingShellStyle = { background: "#0a0a1a", borderRadius: 16, width: "100%" };
   const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
   const isAdminRoute = pathname.startsWith("/admin");
   const isCommunityDashboardRoute = pathname.startsWith("/dashboard");
@@ -232,7 +233,7 @@ function App() {
       return await Promise.race<T>([
         promise,
         new Promise<T>((_, reject) =>
-          window.setTimeout(() => reject(new Error(`${label} timed out after 15s`)), DASHBOARD_LOAD_TIMEOUT_MS)
+          window.setTimeout(() => reject(new Error(`${label} timed out after 90s`)), DASHBOARD_LOAD_TIMEOUT_MS)
         )
       ]);
     } finally {
@@ -251,7 +252,7 @@ function App() {
         currentBlock = await Promise.race<number>([
           provider.getBlockNumber(),
           new Promise<number>((_, reject) =>
-            window.setTimeout(() => reject(new Error("provider.getBlockNumber timed out after 15s")), DASHBOARD_LOAD_TIMEOUT_MS)
+            window.setTimeout(() => reject(new Error("provider.getBlockNumber timed out after 90s")), DASHBOARD_LOAD_TIMEOUT_MS)
           )
         ]);
       } catch (error) {
@@ -3030,14 +3031,12 @@ function App() {
         ) : null}
         <main className="dashboard-content">
             {isLoading ? (
-            <div className="center-box">
-              <div className="loading-text">{`Loading dashboard... ${loadElapsedSeconds}s`}</div>
-              <div className="status-text">{`Current phase: ${loadPhase}`}</div>
+            <div className="center-box" style={loadingShellStyle}>
+              <div className="loading-text">Loading dashboard...</div>
               <div className="status-text">{status}</div>
-              {/* renderStartupDiagnosticsPanel() */}
             </div>
             ) : loadFailure ? (
-              <div className="center-box">
+              <div className="center-box" style={loadingShellStyle}>
                 <div className="error-text">{loadFailure}</div>
                 <button type="button" className="btn-primary" onClick={() => void handleRetryDashboardLoad()}>
                   Retry Dashboard Load
@@ -3049,13 +3048,13 @@ function App() {
                 Unable to load data. Please reconnect your wallet or try again.
             </div>
           ) : isAdminRoute && !snapshot.walletAddress ? (
-            <div className="center-box">Connect wallet to continue</div>
+            <div className="center-box" style={loadingShellStyle}>Connect wallet to continue</div>
           ) : isAdminRoute && isCheckingAdminAccess ? (
-            <div className="center-box">Checking access...</div>
+            <div className="center-box" style={loadingShellStyle}>Checking access...</div>
           ) : isAdminRoute && isWrongAdminNetwork ? (
-            <div className="center-box">Wrong network. Please switch network.</div>
+            <div className="center-box" style={loadingShellStyle}>Wrong network. Please switch network.</div>
           ) : isAdminRoute && !isAdminAuthorized ? (
-            <div className="center-box">Access restricted</div>
+            <div className="center-box" style={loadingShellStyle}>Access restricted</div>
           ) : (
             <>
           <section className="panel dashboard-intro dashboard-view w-full max-w-full">
@@ -3188,7 +3187,7 @@ function App() {
               <p className="section-label">Network</p>
               <div className="summary-strip referrals-summary-strip premium-network-stats w-full max-w-full">
                 <article className="summary-chip premium-network-card">
-                  <span>?? Direct Referrals</span>
+                  <span>Direct Referrals</span>
                   <strong>{snapshot.directReferrals}</strong>
                 </article>
                 <article className="summary-chip premium-network-card">
@@ -3435,16 +3434,16 @@ function App() {
                           renderSkeletonRows(6)
                         ) : (
                           <>
-                            <div className="income-row premium-income-row"><span className="income-label">?? Direct Income</span><span className="income-amount">${directIncomeDisplay}</span></div>
-                            <div className="income-row premium-income-row"><span className="income-label">?? Level Income</span><span className="income-amount">${levelIncomeDisplay}</span></div>
-                            <div className="income-row premium-income-row total"><span className="income-label">?? Total Earned</span><span className="income-amount">${totalReceivedDisplay}</span></div>
-                            <div className="income-row premium-income-row muted"><span className="income-label">?? Frozen (Auto-Upgrade)</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
+                            <div className="income-row premium-income-row"><span className="income-label">Direct Income</span><span className="income-amount">${directIncomeDisplay}</span></div>
+                            <div className="income-row premium-income-row"><span className="income-label">Level Income</span><span className="income-amount">${levelIncomeDisplay}</span></div>
+                            <div className="income-row premium-income-row total"><span className="income-label">Total Earned</span><span className="income-amount">${totalReceivedDisplay}</span></div>
+                            <div className="income-row premium-income-row muted"><span className="income-label">Frozen (Auto-Upgrade)</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
                             <div className="income-row income-row-secondary" title="Display only � Network activity">
-                              <span className="income-label">?? Crossline (Display)</span>
+                              <span className="income-label">Crossline (Display)</span>
                               <span className="income-amount">${networkBonusDisplay}</span>
                             </div>
                             <div className="income-row premium-income-row amber">
-                              <span className="income-label">?? Spillover (Display)</span>
+                              <span className="income-label">Spillover (Display)</span>
                               <span className="income-amount">${spilloverIncomeDisplay}</span>
                             </div>
                             <p className="premium-income-note">Network activity record only.</p>
