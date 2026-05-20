@@ -55,6 +55,12 @@ File: `MetaGuildXCore.sol`
 Rule: when sponsor has no rebirth, place on opposite side
 Verify: `createRebirthUser` placement logic is respected
 
+### 9. `_distributeLevelIncome()` - advance cursor on package-mismatch skip
+File: `IncomeRouter.sol`
+Rule: if L1 sponsor is underqualified for the junior package, traversal must advance to the next level parent before checking L2+
+Verify: User #4 `Pkg1 -> Pkg2` style upgrades can still reach User #1 for level income when User #3 is underqualified
+Impact: without this fix, valid L2 payouts can incorrectly fall through to creator fallback
+
 ## Payment Normalization (Critical)
 
 - `PLATFORM_SCALE = 10`
@@ -196,28 +202,43 @@ Recommended immediately after those 5 steps:
 - Build web + admin
 - Deploy to VPS
 - Test registration and verify real ERC20 settlement on explorer
+- Because `IncomeRouter.sol` changed for level traversal, a fresh deploy is required before re-validating level income
 
 ## VPS Web Env Checklist
 
 The deployed web env must include the current deploy block and the full live address set. At minimum:
 
-- `VITE_DEPLOY_BLOCK=161228800`
-- `VITE_CORE_ADDRESS=0xe66443ed0628a44CB95e0aD0BfF7549600ECe123`
-- `VITE_ROUTER_ADDRESS=0xAF3e39628d2651a849Ce9cc1cDe4190254245763`
-- `VITE_INCOME_ADDRESS=0x3086A4353bc84beD0e6675c46078c49BEfa6162a`
-- `VITE_INCOME_ENGINE_ADDRESS=0x3086A4353bc84beD0e6675c46078c49BEfa6162a`
-- `VITE_INCOME_ROUTER_ADDRESS=0xAF3e39628d2651a849Ce9cc1cDe4190254245763`
-- `VITE_BINARY_TREE_ADDRESS=0x0240679ce5B1f81aa0e67132A045759A8D016e2f`
-- `VITE_UPGRADE_ADDRESS=0x871265071462e7cA5B216207F6D51B172975F90c`
-- `VITE_CASHBACK_POOL_ADDRESS=0x81358e56F967b243B7C3bF1018538fa36ebFcE98`
-- `VITE_MGX_STAKING_ADDRESS=0x71330515fea58ecCD1129699Ef909CA2163e0417`
-- `VITE_TOKEN_ENGINE_ADDRESS=0xA722E601dDB9abc38C44C02cDeF6DD86Df296C8e`
+- `VITE_NETWORK=testnet`
+- `VITE_DEPLOY_BLOCK=161766684`
+- `VITE_CORE_ADDRESS=0x8b1A15E2Be29130Fb79ce1AB765a73a42FC2274F`
+- `VITE_ROUTER_ADDRESS=0x74dFd592DbD1De3a091475f89c6E554bc11408D9`
+- `VITE_INCOME_ADDRESS=0xAf89927f6AF4CB920691A565f91146e3d339207E`
+- `VITE_INCOME_ENGINE_ADDRESS=0xAf89927f6AF4CB920691A565f91146e3d339207E`
+- `VITE_INCOME_ROUTER_ADDRESS=0x74dFd592DbD1De3a091475f89c6E554bc11408D9`
+- `VITE_BINARY_TREE_ADDRESS=0x287A20D526357421fa7A6cf7f5ee58285e649B08`
+- `VITE_UPGRADE_ADDRESS=0xC69888e9C502eEcf7aC0f06002dB0BD67c86A8c3`
+- `VITE_CASHBACK_POOL_ADDRESS=0xD311b1b67Ff63FfD739886aa3F2CDB84D48e234C`
+- `VITE_MGX_STAKING_ADDRESS=0x5FA0FD184A5855bfB44Fde3982fc12993b26FC10`
+- `VITE_TOKEN_ENGINE_ADDRESS=0xc6ED82aB66dc00AB45b67a116869098B4F20Df43`
 - `VITE_USDT_ADDRESS=0xF4975eB104932bDBcA491A9Cb985439eA03863e0`
 
 If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - box earnings can show empty
 - level breakdown scans can return `0 members`
 - analytics can silently read the wrong deployment
+
+## Frontend Runtime Safety Notes
+
+- `normalizeNetworkKey(...)` must default unknown/missing networks to `testnet`, not `local`
+- landing page public stats must use the public testnet RPC path, not wallet-driven RPC state
+- `wallet_addEthereumChain` testnet metadata must remain:
+  - `chainName = opBNB Testnet`
+  - `nativeCurrency.name = tBNB`
+  - `nativeCurrency.symbol = tBNB`
+  - `blockExplorerUrls = https://opbnb-testnet.bscscan.com`
+- `SHOW_DIAGNOSTICS = false` in production builds
+- event-scan chunking is intentionally reduced to `BLOCK_CHUNK_SIZE = 10000`
+- noisy `queryFilter` / `getLogs` progress logs should stay disabled in production
 
 ## Environment Variables (NEVER commit to git)
 

@@ -88,6 +88,10 @@ Before using fallback addresses for any validation flow:
 
 If those are stale, testnet fallback logic can silently read old deployments.
 
+Also verify:
+- [ ] `VITE_NETWORK=testnet` on staging/testnet VPS
+- [ ] `normalizeNetworkKey(...)` default fallback remains `testnet`, not `local`
+
 ## ProductionMode Safety
 
 `productionMode = true` enforces real settlement collection.
@@ -161,6 +165,13 @@ After first paid registrations, verify on explorer:
 - [ ] No localhost URLs
 - [ ] Error tracking enabled
 - [ ] Analytics setup
+- [ ] landing/public stats use a dedicated public RPC, not wallet-driven RPC state
+- [ ] `wallet_addEthereumChain` testnet metadata stays SafePal-compatible on staging
+- [ ] testnet native currency remains `tBNB`
+- [ ] testnet explorer URL remains `https://opbnb-testnet.bscscan.com`
+- [ ] `SHOW_DIAGNOSTICS = false` in production
+- [ ] event scan noise stays disabled in production
+- [ ] `BLOCK_CHUNK_SIZE = 10000` retained unless RPC behavior is re-evaluated
 
 ## Signer Environment
 
@@ -175,6 +186,7 @@ After first paid registrations, verify on explorer:
 - [ ] Auto-upgrade tested
 - [ ] Rebirth tested
 - [ ] Level income distribution verified
+- [ ] Level-income package-mismatch traversal verified after `IncomeRouter` cursor-advance fix
 - [ ] Admin panel verified
 - [ ] Wallet balance display verified after Moralis removal
 
@@ -210,3 +222,9 @@ After first paid registrations, verify on explorer:
     - correct unit price (`1e17`)
     - `productionMode = true`
     - deployer USDT approval to Core
+
+- Later testnet debugging also discovered:
+  - stale `TESTNET_*` fallback addresses caused frontend safety fallbacks to point at old deployments
+  - default unknown network selection must not fall back to `Localhost 8545`
+  - level-income traversal required a cursor-advance fix when L1 sponsor was underqualified for the junior package
+  - public landing stats needed a dedicated testnet RPC path independent of wallet state
