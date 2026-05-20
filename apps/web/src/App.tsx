@@ -67,6 +67,15 @@ const WALLET_CONNECTED_KEY = "mgx_connected";
 const WALLET_AUTH_TIMESTAMP_KEY = "mgx_auth_timestamp";
 const DASHBOARD_LOAD_TIMEOUT_MS = 90_000;
 const SHOW_DIAGNOSTICS = false;
+const PUBLIC_TESTNET_RPC =
+  import.meta.env.VITE_TESTNET_RPC ||
+  import.meta.env.VITE_TESTNET_RPC_URL ||
+  "https://opbnb-testnet-rpc.bnbchain.org";
+const PUBLIC_TESTNET_CORE_ADDRESS =
+  import.meta.env.VITE_CORE_ADDRESS ||
+  import.meta.env.VITE_SYSTEM_ADDRESS ||
+  import.meta.env.VITE_CONTRACT_ADDRESS ||
+  "";
 
 function resolveAdminPanelUrl() {
   const configuredUrl = import.meta.env.VITE_ADMIN_PANEL_URL?.trim();
@@ -542,8 +551,11 @@ function App() {
     let isActive = true;
 
     async function fetchLandingStats() {
-      const contractAddress = activeNetworkConfig.contractAddress;
-      const rpcUrl = activeNetworkConfig.rpcUrl;
+      const rpcUrl = PUBLIC_TESTNET_RPC || activeNetworkConfig.rpcUrl;
+      const contractAddress =
+        activeNetworkConfig.chainId === 5611
+          ? PUBLIC_TESTNET_CORE_ADDRESS || activeNetworkConfig.contractAddress
+          : PUBLIC_TESTNET_CORE_ADDRESS || activeNetworkConfig.contractAddress;
       if (!contractAddress || !rpcUrl) {
         return;
       }
