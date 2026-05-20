@@ -2112,10 +2112,15 @@ async function ensureErc20Approval(input: {
   }
 
   if (currentAllowance < requiredRaw) {
-    input.onProgress?.("approving");
-    const approveTx = await token.approve(spenderAddress, requiredRaw);
-    input.onProgress?.("confirming");
-    await approveTx.wait();
+    try {
+      input.onProgress?.("approving");
+      const approveTx = await token.approve(spenderAddress, requiredRaw);
+      input.onProgress?.("confirming");
+      await approveTx.wait();
+    } catch (error) {
+      console.error("USDT approval failed:", error);
+      throw new Error("USDT approval failed or rejected");
+    }
   }
 
   return { token, decimals, requiredRaw };
@@ -3070,14 +3075,22 @@ export async function upgradeUserPackage(input: { userId: number; newPackageLeve
     (walletChargeRaw * (10n ** BigInt(usdtDecimals))) / (10n ** BigInt(PLATFORM_DECIMALS));
 
   if (walletChargeSettlement > 0n) {
-    await ensureErc20Approval({
-      tokenAddress: paymentAsset,
-      signer,
-      ownerAddress: address,
-      spenderAddress: contractAddress,
-      requiredRaw: walletChargeSettlement,
-      assetLabel: "USDT"
-    });
+    try {
+      await ensureErc20Approval({
+        tokenAddress: paymentAsset,
+        signer,
+        ownerAddress: address,
+        spenderAddress: contractAddress,
+        requiredRaw: walletChargeSettlement,
+        assetLabel: "USDT"
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("USDT approval failed or rejected")) {
+        throw new Error("USDT approval failed or rejected");
+      }
+      throw error;
+    }
   }
 
   try {
