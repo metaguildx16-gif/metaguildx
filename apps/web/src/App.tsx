@@ -66,6 +66,7 @@ const WALLET_STORAGE_KEY = "mgx_wallet";
 const WALLET_CONNECTED_KEY = "mgx_connected";
 const WALLET_AUTH_TIMESTAMP_KEY = "mgx_auth_timestamp";
 const DASHBOARD_LOAD_TIMEOUT_MS = 90_000;
+const SHOW_DIAGNOSTICS = false;
 
 function resolveAdminPanelUrl() {
   const configuredUrl = import.meta.env.VITE_ADMIN_PANEL_URL?.trim();
@@ -3041,7 +3042,7 @@ function App() {
                 <button type="button" className="btn-primary" onClick={() => void handleRetryDashboardLoad()}>
                   Retry Dashboard Load
                 </button>
-                {/* renderStartupDiagnosticsPanel() */}
+                {SHOW_DIAGNOSTICS ? renderStartupDiagnosticsPanel() : null}
               </div>
             ) : hasError ? (
               <div className="error-text">
