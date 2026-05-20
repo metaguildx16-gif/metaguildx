@@ -48,9 +48,9 @@ export const networkConfigs: Record<NetworkKey, NetworkConfig> = {
   },
   testnet: {
     key: "testnet",
-    label: import.meta.env.VITE_TESTNET_CHAIN_NAME || "MGX Testnet",
+    label: import.meta.env.VITE_TESTNET_CHAIN_NAME || "opBNB Testnet",
     chainId: parseChainId(import.meta.env.VITE_CHAIN_ID || import.meta.env.VITE_TESTNET_CHAIN_ID, 5611),
-    rpcUrl: import.meta.env.VITE_TESTNET_RPC || import.meta.env.VITE_TESTNET_RPC_URL || "",
+    rpcUrl: import.meta.env.VITE_TESTNET_RPC || import.meta.env.VITE_TESTNET_RPC_URL || "https://opbnb-testnet-rpc.bnbchain.org",
     contractAddress:
       import.meta.env.VITE_CORE_ADDRESS ||
       import.meta.env.VITE_SYSTEM_ADDRESS ||
@@ -61,11 +61,11 @@ export const networkConfigs: Record<NetworkKey, NetworkConfig> = {
     analyticsAddress: import.meta.env.VITE_TESTNET_ANALYTICS_ADDRESS || import.meta.env.VITE_METAGUILDX_ANALYTICS_ADDRESS || "",
     usdtAddress: import.meta.env.VITE_USDT_ADDRESS || import.meta.env.VITE_TESTNET_USDT_ADDRESS || "",
     nativeCurrency: {
-      name: import.meta.env.VITE_TESTNET_CURRENCY_NAME || "BNB",
+      name: import.meta.env.VITE_TESTNET_CURRENCY_NAME || "tBNB",
       symbol: import.meta.env.VITE_TESTNET_CURRENCY_SYMBOL || "tBNB",
       decimals: 18
     },
-    blockExplorerUrls: import.meta.env.VITE_TESTNET_EXPLORER_URL ? [import.meta.env.VITE_TESTNET_EXPLORER_URL] : []
+    blockExplorerUrls: import.meta.env.VITE_TESTNET_EXPLORER_URL ? [import.meta.env.VITE_TESTNET_EXPLORER_URL] : ["https://opbnb-testnet.bscscan.com"]
   },
   mainnet: {
     key: "mainnet",
