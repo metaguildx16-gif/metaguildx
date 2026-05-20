@@ -22,10 +22,10 @@ function parseChainId(value: string | undefined, fallback: number) {
 }
 
 function normalizeNetworkKey(value: string | undefined): NetworkKey {
-  if (value === "testnet" || value === "mainnet") {
+  if (value === "local" || value === "testnet" || value === "mainnet") {
     return value;
   }
-  return "local";
+  return "testnet";
 }
 
 export const activeNetworkKey = normalizeNetworkKey(import.meta.env.VITE_NETWORK);
