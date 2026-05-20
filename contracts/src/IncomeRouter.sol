@@ -345,6 +345,19 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
             uint8 unlockedLevels = _getUnlockedLevels(core, candidateId, juniorPkgLevel);
 
             if (uplinePkgLevel < juniorPkgLevel) {
+                uint256 next;
+                if (level == 1) {
+                    next = core.getLevelParent(sponsorId);
+                    if (next == 0) {
+                        next = core.getBinaryParent(sponsorId);
+                    }
+                } else {
+                    next = core.getLevelParent(candidateId);
+                    if (next == 0) {
+                        next = core.getBinaryParent(candidateId);
+                    }
+                }
+                placementCursor = next;
                 level++;
                 continue;
             }
