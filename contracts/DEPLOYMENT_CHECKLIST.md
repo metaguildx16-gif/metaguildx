@@ -1,17 +1,29 @@
 # MetaGuildX V3 - Deployment Checklist
 
 ## Contract Addresses (opBNB Testnet)
-Core:         0x2e64Ece2658D96688C38d6F9D34Fc991299BFEc1
-Income:       0x3D9CaF8bc8dc2077486a01Fd923b09BbFa036D69
-Upgrade:      0x7a298d05b77D6aa43574732db951Aa11a22ee4eE
-Router:       0x1370280269adADbd4fa82bc8d3e47c46a395123D
-BinaryTree:   0xD8792404a33879860aC48ADca957668968b22B79
-CashbackPool: 0x7D52830c2089af34F1167992E41E7D73ae2C4287
-MGXStaking:   0x0B09B82F668b738E8DDE618bdD7A3B57fa54927C
-MGXToken:     0x6eE56edd0d6341F001c9A8387d5E428C341d6BD4
-TokenEngine:  0x7515F32B9D4C0D2aF50984BE64D7Ffa749E9a20C
+Core:         0xe66443ed0628a44CB95e0aD0BfF7549600ECe123
+Income:       0x3086A4353bc84beD0e6675c46078c49BEfa6162a
+Upgrade:      0x871265071462e7cA5B216207F6D51B172975F90c
+Router:       0xAF3e39628d2651a849Ce9cc1cDe4190254245763
+BinaryTree:   0x0240679ce5B1f81aa0e67132A045759A8D016e2f
+CashbackPool: 0x81358e56F967b243B7C3bF1018538fa36ebFcE98
+MGXStaking:   0x71330515fea58ecCD1129699Ef909CA2163e0417
+MGXToken:     0xFA40a59e4C3d5350eF896c19c138b33f9cc5e976
+TokenEngine:  0xA722E601dDB9abc38C44C02cDeF6DD86Df296C8e
 USDT:         0xF4975eB104932bDBcA491A9Cb985439eA03863e0
-Deploy Block: 161029086
+Deploy Block: 161228800
+
+## Web/Testnet Fallback Addresses
+
+The web fallback constants in `apps/web/src/lib/metaguildx.ts` must stay aligned with the current canonical testnet deployment set:
+
+- `TESTNET_CORE_ADDRESS = 0xB7607Ed884C665BE1ddE73e6D82d0ac5AD4095af`
+- `TESTNET_BINARY_TREE_ADDRESS = 0xdfC9C58a20cFd481Dd3e83955d75EfCBA2E6756f`
+- `TESTNET_INCOME_ROUTER_ADDRESS = 0x02fEAadC09C052Ad0f7EE95Ce1336De80AB380D2`
+- `TESTNET_CASHBACK_POOL_ADDRESS = 0x0919D80A105746fe53d7b68544b6D9283EcA9724`
+- `TESTNET_STAKING_ADDRESS = 0x6a8E438f54394141D808a1A24A7a8CA9469E4CfA`
+
+If these fallbacks are stale, event scans and safety fallbacks can silently read old deployments.
 
 ## Critical Bug Fixes Applied (MUST verify after any upgrade)
 
@@ -159,7 +171,7 @@ Run:
 `npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet`
 
 Expected:
-`14 passed, 0 failed`
+`15 passed, 0 failed`
 
 This must verify at minimum:
 - `defaultPaymentAsset = correct USDT`
@@ -184,17 +196,40 @@ If any of these are wrong, registrations are not production-safe.
 1. `npx hardhat compile`
 2. `npx hardhat run scripts/fresh-deploy-v3.ts --network opbnbTestnet`
    Deploys contracts, wires them, configures USDT, sets production mode
-3. `npx hardhat run scripts/debug-registration-flow.ts --network opbnbTestnet`
-   Confirms settlement amount, balance, allowance, and distribution targets
-4. `npx hardhat run scripts/post-deploy-setup.ts --network opbnbTestnet`
+3. `npx hardhat run scripts/post-deploy-setup.ts --network opbnbTestnet`
    Performs root registration, staking setup, and post-deploy checks
-5. `npx hardhat run scripts/update-env-after-deploy.ts --network opbnbTestnet`
+4. `npx hardhat run scripts/update-env-after-deploy.ts --network opbnbTestnet`
    Updates frontend/admin env references
-6. `npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet`
-   Must show `14/14` pass
-7. Build web + admin
-8. Deploy to VPS
-9. Test registration and verify real ERC20 settlement on explorer
+5. `npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet`
+   Must show `15/15` pass
+
+Recommended immediately after those 5 steps:
+- `npx hardhat run scripts/debug-registration-flow.ts --network opbnbTestnet`
+- Build web + admin
+- Deploy to VPS
+- Test registration and verify real ERC20 settlement on explorer
+
+## VPS Web Env Checklist
+
+The deployed web env must include the current deploy block and the full live address set. At minimum:
+
+- `VITE_DEPLOY_BLOCK=161228800`
+- `VITE_CORE_ADDRESS=0xe66443ed0628a44CB95e0aD0BfF7549600ECe123`
+- `VITE_ROUTER_ADDRESS=0xAF3e39628d2651a849Ce9cc1cDe4190254245763`
+- `VITE_INCOME_ADDRESS=0x3086A4353bc84beD0e6675c46078c49BEfa6162a`
+- `VITE_INCOME_ENGINE_ADDRESS=0x3086A4353bc84beD0e6675c46078c49BEfa6162a`
+- `VITE_INCOME_ROUTER_ADDRESS=0xAF3e39628d2651a849Ce9cc1cDe4190254245763`
+- `VITE_BINARY_TREE_ADDRESS=0x0240679ce5B1f81aa0e67132A045759A8D016e2f`
+- `VITE_UPGRADE_ADDRESS=0x871265071462e7cA5B216207F6D51B172975F90c`
+- `VITE_CASHBACK_POOL_ADDRESS=0x81358e56F967b243B7C3bF1018538fa36ebFcE98`
+- `VITE_MGX_STAKING_ADDRESS=0x71330515fea58ecCD1129699Ef909CA2163e0417`
+- `VITE_TOKEN_ENGINE_ADDRESS=0xA722E601dDB9abc38C44C02cDeF6DD86Df296C8e`
+- `VITE_USDT_ADDRESS=0xF4975eB104932bDBcA491A9Cb985439eA03863e0`
+
+If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
+- box earnings can show empty
+- level breakdown scans can return `0 members`
+- analytics can silently read the wrong deployment
 
 ## Environment Variables (NEVER commit to git)
 
@@ -202,3 +237,8 @@ If any of these are wrong, registrations are not production-safe.
 - `VITE_PLACEMENT_SIGNER_TOKEN` is browser-exposed and only a light gate
 - `SIGNER_PRIVATE_KEY` and `SIGNER_AUTH_TOKEN` must live outside the repo
 - `PLACEMENT_SIGNER_PRIVATE_KEY` must be available for root registration scripts
+- the signer service self-loads `/etc/metaguildx/signer.env` at startup
+- `ALLOWED_ORIGINS` must include:
+  - `https://test.metaguildx.net`
+  - `https://metaguildx.net`
+  - `https://www.metaguildx.net`

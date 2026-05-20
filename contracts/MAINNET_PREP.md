@@ -39,6 +39,55 @@ That is an economically broken dust transfer.
 - [ ] Test paid registration and verify real income distribution
 - [ ] Core USDT balance starts at `0` before first registration
 
+## Contract Address Checklist
+
+Before launch, confirm the full deployed address set is documented and copied into every deployment surface:
+- [ ] Core
+- [ ] Income
+- [ ] Router
+- [ ] BinaryTree
+- [ ] Upgrade
+- [ ] CashbackPool
+- [ ] MGXStaking
+- [ ] MGXToken
+- [ ] TokenEngine
+- [ ] USDT
+- [ ] deploy block
+
+## VPS Web Env Checklist
+
+The VPS/frontend env must contain the full live address set, not just Core + Router:
+- [ ] `VITE_DEPLOY_BLOCK` set to the live deploy block
+- [ ] `VITE_CORE_ADDRESS`
+- [ ] `VITE_ROUTER_ADDRESS`
+- [ ] `VITE_INCOME_ADDRESS`
+- [ ] `VITE_INCOME_ENGINE_ADDRESS`
+- [ ] `VITE_INCOME_ROUTER_ADDRESS`
+- [ ] `VITE_BINARY_TREE_ADDRESS`
+- [ ] `VITE_UPGRADE_ADDRESS`
+- [ ] `VITE_CASHBACK_POOL_ADDRESS`
+- [ ] `VITE_MGX_STAKING_ADDRESS`
+- [ ] `VITE_TOKEN_ENGINE_ADDRESS`
+- [ ] `VITE_USDT_ADDRESS`
+
+If any of these are stale:
+- event scans can hit the wrong deployment
+- box earnings can appear empty
+- level breakdowns can show `0 members`
+
+## Web Fallback Address Reminder
+
+The web fallback constants in `apps/web/src/lib/metaguildx.ts` must be kept in sync with the canonical testnet deployment.
+
+Before using fallback addresses for any validation flow:
+- [ ] `TESTNET_CORE_ADDRESS` updated
+- [ ] `TESTNET_BINARY_TREE_ADDRESS` updated
+- [ ] `TESTNET_INCOME_ROUTER_ADDRESS` updated
+- [ ] `TESTNET_CASHBACK_POOL_ADDRESS` updated
+- [ ] `TESTNET_STAKING_ADDRESS` updated
+
+If those are stale, testnet fallback logic can silently read old deployments.
+
 ## ProductionMode Safety
 
 `productionMode = true` enforces real settlement collection.
@@ -112,6 +161,14 @@ After first paid registrations, verify on explorer:
 - [ ] No localhost URLs
 - [ ] Error tracking enabled
 - [ ] Analytics setup
+
+## Signer Environment
+
+- [ ] signer service self-loads `/etc/metaguildx/signer.env`
+- [ ] `ALLOWED_ORIGINS` set explicitly
+- [ ] production origins included
+- [ ] test domain included when validating on staging/testnet
+- [ ] do not rely on `VITE_PLACEMENT_SIGNER_TOKEN` as a true secret
 
 ## Testing
 - [ ] Full registration flow tested
