@@ -46,6 +46,12 @@ That is an economically broken dust transfer.
 - [ ] `level` and `spillover` income do not enter `rebirthEscrow`
 - [ ] rebirth funding still applies only to the intended rebirth escrow flow
 
+## Level Tree Safety
+
+- [ ] `BinaryTree._insertIntoLevelTree()` walks sponsor ancestry to the nearest eligible sponsor ancestor before falling back to `levelRootId`
+- [ ] level tree remains an eligible-users-only BFS under the nearest eligible sponsor ancestor
+- [ ] level-income genealogy is validated against sponsor-chain expectations after fresh deploy
+
 ## Contract Address Checklist
 
 Before launch, confirm the full deployed address set is documented and copied into every deployment surface:
@@ -236,5 +242,6 @@ After first paid registrations, verify on explorer:
   - stale `TESTNET_*` fallback addresses caused frontend safety fallbacks to point at old deployments
   - default unknown network selection must not fall back to `Localhost 8545`
   - level-income traversal required a cursor-advance fix when L1 sponsor was underqualified for the junior package
+  - level-tree insertion needed to walk sponsor ancestry before `levelRootId` fallback so eligible users stay under the correct sponsor branch
   - `level` and `spillover` income needed to bypass xSlot / `rebirthEscrow` routing so rebirth-edge payouts remain direct wallet income
   - public landing stats needed a dedicated testnet RPC path independent of wallet state

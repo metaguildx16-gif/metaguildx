@@ -67,6 +67,12 @@ Rule: `level` and `spillover` income must always pay the user wallet directly
 Verify: level/spillover income never enters `escrowBalances` or `rebirthEscrow`
 Impact: without this fix, valid level income can be absorbed into rebirth funding and released later as escrow remainder instead of arriving as a direct payout
 
+### 11. `_insertIntoLevelTree()` - walk sponsor ancestry before root fallback
+File: `BinaryTree.sol`
+Rule: if the immediate sponsor is not level-eligible, level-tree insertion must walk sponsor -> sponsor's sponsor -> ... until the first eligible ancestor before falling back to `levelRootId`
+Verify: level-tree placement stays under the nearest eligible sponsor ancestor instead of jumping straight to root
+Impact: without this fix, eligible users can be inserted under the wrong branch and level-income genealogy diverges from intended sponsor-chain behavior
+
 ## Payment Normalization (Critical)
 
 - `PLATFORM_SCALE = 10`
@@ -246,6 +252,7 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - event-scan chunking is intentionally reduced to `BLOCK_CHUNK_SIZE = 10000`
 - noisy `queryFilter` / `getLogs` progress logs should stay disabled in production
 - `level` and `spillover` income must bypass xSlot routing and pay wallets directly, even when the recipient is near rebirth
+- level tree behavior is intentionally: eligible-users-only BFS under the nearest eligible sponsor ancestor
 
 ## Environment Variables (NEVER commit to git)
 
