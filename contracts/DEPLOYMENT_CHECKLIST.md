@@ -61,6 +61,12 @@ Rule: if L1 sponsor is underqualified for the junior package, traversal must adv
 Verify: User #4 `Pkg1 -> Pkg2` style upgrades can still reach User #1 for level income when User #3 is underqualified
 Impact: without this fix, valid L2 payouts can incorrectly fall through to creator fallback
 
+### 10. `routeIncome()` - level and spillover bypass xSlot / rebirth escrow
+File: `MetaGuildXIncome.sol`
+Rule: `level` and `spillover` income must always pay the user wallet directly
+Verify: level/spillover income never enters `escrowBalances` or `rebirthEscrow`
+Impact: without this fix, valid level income can be absorbed into rebirth funding and released later as escrow remainder instead of arriving as a direct payout
+
 ## Payment Normalization (Critical)
 
 - `PLATFORM_SCALE = 10`
@@ -209,17 +215,17 @@ Recommended immediately after those 5 steps:
 The deployed web env must include the current deploy block and the full live address set. At minimum:
 
 - `VITE_NETWORK=testnet`
-- `VITE_DEPLOY_BLOCK=161766684`
-- `VITE_CORE_ADDRESS=0x8b1A15E2Be29130Fb79ce1AB765a73a42FC2274F`
-- `VITE_ROUTER_ADDRESS=0x74dFd592DbD1De3a091475f89c6E554bc11408D9`
-- `VITE_INCOME_ADDRESS=0xAf89927f6AF4CB920691A565f91146e3d339207E`
-- `VITE_INCOME_ENGINE_ADDRESS=0xAf89927f6AF4CB920691A565f91146e3d339207E`
-- `VITE_INCOME_ROUTER_ADDRESS=0x74dFd592DbD1De3a091475f89c6E554bc11408D9`
-- `VITE_BINARY_TREE_ADDRESS=0x287A20D526357421fa7A6cf7f5ee58285e649B08`
-- `VITE_UPGRADE_ADDRESS=0xC69888e9C502eEcf7aC0f06002dB0BD67c86A8c3`
-- `VITE_CASHBACK_POOL_ADDRESS=0xD311b1b67Ff63FfD739886aa3F2CDB84D48e234C`
-- `VITE_MGX_STAKING_ADDRESS=0x5FA0FD184A5855bfB44Fde3982fc12993b26FC10`
-- `VITE_TOKEN_ENGINE_ADDRESS=0xc6ED82aB66dc00AB45b67a116869098B4F20Df43`
+- `VITE_DEPLOY_BLOCK=161857500`
+- `VITE_CORE_ADDRESS=0xFBEcE2F22c2856bF985eC45FcDB56ef7d6e62c0f`
+- `VITE_ROUTER_ADDRESS=0x931Ce86E932E9320f132D66e55a18Ba436765c3D`
+- `VITE_INCOME_ADDRESS=0x1D776DB168495371AD1D16CEb4811f1Cb725bBfb`
+- `VITE_INCOME_ENGINE_ADDRESS=0x1D776DB168495371AD1D16CEb4811f1Cb725bBfb`
+- `VITE_INCOME_ROUTER_ADDRESS=0x931Ce86E932E9320f132D66e55a18Ba436765c3D`
+- `VITE_BINARY_TREE_ADDRESS=0x4F7d0a74e9Dcd47880B255bB69F91312b3Aa7468`
+- `VITE_UPGRADE_ADDRESS=0x484eA1053Fa54807CA9959108480b25f80AAAEeA`
+- `VITE_CASHBACK_POOL_ADDRESS=0x29541f94bE348Ca9dF0369964F8d2591d927aBCE`
+- `VITE_MGX_STAKING_ADDRESS=0x69fAdFB4Ad5343D63170F624e23Cc6d239Ac7a13`
+- `VITE_TOKEN_ENGINE_ADDRESS=0x8958b02588A8A9b6AAA44519652D5ED362dC4AB6`
 - `VITE_USDT_ADDRESS=0xF4975eB104932bDBcA491A9Cb985439eA03863e0`
 
 If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
@@ -239,6 +245,7 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - `SHOW_DIAGNOSTICS = false` in production builds
 - event-scan chunking is intentionally reduced to `BLOCK_CHUNK_SIZE = 10000`
 - noisy `queryFilter` / `getLogs` progress logs should stay disabled in production
+- `level` and `spillover` income must bypass xSlot routing and pay wallets directly, even when the recipient is near rebirth
 
 ## Environment Variables (NEVER commit to git)
 

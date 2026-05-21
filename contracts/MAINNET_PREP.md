@@ -39,6 +39,13 @@ That is an economically broken dust transfer.
 - [ ] Test paid registration and verify real income distribution
 - [ ] Core USDT balance starts at `0` before first registration
 
+## Income Routing Safety
+
+- [ ] `MetaGuildXIncome.routeIncome()` keeps `level` and `spillover` income on the direct-wallet payout path
+- [ ] `level` and `spillover` income do not enter `escrowBalances`
+- [ ] `level` and `spillover` income do not enter `rebirthEscrow`
+- [ ] rebirth funding still applies only to the intended rebirth escrow flow
+
 ## Contract Address Checklist
 
 Before launch, confirm the full deployed address set is documented and copied into every deployment surface:
@@ -91,6 +98,7 @@ If those are stale, testnet fallback logic can silently read old deployments.
 Also verify:
 - [ ] `VITE_NETWORK=testnet` on staging/testnet VPS
 - [ ] `normalizeNetworkKey(...)` default fallback remains `testnet`, not `local`
+- [ ] testnet env addresses match the current deployment set and deploy block
 
 ## ProductionMode Safety
 
@@ -187,6 +195,7 @@ After first paid registrations, verify on explorer:
 - [ ] Rebirth tested
 - [ ] Level income distribution verified
 - [ ] Level-income package-mismatch traversal verified after `IncomeRouter` cursor-advance fix
+- [ ] Level and spillover income verified as direct wallet payouts during rebirth-edge cases
 - [ ] Admin panel verified
 - [ ] Wallet balance display verified after Moralis removal
 
@@ -227,4 +236,5 @@ After first paid registrations, verify on explorer:
   - stale `TESTNET_*` fallback addresses caused frontend safety fallbacks to point at old deployments
   - default unknown network selection must not fall back to `Localhost 8545`
   - level-income traversal required a cursor-advance fix when L1 sponsor was underqualified for the junior package
+  - `level` and `spillover` income needed to bypass xSlot / `rebirthEscrow` routing so rebirth-edge payouts remain direct wallet income
   - public landing stats needed a dedicated testnet RPC path independent of wallet state
