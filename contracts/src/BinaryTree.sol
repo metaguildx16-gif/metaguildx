@@ -6,6 +6,10 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./libraries/MGXTypes.sol";
 
+interface IMetaGuildXCoreSponsorView {
+    function getUserSponsorId(uint256 userId) external view returns (uint256);
+}
+
 contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     mapping(uint256 => MGXTypes.TreeNode) public nodes;
     mapping(uint256 => uint256) public nodeDepth;
@@ -513,10 +517,25 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         // Find insertion point: BFS under sponsor's subtree
-        // If sponsor is not level eligible, go up until we find one
         uint256 insertUnder = sponsorId;
 
-        // If sponsor not eligible or zero, fallback to root
+        // Walk up sponsor ancestry until the first level-eligible ancestor.
+        uint8 safety = 20;
+        while (insertUnder != 0 && safety > 0) {
+            if (isLevelEligible[insertUnder]) {
+                break;
+            }
+
+            uint256 parentSponsor = IMetaGuildXCoreSponsorView(coreContract).getUserSponsorId(insertUnder);
+            if (parentSponsor == 0) {
+                insertUnder = levelRootId;
+                break;
+            }
+
+            insertUnder = parentSponsor;
+            safety--;
+        }
+
         if (insertUnder == 0 || !isLevelEligible[insertUnder]) {
             insertUnder = levelRootId;
         }
