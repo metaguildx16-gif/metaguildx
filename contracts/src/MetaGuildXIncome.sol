@@ -141,11 +141,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
 
         address paymentAsset = asset == address(0) ? defaultPaymentAsset : asset;
 
-        if (incomeKey == levelKey || incomeKey == spilloverKey) {
-            // Level-style income should never be absorbed into upgrade or rebirth escrow.
-            _payoutDirectToWallet(core, userId, amount, paymentAsset, 0);
-            return;
-        }
+        bool bypassRebirthEscrow = incomeKey == levelKey || incomeKey == spilloverKey;
 
         if (isEscrowDirect) {
             uint256 escrowXSlot = effectivePackagePrice == 0 ? 0 : totalBefore / effectivePackagePrice;
@@ -164,13 +160,21 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         uint256 remaining = zoneEnd - bucketReceived;
 
         if (amount <= remaining) {
-            _routeToZone(userId, pkgLevel, amount, xSlot, effectivePackagePrice, paymentAsset);
+            _routeToZone(userId, pkgLevel, amount, xSlot, effectivePackagePrice, paymentAsset, bypassRebirthEscrow);
         } else {
             uint256 firstPart = remaining;
             uint256 secondPart = amount - remaining;
-            _routeToZone(userId, pkgLevel, firstPart, xSlot, effectivePackagePrice, paymentAsset);
+            _routeToZone(userId, pkgLevel, firstPart, xSlot, effectivePackagePrice, paymentAsset, bypassRebirthEscrow);
             uint256 nextXSlot = xSlot + 1;
-            _routeToZone(userId, pkgLevel, secondPart, nextXSlot, effectivePackagePrice, paymentAsset);
+            _routeToZone(
+                userId,
+                pkgLevel,
+                secondPart,
+                nextXSlot,
+                effectivePackagePrice,
+                paymentAsset,
+                bypassRebirthEscrow
+            );
         }
     }
 
@@ -191,7 +195,8 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         uint256 amount,
         uint256 xSlot,
         uint256 packagePrice,
-        address paymentAsset
+        address paymentAsset,
+        bool bypassRebirthEscrow
     ) internal {
         IMetaGuildXIncomeCore core = IMetaGuildXIncomeCore(coreContract);
 
@@ -217,6 +222,10 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
             pkgLevel == 1
             && core.getUserOriginalPackageLevel(userId) == 1
             && IMetaGuildXIncomeUpgrade(upgradeEngineContract).getRebirthIds(userId).length == 0;
+        if (bypassRebirthEscrow) {
+            _payoutDirectToWallet(core, userId, amount, paymentAsset, xSlot);
+            return;
+        }
         if (isRebirthEligible) {
             rebirthEscrow[userId] += amount;
             emit EscrowCredited(userId, amount, xSlot);
