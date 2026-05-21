@@ -61,11 +61,11 @@ Rule: if L1 sponsor is underqualified for the junior package, traversal must adv
 Verify: User #4 `Pkg1 -> Pkg2` style upgrades can still reach User #1 for level income when User #3 is underqualified
 Impact: without this fix, valid L2 payouts can incorrectly fall through to creator fallback
 
-### 10. `routeIncome()` - level and spillover bypass xSlot / rebirth escrow
+### 10. `routeIncome()` - level and spillover keep xSlot routing but bypass rebirth escrow absorption
 File: `MetaGuildXIncome.sol`
-Rule: `level` and `spillover` income must always pay the user wallet directly
-Verify: level/spillover income never enters `escrowBalances` or `rebirthEscrow`
-Impact: without this fix, valid level income can be absorbed into rebirth funding and released later as escrow remainder instead of arriving as a direct payout
+Rule: `level` and `spillover` income must still follow normal xSlot routing, including escrow at xSlot `1/2`, but must not be absorbed into `rebirthEscrow` at rebirth slots
+Verify: level/spillover income can still enter `escrowBalances` at xSlot `1/2`, but at rebirth slots it must pay the wallet directly instead of entering `rebirthEscrow`
+Impact: without this fix, valid level income can either become incorrectly always-liquid or be absorbed into rebirth funding and released later as escrow remainder instead of following package-cycle escrow rules
 
 ### 11. `_insertIntoLevelTree()` - walk sponsor ancestry before root fallback
 File: `BinaryTree.sol`
@@ -251,7 +251,7 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - `SHOW_DIAGNOSTICS = false` in production builds
 - event-scan chunking is intentionally reduced to `BLOCK_CHUNK_SIZE = 10000`
 - noisy `queryFilter` / `getLogs` progress logs should stay disabled in production
-- `level` and `spillover` income must bypass xSlot routing and pay wallets directly, even when the recipient is near rebirth
+- `level` and `spillover` income must follow xSlot routing, including escrow at xSlot `1/2`, but must bypass `rebirthEscrow` absorption at rebirth slots
 - level tree behavior is intentionally: eligible-users-only BFS under the nearest eligible sponsor ancestor
 
 ## Environment Variables (NEVER commit to git)

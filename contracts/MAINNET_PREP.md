@@ -41,9 +41,9 @@ That is an economically broken dust transfer.
 
 ## Income Routing Safety
 
-- [ ] `MetaGuildXIncome.routeIncome()` keeps `level` and `spillover` income on the direct-wallet payout path
-- [ ] `level` and `spillover` income do not enter `escrowBalances`
-- [ ] `level` and `spillover` income do not enter `rebirthEscrow`
+- [ ] `MetaGuildXIncome.routeIncome()` keeps `level` and `spillover` income on normal xSlot routing
+- [ ] `level` and `spillover` income still enters `escrowBalances` at xSlot `1/2`
+- [ ] `level` and `spillover` income does not enter `rebirthEscrow` at rebirth slots
 - [ ] rebirth funding still applies only to the intended rebirth escrow flow
 
 ## Level Tree Safety
@@ -201,7 +201,7 @@ After first paid registrations, verify on explorer:
 - [ ] Rebirth tested
 - [ ] Level income distribution verified
 - [ ] Level-income package-mismatch traversal verified after `IncomeRouter` cursor-advance fix
-- [ ] Level and spillover income verified as direct wallet payouts during rebirth-edge cases
+- [ ] Level and spillover income verified to follow xSlot routing, while still bypassing `rebirthEscrow` absorption during rebirth-edge cases
 - [ ] Admin panel verified
 - [ ] Wallet balance display verified after Moralis removal
 
@@ -243,5 +243,5 @@ After first paid registrations, verify on explorer:
   - default unknown network selection must not fall back to `Localhost 8545`
   - level-income traversal required a cursor-advance fix when L1 sponsor was underqualified for the junior package
   - level-tree insertion needed to walk sponsor ancestry before `levelRootId` fallback so eligible users stay under the correct sponsor branch
-  - `level` and `spillover` income needed to bypass xSlot / `rebirthEscrow` routing so rebirth-edge payouts remain direct wallet income
+  - `level` and `spillover` income needed to keep xSlot routing but bypass `rebirthEscrow` absorption so rebirth-edge payouts still respect escrow at xSlot `1/2`
   - public landing stats needed a dedicated testnet RPC path independent of wallet state
