@@ -118,12 +118,17 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
             return;
         }
 
-        if (keccak256(bytes(incomeType)) == keccak256(bytes("crossline"))) {
+        bytes32 incomeKey = keccak256(bytes(incomeType));
+        bytes32 crosslineKey = keccak256("crossline");
+        bytes32 levelKey = keccak256("level");
+        bytes32 spilloverKey = keccak256("spillover");
+
+        if (incomeKey == crosslineKey) {
             _updateStats(userId, amount, incomeType);
             return;
         }
 
-        bool isEscrowDirect = keccak256(bytes(incomeType)) == keccak256(bytes("escrow_direct"));
+        bool isEscrowDirect = incomeKey == keccak256("escrow_direct");
         uint256 pkgLevel = cyclePkgLevel;
         uint256 effectivePackagePrice = packagePrice;
         // escrow_direct uses cyclePkgLevel (junior's package)
@@ -135,6 +140,12 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         totalEarnings[userId][pkgLevel] = totalBefore + amount;
 
         address paymentAsset = asset == address(0) ? defaultPaymentAsset : asset;
+
+        if (incomeKey == levelKey || incomeKey == spilloverKey) {
+            // Level-style income should never be absorbed into upgrade or rebirth escrow.
+            _payoutDirectToWallet(core, userId, amount, paymentAsset, 0);
+            return;
+        }
 
         if (isEscrowDirect) {
             uint256 escrowXSlot = effectivePackagePrice == 0 ? 0 : totalBefore / effectivePackagePrice;
@@ -163,6 +174,17 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         }
     }
 
+    function _payoutDirectToWallet(
+        IMetaGuildXIncomeCore core,
+        uint256 userId,
+        uint256 amount,
+        address paymentAsset,
+        uint256 xSlot
+    ) internal {
+        core.payoutUserIncome(userId, amount, paymentAsset);
+        emit DirectPayout(userId, amount, xSlot);
+    }
+
     function _routeToZone(
         uint256 userId,
         uint256 pkgLevel,
@@ -174,8 +196,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         IMetaGuildXIncomeCore core = IMetaGuildXIncomeCore(coreContract);
 
         if (xSlot == 0 || xSlot == 3) {
-            core.payoutUserIncome(userId, amount, paymentAsset);
-            emit DirectPayout(userId, amount, xSlot);
+            _payoutDirectToWallet(core, userId, amount, paymentAsset, xSlot);
             return;
         }
 
@@ -183,8 +204,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
             uint256 currentUserPackageLevel = core.getUserPackageLevel(userId);
             bool isManualUpgrade = IMetaGuildXIncomeCore(coreContract).manuallyUpgraded(userId);
             if (currentUserPackageLevel > pkgLevel && isManualUpgrade) {
-                core.payoutUserIncome(userId, amount, paymentAsset);
-                emit DirectPayout(userId, amount, xSlot);
+                _payoutDirectToWallet(core, userId, amount, paymentAsset, xSlot);
                 return;
             }
             escrowBalances[userId][pkgLevel] += amount;
@@ -204,8 +224,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
             return;
         }
 
-        core.payoutUserIncome(userId, amount, paymentAsset);
-        emit DirectPayout(userId, amount, xSlot);
+        _payoutDirectToWallet(core, userId, amount, paymentAsset, xSlot);
     }
 
     function releaseEscrow(uint256 userId, uint256 amount) external onlyUpgradeEngine {
