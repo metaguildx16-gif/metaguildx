@@ -148,6 +148,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
             escrowBalances[userId][pkgLevel] += amount;
             emit EscrowCredited(userId, amount, escrowXSlot);
             IMetaGuildXUpgradeEngine(upgradeEngineContract).checkAndTriggerUpgrade(userId, effectivePackagePrice, paymentAsset);
+            _runPostRoutingUpgradeCheck(core, userId, pkgLevel, effectivePackagePrice, paymentAsset);
             return;
         }
 
@@ -176,6 +177,8 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
                 bypassRebirthEscrow
             );
         }
+
+        _runPostRoutingUpgradeCheck(core, userId, pkgLevel, effectivePackagePrice, paymentAsset);
     }
 
     function _payoutDirectToWallet(
@@ -234,6 +237,24 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         }
 
         _payoutDirectToWallet(core, userId, amount, paymentAsset, xSlot);
+    }
+
+    function _runPostRoutingUpgradeCheck(
+        IMetaGuildXIncomeCore core,
+        uint256 userId,
+        uint256 pkgLevel,
+        uint256 packagePrice,
+        address paymentAsset
+    ) internal {
+        if (packagePrice == 0) {
+            return;
+        }
+
+        if (core.getUserPackageLevel(userId) != pkgLevel) {
+            return;
+        }
+
+        IMetaGuildXUpgradeEngine(upgradeEngineContract).checkAndTriggerUpgrade(userId, packagePrice, paymentAsset);
     }
 
     function releaseEscrow(uint256 userId, uint256 amount) external onlyUpgradeEngine {

@@ -288,8 +288,8 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
 
         uint256 upgradeAmount = UpgradeCycleLib.calcUpgradeCost(packagePricesArray[profile.packageLevel - 1]);
         address paymentAsset = defaultPaymentAsset;
-        uint256 escrowBalance = IMetaGuildXIncome(incomeEngineContract).getTotalEscrow(userId);
-        uint256 walletCharge = upgradeAmount > escrowBalance ? upgradeAmount - escrowBalance : 0;
+        uint256 currentPackageEscrow = IMetaGuildXIncome(incomeEngineContract).getEscrow(userId);
+        uint256 walletCharge = upgradeAmount > currentPackageEscrow ? upgradeAmount - currentPackageEscrow : 0;
         if (productionMode) {
             if (walletCharge > 0) {
                 _collectPayment(paymentAsset, walletCharge);
@@ -299,15 +299,22 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
             paymentAsset = address(0);
         }
 
-        if (escrowBalance > 0) {
-            IMetaGuildXIncome(incomeEngineContract).releaseAllEscrow(userId, escrowBalance);
+        if (currentPackageEscrow > 0) {
+            uint256 escrowUsed = currentPackageEscrow >= upgradeAmount ? upgradeAmount : currentPackageEscrow;
+            IMetaGuildXIncome(incomeEngineContract).releaseEscrow(userId, escrowUsed);
+
+            uint256 escrowRemainder = currentPackageEscrow - escrowUsed;
+            if (escrowRemainder > 0) {
+                IMetaGuildXIncome(incomeEngineContract).releaseEscrow(userId, escrowRemainder);
+                _payoutSettlement(profile.account, paymentAsset, _platformToSettlement(paymentAsset, escrowRemainder));
+            }
         }
 
-        IMetaGuildXIncome(incomeEngineContract).releaseStrandedEscrow(userId, paymentAsset);
         // resetIncomeByCore removed — manual upgrade must not reset xSlot cycle
         // Auto upgrade path (checkAndTriggerUpgrade) already does not reset
         manuallyUpgraded[userId] = true;
         _applyPackageUpgrade(userId, newPackageLevel, paymentAsset, upgradeAmount);
+        IMetaGuildXIncome(incomeEngineContract).releaseStrandedEscrow(userId, paymentAsset);
     }
 
     function processUpgradeFromEngine(

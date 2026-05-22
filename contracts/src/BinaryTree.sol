@@ -540,29 +540,53 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             insertUnder = levelRootId;
         }
 
-        // BFS within sponsor's subtree to find open slot
-        uint256[] memory queue = new uint256[](1000);
-        uint256 head = 0;
-        uint256 tail = 0;
-        queue[tail++] = insertUnder;
+        // Level-order traversal with left-slot priority across the whole level:
+        // fill all left children first, then all right children.
+        uint256[] memory currentLevel = new uint256[](1000);
+        uint256[] memory nextLevel = new uint256[](1000);
+        uint256 currentCount = 1;
+        currentLevel[0] = insertUnder;
 
-        while (head < tail) {
-            uint256 current = queue[head++];
-            uint256[2] storage children = levelChildren[current];
-
-            if (children[0] == 0) {
-                children[0] = userId;
-                levelParent[userId] = current;
-                return;
-            }
-            if (children[1] == 0) {
-                children[1] = userId;
-                levelParent[userId] = current;
-                return;
+        while (currentCount > 0) {
+            for (uint256 i = 0; i < currentCount; i++) {
+                uint256 current = currentLevel[i];
+                uint256[2] storage children = levelChildren[current];
+                if (children[0] == 0) {
+                    children[0] = userId;
+                    levelParent[userId] = current;
+                    return;
+                }
             }
 
-            queue[tail++] = children[0];
-            queue[tail++] = children[1];
+            for (uint256 i = 0; i < currentCount; i++) {
+                uint256 current = currentLevel[i];
+                uint256[2] storage children = levelChildren[current];
+                if (children[1] == 0) {
+                    children[1] = userId;
+                    levelParent[userId] = current;
+                    return;
+                }
+            }
+
+            uint256 nextCount = 0;
+            for (uint256 i = 0; i < currentCount; i++) {
+                uint256[2] storage children = levelChildren[currentLevel[i]];
+                if (children[0] != 0) {
+                    nextLevel[nextCount++] = children[0];
+                }
+            }
+            for (uint256 i = 0; i < currentCount; i++) {
+                uint256[2] storage children = levelChildren[currentLevel[i]];
+                if (children[1] != 0) {
+                    nextLevel[nextCount++] = children[1];
+                }
+            }
+
+            for (uint256 i = 0; i < nextCount; i++) {
+                currentLevel[i] = nextLevel[i];
+                nextLevel[i] = 0;
+            }
+            currentCount = nextCount;
         }
 
         // Fallback: should not reach here
