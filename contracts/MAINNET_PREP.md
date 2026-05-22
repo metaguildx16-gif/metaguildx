@@ -45,12 +45,20 @@ That is an economically broken dust transfer.
 - [ ] `level` and `spillover` income still enters `escrowBalances` at xSlot `1/2`
 - [ ] `level` and `spillover` income does not enter `rebirthEscrow` at rebirth slots
 - [ ] rebirth funding still applies only to the intended rebirth escrow flow
+- [ ] after escrow-affecting routing, the final safety check still runs so `checkAndTriggerUpgrade()` cannot miss a threshold-crossing credit
 
 ## Level Tree Safety
 
 - [ ] `BinaryTree._insertIntoLevelTree()` walks sponsor ancestry to the nearest eligible sponsor ancestor before falling back to `levelRootId`
 - [ ] level tree remains an eligible-users-only BFS under the nearest eligible sponsor ancestor
+- [ ] level tree breadth order fills all left slots across a level before right slots (`LL, RL, LR, RR`)
 - [ ] level-income genealogy is validated against sponsor-chain expectations after fresh deploy
+
+## Upgrade Escrow Safety
+
+- [ ] manual upgrade uses only the current-package escrow required for the upgrade cost
+- [ ] excess current-package escrow is refunded to the user wallet
+- [ ] old-package stranded escrow is released only after package level changes
 
 ## Contract Address Checklist
 
@@ -198,10 +206,12 @@ After first paid registrations, verify on explorer:
 ## Testing
 - [ ] Full registration flow tested
 - [ ] Auto-upgrade tested
+- [ ] Auto-upgrade triggers in the same tx that crosses the escrow threshold
 - [ ] Rebirth tested
 - [ ] Level income distribution verified
 - [ ] Level-income package-mismatch traversal verified after `IncomeRouter` cursor-advance fix
 - [ ] Level and spillover income verified to follow xSlot routing, while still bypassing `rebirthEscrow` absorption during rebirth-edge cases
+- [ ] Manual upgrade refunds excess escrow instead of leaving value in Core
 - [ ] Admin panel verified
 - [ ] Wallet balance display verified after Moralis removal
 
@@ -243,5 +253,8 @@ After first paid registrations, verify on explorer:
   - default unknown network selection must not fall back to `Localhost 8545`
   - level-income traversal required a cursor-advance fix when L1 sponsor was underqualified for the junior package
   - level-tree insertion needed to walk sponsor ancestry before `levelRootId` fallback so eligible users stay under the correct sponsor branch
+  - level-tree breadth order needed to fill left slots across a level before right slots (`LL, RL, LR, RR`)
   - `level` and `spillover` income needed to keep xSlot routing but bypass `rebirthEscrow` absorption so rebirth-edge payouts still respect escrow at xSlot `1/2`
+  - manual upgrade needed to refund excess current-package escrow instead of leaving the remainder stranded in Core
+  - escrow-triggered auto-upgrade needed a post-routing safety check so threshold-crossing credits cannot be missed
   - public landing stats needed a dedicated testnet RPC path independent of wallet state

@@ -40,6 +40,16 @@ File: `MetaGuildXUpgrade.sol`
 Rule: excess escrow after upgrade must be released to the user
 Verify: no stranded value remains in the old package bucket
 
+### 5b. Auto-upgrade safety check after escrow routing
+File: `MetaGuildXIncome.sol`
+Rule: after every escrow-affecting route, a final upgrade eligibility check must run so threshold-crossing escrow cannot miss `checkAndTriggerUpgrade()`
+Verify: when escrow crosses `pkgPrice * 2`, auto-upgrade fires in the same transaction instead of waiting for a later manual upgrade
+
+### 5c. Manual upgrade excess escrow refund
+File: `MetaGuildXCore.sol`
+Rule: manual upgrade must consume only the current package escrow needed for the upgrade cost, and refund any excess to the user wallet
+Verify: `escrow > upgradeCost` returns the remainder to the user instead of leaving it stranded in Core
+
 ### 6. Level tree - sponsor-based placement
 File: `BinaryTree.sol`
 Rule: new users must be placed under the sponsor subtree, not global BFS
@@ -72,6 +82,12 @@ File: `BinaryTree.sol`
 Rule: if the immediate sponsor is not level-eligible, level-tree insertion must walk sponsor -> sponsor's sponsor -> ... until the first eligible ancestor before falling back to `levelRootId`
 Verify: level-tree placement stays under the nearest eligible sponsor ancestor instead of jumping straight to root
 Impact: without this fix, eligible users can be inserted under the wrong branch and level-income genealogy diverges from intended sponsor-chain behavior
+
+### 12. `_insertIntoLevelTree()` - left-across-level BFS ordering
+File: `BinaryTree.sol`
+Rule: level-tree BFS must fill all left slots across the current level before any right slots, giving `LL, RL, LR, RR` ordering
+Verify: placement order matches left-across-level traversal, not per-node `LL, LR, RL, RR`
+Impact: without this fix, level-tree positions diverge from the intended breadth order and spillover/level genealogy becomes harder to predict
 
 ## Payment Normalization (Critical)
 
@@ -253,6 +269,9 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - noisy `queryFilter` / `getLogs` progress logs should stay disabled in production
 - `level` and `spillover` income must follow xSlot routing, including escrow at xSlot `1/2`, but must bypass `rebirthEscrow` absorption at rebirth slots
 - level tree behavior is intentionally: eligible-users-only BFS under the nearest eligible sponsor ancestor
+- level tree level-order must still fill all left slots across a level before right slots (`LL, RL, LR, RR`)
+- manual upgrades must refund excess current-package escrow instead of zeroing it into Core
+- auto-upgrade protection must still re-check threshold after escrow-affecting routing completes
 
 ## Environment Variables (NEVER commit to git)
 
