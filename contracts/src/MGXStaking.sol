@@ -36,6 +36,7 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
     event IncomeContractSet(address indexed incomeContractAddress);
     event CoreContractSet(address indexed coreContractAddress);
     event StakeCorrected(address indexed account, uint256 amount);
+    event RewardRateSet(uint256 rewardRate);
 
     modifier onlyCore() {
         require(msg.sender == coreContract, "Only core contract");
@@ -110,6 +111,11 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
             validLockDays.push(lockDays[i]);
             lockMultiplier[lockDays[i]] = multipliers[i];
         }
+    }
+
+    function setRewardRate(uint256 _rewardRate) external onlyOwner {
+        rewardRate = _rewardRate;
+        emit RewardRateSet(_rewardRate);
     }
 
     function initializeV4() external onlyOwner reinitializer(4) {

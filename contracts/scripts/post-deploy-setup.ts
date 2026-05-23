@@ -19,6 +19,7 @@ type DeployedAddresses = {
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployed-addresses.json");
 const FIXED_USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
 const EXPECTED_USDT_UNIT_PRICE = 10n ** 17n;
+const DEFAULT_STAKING_REWARD_RATE = 3; // 3 bps/day ~= 10.95% simple annualized
 
 function loadAddresses(): DeployedAddresses {
   return JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf8")) as DeployedAddresses;
@@ -185,6 +186,12 @@ async function main() {
   await (await token.approve(addresses.MGXStaking, fundAmount)).wait();
   await (await staking.adminFundStakingPool(fundAmount)).wait();
   console.log("Staking pool funded: 10,235,000 MGX");
+
+  console.log("\n4b. Setting staking reward rate...");
+  await (await staking.setRewardRate(DEFAULT_STAKING_REWARD_RATE)).wait();
+  const rewardRate = await staking.rewardRate();
+  console.log("Reward rate set:", DEFAULT_STAKING_REWARD_RATE, "✅");
+  console.log("rewardRate on-chain:", rewardRate.toString());
 
   console.log("\n5. Verifying wiring...");
   const [
