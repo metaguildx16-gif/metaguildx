@@ -89,6 +89,12 @@ Rule: level-tree BFS must fill all left slots across the current level before an
 Verify: placement order matches left-across-level traversal, not per-node `LL, LR, RL, RR`
 Impact: without this fix, level-tree positions diverge from the intended breadth order and spillover/level genealogy becomes harder to predict
 
+### 13. `MGXStaking` reward-rate initialization
+File: `MGXStaking.sol`
+Rule: staking reward rate must be set after deploy; default deployment target is `DEFAULT_STAKING_REWARD_RATE = 3` bps/day (~10.95% simple annualized)
+Verify: `rewardRate()` is non-zero after post-deploy setup and rewards begin accruing after full-day intervals
+Impact: if reward rate remains `0`, staking appears funded but no user earns any rewards
+
 ## Payment Normalization (Critical)
 
 - `PLATFORM_SCALE = 10`
@@ -219,7 +225,7 @@ If any of these are wrong, registrations are not production-safe.
 2. `npx hardhat run scripts/fresh-deploy-v3.ts --network opbnbTestnet`
    Deploys contracts, wires them, configures USDT, sets production mode
 3. `npx hardhat run scripts/post-deploy-setup.ts --network opbnbTestnet`
-   Performs root registration, staking setup, and post-deploy checks
+   Performs root registration, staking setup, reward-rate initialization, and post-deploy checks
 4. `npx hardhat run scripts/update-env-after-deploy.ts --network opbnbTestnet`
    Updates frontend/admin env references
 5. `npx hardhat run scripts/verify-deployment.ts --network opbnbTestnet`
@@ -272,6 +278,8 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - level tree level-order must still fill all left slots across a level before right slots (`LL, RL, LR, RR`)
 - manual upgrades must refund excess current-package escrow instead of zeroing it into Core
 - auto-upgrade protection must still re-check threshold after escrow-affecting routing completes
+- `MGXStaking.setRewardRate()` must be called post-deploy with `DEFAULT_STAKING_REWARD_RATE = 3`
+- `contracts/scripts/set-staking-reward-rate.ts` is the repair script for already-deployed staking contracts with `rewardRate = 0`
 
 ## Environment Variables (NEVER commit to git)
 

@@ -60,6 +60,14 @@ That is an economically broken dust transfer.
 - [ ] excess current-package escrow is refunded to the user wallet
 - [ ] old-package stranded escrow is released only after package level changes
 
+## Staking Reward Safety
+
+- [ ] `MGXStaking.setRewardRate()` exists and is owner-gated
+- [ ] post-deploy setup calls `setRewardRate(DEFAULT_STAKING_REWARD_RATE)`
+- [ ] `DEFAULT_STAKING_REWARD_RATE = 3` bps/day (~10.95% simple annualized)
+- [ ] `contracts/scripts/set-staking-reward-rate.ts` is available as a repair script for deployments where `rewardRate = 0`
+- [ ] `rewardRate()` verified non-zero on-chain after deploy
+
 ## Contract Address Checklist
 
 Before launch, confirm the full deployed address set is documented and copied into every deployment surface:
@@ -217,6 +225,7 @@ After first paid registrations, verify on explorer:
 
 ## Launch
 - [ ] Fund staking pool with MGX
+- [ ] Set staking reward rate (`DEFAULT_STAKING_REWARD_RATE = 3`)
 - [ ] Set initial package prices
 - [ ] Wire all contracts
 - [ ] Run `npx hardhat run scripts/debug-registration-flow.ts --network <network>`
@@ -257,4 +266,5 @@ After first paid registrations, verify on explorer:
   - `level` and `spillover` income needed to keep xSlot routing but bypass `rebirthEscrow` absorption so rebirth-edge payouts still respect escrow at xSlot `1/2`
   - manual upgrade needed to refund excess current-package escrow instead of leaving the remainder stranded in Core
   - escrow-triggered auto-upgrade needed a post-routing safety check so threshold-crossing credits cannot be missed
+  - staking reward generation stayed at zero until `rewardRate` was explicitly set after deploy
   - public landing stats needed a dedicated testnet RPC path independent of wallet state
