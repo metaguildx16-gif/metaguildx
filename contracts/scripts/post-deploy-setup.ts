@@ -193,6 +193,19 @@ async function main() {
   console.log("Reward rate set:", DEFAULT_STAKING_REWARD_RATE, "✅");
   console.log("rewardRate on-chain:", rewardRate.toString());
 
+  console.log("\n5b. Setting treasury wallet...");
+  const stakingContract = await ethers.getContractAt("MGXStaking", addresses.MGXStaking);
+  const currentTreasury = await stakingContract.treasury();
+  const TREASURY_WALLET = "0x63450D17A86E41ad7571040105a80c5860C6655b";
+  if (currentTreasury.toLowerCase() === TREASURY_WALLET.toLowerCase()) {
+    console.log("Treasury already set ✅");
+  } else {
+    const treasuryTx = await stakingContract.setTreasury(TREASURY_WALLET);
+    await treasuryTx.wait();
+    const verifiedTreasury = await stakingContract.treasury();
+    console.log("Treasury set to:", verifiedTreasury, "✅");
+  }
+
   console.log("\n5. Verifying wiring...");
   const [
     coreRouter,
