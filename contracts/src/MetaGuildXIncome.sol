@@ -120,8 +120,6 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
 
         bytes32 incomeKey = keccak256(bytes(incomeType));
         bytes32 crosslineKey = keccak256("crossline");
-        bytes32 levelKey = keccak256("level");
-        bytes32 spilloverKey = keccak256("spillover");
 
         if (incomeKey == crosslineKey) {
             _updateStats(userId, amount, incomeType);
@@ -141,13 +139,10 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
 
         address paymentAsset = asset == address(0) ? defaultPaymentAsset : asset;
 
-        bool bypassRebirthEscrow = incomeKey == levelKey || incomeKey == spilloverKey;
-
         if (isEscrowDirect) {
             uint256 escrowXSlot = effectivePackagePrice == 0 ? 0 : totalBefore / effectivePackagePrice;
             escrowBalances[userId][pkgLevel] += amount;
             emit EscrowCredited(userId, amount, escrowXSlot);
-            IMetaGuildXUpgradeEngine(upgradeEngineContract).checkAndTriggerUpgrade(userId, effectivePackagePrice, paymentAsset);
             _runPostRoutingUpgradeCheck(core, userId, pkgLevel, effectivePackagePrice, paymentAsset);
             return;
         }
@@ -161,11 +156,11 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         uint256 remaining = zoneEnd - bucketReceived;
 
         if (amount <= remaining) {
-            _routeToZone(userId, pkgLevel, amount, xSlot, effectivePackagePrice, paymentAsset, bypassRebirthEscrow);
+            _routeToZone(userId, pkgLevel, amount, xSlot, effectivePackagePrice, paymentAsset);
         } else {
             uint256 firstPart = remaining;
             uint256 secondPart = amount - remaining;
-            _routeToZone(userId, pkgLevel, firstPart, xSlot, effectivePackagePrice, paymentAsset, bypassRebirthEscrow);
+            _routeToZone(userId, pkgLevel, firstPart, xSlot, effectivePackagePrice, paymentAsset);
             uint256 nextXSlot = xSlot + 1;
             _routeToZone(
                 userId,
@@ -173,8 +168,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
                 secondPart,
                 nextXSlot,
                 effectivePackagePrice,
-                paymentAsset,
-                bypassRebirthEscrow
+                paymentAsset
             );
         }
 
@@ -198,8 +192,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         uint256 amount,
         uint256 xSlot,
         uint256 packagePrice,
-        address paymentAsset,
-        bool bypassRebirthEscrow
+        address paymentAsset
     ) internal {
         IMetaGuildXIncomeCore core = IMetaGuildXIncomeCore(coreContract);
 
@@ -217,7 +210,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
             }
             escrowBalances[userId][pkgLevel] += amount;
             emit EscrowCredited(userId, amount, xSlot);
-            IMetaGuildXUpgradeEngine(upgradeEngineContract).checkAndTriggerUpgrade(userId, packagePrice, paymentAsset);
+            _runPostRoutingUpgradeCheck(core, userId, pkgLevel, packagePrice, paymentAsset);
             return;
         }
 
@@ -225,10 +218,6 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
             pkgLevel == 1
             && core.getUserOriginalPackageLevel(userId) == 1
             && IMetaGuildXIncomeUpgrade(upgradeEngineContract).getRebirthIds(userId).length == 0;
-        if (bypassRebirthEscrow) {
-            _payoutDirectToWallet(core, userId, amount, paymentAsset, xSlot);
-            return;
-        }
         if (isRebirthEligible) {
             rebirthEscrow[userId] += amount;
             emit EscrowCredited(userId, amount, xSlot);
@@ -251,6 +240,12 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         }
 
         if (core.getUserPackageLevel(userId) != pkgLevel) {
+            return;
+        }
+
+        uint256 totalEscrowForPackage = escrowBalances[userId][pkgLevel];
+        uint256 upgradeThreshold = packagePrice * 2;
+        if (totalEscrowForPackage < upgradeThreshold) {
             return;
         }
 

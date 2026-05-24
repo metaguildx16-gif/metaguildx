@@ -640,6 +640,10 @@ function clearAnalyticsCaches() {
   genealogyCache.clear();
 }
 
+export function invalidateDashboardAnalytics() {
+  clearAnalyticsCaches();
+}
+
 function syncAnalyticsCachesForDeployment() {
   if (typeof window === "undefined") {
     return;
@@ -3098,6 +3102,7 @@ export async function upgradeUserPackage(input: { userId: number; newPackageLeve
         gasLimit: 1_500_000n
       });
       await tx.wait();
+      invalidateDashboardAnalytics();
       // Give the RPC a moment to reflect the upgrade before
       // the dashboard snapshot refresh reads the new package.
       await new Promise((resolve) => setTimeout(resolve, 3000));
