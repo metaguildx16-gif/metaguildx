@@ -20,8 +20,10 @@ type EscrowStatusRow = {
   wallet: string;
   packageLevel: number;
   escrow: number;
+  waitingIncome: number;
+  rebirthEscrow: number;
   progress: number;
-  escrowType: "Package Escrow" | "Rebirth Escrow" | "Package + Rebirth Escrow";
+  escrowType: "Package Escrow" | "Rebirth Escrow" | "Package Escrow + Waiting Income";
   status: "Ready to upgrade" | "Ready to rebirth" | "Accumulating";
 };
 
@@ -42,51 +44,48 @@ async function getEscrowStatusRows(): Promise<EscrowStatusRow[]> {
 
   for (let userId = 1; userId < nextUserId; userId += 1) {
     const profile = await core.usersById(userId);
-    let packageEscrowRaw = 0n;
+    const packageLevel = Number(profile.packageLevel);
+    const packagePrice = BigInt(await core.getPackagePriceByLevel(packageLevel));
+    const upgradeCost = packagePrice * 2n;
 
-    for (let pkg = 1; pkg <= 10; pkg += 1) {
+    let currentPkgEscrowRaw = 0n;
+    try {
+      currentPkgEscrowRaw = BigInt(await income.escrowBalances(userId, BigInt(packageLevel)));
+    } catch {}
+
+    let waitingIncomeRaw = 0n;
+    for (let pkg = packageLevel + 1; pkg <= 10; pkg += 1) {
       try {
-        const bucketEscrow = await income.escrowBalances(userId, BigInt(pkg));
-        packageEscrowRaw += BigInt(bucketEscrow);
-      } catch {
-        // Ignore unsupported bucket reads and continue summing remaining buckets.
-      }
+        waitingIncomeRaw += BigInt(await income.escrowBalances(userId, BigInt(pkg)));
+      } catch {}
     }
 
     let rebirthEscrowRaw = 0n;
     try {
       rebirthEscrowRaw = BigInt(await income.rebirthEscrow(userId));
-    } catch {
-      // Ignore environments where rebirth escrow is unavailable.
-    }
+    } catch {}
 
-    const escrowRaw = packageEscrowRaw + rebirthEscrowRaw;
-    if (escrowRaw <= 0n) {
-      continue;
-    }
+    const totalEscrowRaw = currentPkgEscrowRaw + waitingIncomeRaw + rebirthEscrowRaw;
+    if (totalEscrowRaw <= 0n) continue;
 
-    const packageLevel = Number(profile.packageLevel);
-    const packagePrice = BigInt(await core.getPackagePriceByLevel(packageLevel));
-    const upgradeCost = packagePrice * 2n;
-    const isRebirthOnly = rebirthEscrowRaw > 0n && packageEscrowRaw == 0n;
-    const isPackageOnly = packageEscrowRaw > 0n && rebirthEscrowRaw == 0n;
-    const target = isRebirthOnly ? rebirthTarget : isPackageOnly ? upgradeCost : upgradeCost + rebirthTarget;
-    const progress = target > 0n ? Math.min(Number((escrowRaw * 100n) / target), 100) : 0;
-    const escrow = Number(escrowRaw) / 10;
-    const escrowType =
-      isRebirthOnly ? "Rebirth Escrow" : isPackageOnly ? "Package Escrow" : "Package + Rebirth Escrow";
-    const status =
-      isRebirthOnly
-        ? (rebirthEscrowRaw >= rebirthTarget ? "Ready to rebirth" : "Accumulating")
-        : escrowRaw >= upgradeCost
-          ? "Ready to upgrade"
-          : "Accumulating";
+    const isRebirthOnly = rebirthEscrowRaw > 0n && currentPkgEscrowRaw === 0n && waitingIncomeRaw === 0n;
+    const progressEscrow = isRebirthOnly ? rebirthEscrowRaw : currentPkgEscrowRaw;
+    const progressTarget = isRebirthOnly ? rebirthTarget : upgradeCost;
+    const progress = progressTarget > 0n ? Math.min(Number((progressEscrow * 100n) / progressTarget), 100) : 0;
+    const status = isRebirthOnly
+      ? (rebirthEscrowRaw >= rebirthTarget ? "Ready to rebirth" : "Accumulating")
+      : currentPkgEscrowRaw >= upgradeCost ? "Ready to upgrade" : "Accumulating";
+    const escrowType = isRebirthOnly
+      ? "Rebirth Escrow"
+      : waitingIncomeRaw > 0n ? "Package Escrow + Waiting Income" : "Package Escrow";
 
     rows.push({
       userId,
       wallet: String(profile.account),
       packageLevel,
-      escrow,
+      escrow: Number(currentPkgEscrowRaw) / 10,
+      waitingIncome: Number(waitingIncomeRaw) / 10,
+      rebirthEscrow: Number(rebirthEscrowRaw) / 10,
       progress,
       escrowType,
       status
@@ -264,8 +263,21 @@ export function UpgradeMonitor() {
                     <div className="text-gray-400">{`Package ${row.packageLevel}`}</div>
                     <div className="text-gray-400">{row.escrowType}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-white">{formatUsdt(row.escrow)}</div>
+                  <div className="text-right space-y-1">
+                    <div className="font-semibold text-white">
+                      {formatUsdt(row.escrow)}
+                      <span className="ml-1 text-xs text-gray-400">pkg escrow</span>
+                    </div>
+                    {row.waitingIncome > 0 && (
+                      <div className="text-xs text-amber-400">
+                        +{formatUsdt(row.waitingIncome)} waiting
+                      </div>
+                    )}
+                    {row.rebirthEscrow > 0 && (
+                      <div className="text-xs text-purple-400">
+                        +{formatUsdt(row.rebirthEscrow)} rebirth
+                      </div>
+                    )}
                     <div className="text-gray-400">{`${row.progress}% progress`}</div>
                     <div className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-medium ${row.status === "Ready to upgrade" ? "bg-emerald-500/15 text-emerald-300" : "bg-blue-500/15 text-blue-300"}`}>
                       {row.status}
