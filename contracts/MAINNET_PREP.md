@@ -41,9 +41,9 @@ That is an economically broken dust transfer.
 
 ## Income Routing Safety
 
-- [ ] `MetaGuildXIncome.routeIncome()` keeps `level` and `spillover` income on normal xSlot routing
-- [ ] `level` and `spillover` income still enters `escrowBalances` at xSlot `1/2`
-- [ ] `level` and `spillover` income does not enter `rebirthEscrow` at rebirth slots
+- [ ] `MetaGuildXIncome.routeIncome()` keeps `direct`, `level`, and `spillover` on the same xSlot routing
+- [ ] all income types still enter `escrowBalances` at xSlot `1/2`
+- [ ] all eligible income types enter `rebirthEscrow` at xSlot `4+`
 - [ ] rebirth funding still applies only to the intended rebirth escrow flow
 - [ ] after escrow-affecting routing, the final safety check still runs so `checkAndTriggerUpgrade()` cannot miss a threshold-crossing credit
 
@@ -218,8 +218,9 @@ After first paid registrations, verify on explorer:
 - [ ] Rebirth tested
 - [ ] Level income distribution verified
 - [ ] Level-income package-mismatch traversal verified after `IncomeRouter` cursor-advance fix
-- [ ] Level and spillover income verified to follow xSlot routing, while still bypassing `rebirthEscrow` absorption during rebirth-edge cases
+- [ ] Direct, level, and spillover income verified to follow the same xSlot routing with no rebirth bypass
 - [ ] Manual upgrade refunds excess escrow instead of leaving value in Core
+- [ ] Frontend upgrade flow invalidates dashboard analytics caches before forcing the post-upgrade snapshot reload
 - [ ] Admin panel verified
 - [ ] Wallet balance display verified after Moralis removal
 
@@ -263,8 +264,9 @@ After first paid registrations, verify on explorer:
   - level-income traversal required a cursor-advance fix when L1 sponsor was underqualified for the junior package
   - level-tree insertion needed to walk sponsor ancestry before `levelRootId` fallback so eligible users stay under the correct sponsor branch
   - level-tree breadth order needed to fill left slots across a level before right slots (`LL, RL, LR, RR`)
-  - `level` and `spillover` income needed to keep xSlot routing but bypass `rebirthEscrow` absorption so rebirth-edge payouts still respect escrow at xSlot `1/2`
+  - all income types (`direct`, `level`, `spillover`) needed to return to the same xSlot routing with no rebirth bypass so business rules stay consistent at xSlot `4+`
   - manual upgrade needed to refund excess current-package escrow instead of leaving the remainder stranded in Core
   - escrow-triggered auto-upgrade needed a post-routing safety check so threshold-crossing credits cannot be missed
+  - frontend dashboard refresh needed explicit analytics cache invalidation after upgrades so post-upgrade snapshots stop showing stale package data
   - staking reward generation stayed at zero until `rewardRate` was explicitly set after deploy
   - public landing stats needed a dedicated testnet RPC path independent of wallet state

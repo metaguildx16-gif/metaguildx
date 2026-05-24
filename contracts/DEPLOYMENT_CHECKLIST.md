@@ -71,11 +71,11 @@ Rule: if L1 sponsor is underqualified for the junior package, traversal must adv
 Verify: User #4 `Pkg1 -> Pkg2` style upgrades can still reach User #1 for level income when User #3 is underqualified
 Impact: without this fix, valid L2 payouts can incorrectly fall through to creator fallback
 
-### 10. `routeIncome()` - level and spillover keep xSlot routing but bypass rebirth escrow absorption
+### 10. `routeIncome()` - all income types share the same xSlot routing
 File: `MetaGuildXIncome.sol`
-Rule: `level` and `spillover` income must still follow normal xSlot routing, including escrow at xSlot `1/2`, but must not be absorbed into `rebirthEscrow` at rebirth slots
-Verify: level/spillover income can still enter `escrowBalances` at xSlot `1/2`, but at rebirth slots it must pay the wallet directly instead of entering `rebirthEscrow`
-Impact: without this fix, valid level income can either become incorrectly always-liquid or be absorbed into rebirth funding and released later as escrow remainder instead of following package-cycle escrow rules
+Rule: `direct`, `level`, and `spillover` must all follow the same xSlot routing with no special bypass
+Verify: xSlot `0/3` pays the wallet, xSlot `1/2` goes to `escrowBalances`, and xSlot `4+` routes to `rebirthEscrow` for all eligible income types
+Impact: without this fix, level/spillover income can diverge from package-cycle routing and create business-rule mismatches between rebirth, escrow, and wallet settlement
 
 ### 11. `_insertIntoLevelTree()` - walk sponsor ancestry before root fallback
 File: `BinaryTree.sol`
@@ -273,11 +273,12 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - `SHOW_DIAGNOSTICS = false` in production builds
 - event-scan chunking is intentionally reduced to `BLOCK_CHUNK_SIZE = 10000`
 - noisy `queryFilter` / `getLogs` progress logs should stay disabled in production
-- `level` and `spillover` income must follow xSlot routing, including escrow at xSlot `1/2`, but must bypass `rebirthEscrow` absorption at rebirth slots
+- all income types (`direct`, `level`, `spillover`) must follow the same xSlot routing with no rebirth bypass
 - level tree behavior is intentionally: eligible-users-only BFS under the nearest eligible sponsor ancestor
 - level tree level-order must still fill all left slots across a level before right slots (`LL, RL, LR, RR`)
 - manual upgrades must refund excess current-package escrow instead of zeroing it into Core
 - auto-upgrade protection must still re-check threshold after escrow-affecting routing completes
+- frontend upgrade flow must invalidate dashboard analytics caches before reloading the dashboard snapshot
 - `MGXStaking.setRewardRate()` must be called post-deploy with `DEFAULT_STAKING_REWARD_RATE = 3`
 - `contracts/scripts/set-staking-reward-rate.ts` is the repair script for already-deployed staking contracts with `rewardRate = 0`
 
