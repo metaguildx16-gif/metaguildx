@@ -268,6 +268,7 @@ export type StakingMonitorData = {
   totalStakers: number;
   topStakers: StakingMonitorRow[];
   treasury: string;
+  treasuryConfigured: boolean;
   treasuryBalance: number;
   allowanceToStaking: number;
   contractBalance: number;
@@ -276,6 +277,8 @@ export type StakingMonitorData = {
   topUpCooldown: number;
   lastTopUpTime: number;
   rewardRate: number;
+  rewardRateDailyPercent: number;
+  rewardRateApyPercent: number;
   dailyEmission: number;
   daysRemaining: number;
   burnedMGX: number;
@@ -1677,6 +1680,8 @@ export async function getStakingMonitorData(): Promise<StakingMonitorData> {
   const totalSupply = Number(totalSupplyRaw) / 1e18;
   const burnPercent = totalSupply > 0 ? (burnedMGX / totalSupply) * 100 : 0;
   const rewardRate = Number(rewardRateRaw);
+  const rewardRateDailyPercent = (rewardRate / 10_000) * 100;
+  const rewardRateApyPercent = rewardRateDailyPercent * 365;
   const theoreticalDaily = (totalStaked * rewardRate) / 10_000;
   const safeBalance = contractBalance * 0.9;
   const maxDaily = contractBalance / 30;
@@ -1690,6 +1695,7 @@ export async function getStakingMonitorData(): Promise<StakingMonitorData> {
       .sort((a, b) => b.staked - a.staked)
       .slice(0, 20),
     treasury: String(treasury),
+    treasuryConfigured: String(treasury) !== NULL_ADDRESS,
     treasuryBalance: Number(treasuryBalanceRaw) / 1e18,
     allowanceToStaking: Number(allowanceRaw) / 1e18,
     contractBalance,
@@ -1698,6 +1704,8 @@ export async function getStakingMonitorData(): Promise<StakingMonitorData> {
     topUpCooldown: Number(topUpCooldownRaw),
     lastTopUpTime: Number(lastTopUpTimeRaw),
     rewardRate,
+    rewardRateDailyPercent,
+    rewardRateApyPercent,
     dailyEmission,
     daysRemaining,
     burnedMGX,

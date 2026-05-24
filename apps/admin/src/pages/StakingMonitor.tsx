@@ -27,6 +27,13 @@ function formatMgxFromRaw(amount: bigint) {
   return `${Number(formatUnits(amount, 18)).toFixed(2)} MGX`;
 }
 
+function formatTreasuryAddress(address?: string, configured?: boolean) {
+  if (!address || !configured || /^0x0{40}$/i.test(address)) {
+    return "Not configured";
+  }
+  return shortAddress(address);
+}
+
 function formatDate(timestamp: bigint) {
   if (timestamp === 0n) {
     return "-";
@@ -287,7 +294,10 @@ export function StakingMonitor() {
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
           <StatCard title="Treasury Status" accentClass="text-cyan-300">
             <div className="grid gap-3 text-sm">
-              <StatRow label="Treasury Wallet" value={data ? shortAddress(data.treasury) : "-"} />
+              <StatRow
+                label="Treasury Wallet"
+                value={data ? formatTreasuryAddress(data.treasury, data.treasuryConfigured) : "-"}
+              />
               <StatRow label="Treasury Balance" value={formatMgx(data?.treasuryBalance ?? 0)} />
               <StatRow label="Allowance to Staking" value={formatMgx(data?.allowanceToStaking ?? 0)} />
               <StatRow label="Remaining Capacity" value={formatMgx(Math.max((data?.allowanceToStaking ?? 0) - (data?.contractBalance ?? 0), 0))} />
@@ -308,7 +318,14 @@ export function StakingMonitor() {
               <StatRow label="Contract Balance" value={formatMgx(data?.contractBalance ?? 0)} />
               <StatRow label="Daily Emission" value={formatMgx(data?.dailyEmission ?? 0)} />
               <StatRow label="Days Remaining" value={<span title={`${(data?.daysRemaining ?? 0).toFixed(2)} days exact`}>{formatDaysRemaining(data?.daysRemaining ?? 0)}</span>} />
-              <StatRow label="Reward Rate" value={`${((data?.rewardRate ?? 0) / 100).toFixed(1)}%`} />
+              <StatRow
+                label="Reward Rate"
+                value={
+                  data
+                    ? `${data.rewardRateApyPercent.toFixed(2)}% APY (${data.rewardRateDailyPercent.toFixed(2)}% daily)`
+                    : "-"
+                }
+              />
             </div>
           </StatCard>
 
