@@ -293,3 +293,34 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
   - `https://test.metaguildx.net`
   - `https://metaguildx.net`
   - `https://www.metaguildx.net`
+
+## Admin Panel Display Fixes (Post-Deploy)
+
+### 1. Treasury Wallet Setup
+- After every fresh deploy, call setTreasury() on MGXStaking
+- Command: staking.setTreasury("0x63450D17A86E41ad7571040105a80c5860C6655b")
+- Verify: staking.treasury() must not be zero address
+- Admin staking page shows "Not configured" until this is done ✅
+
+### 2. UpgradeEscrow.tsx — Progress Display Rule
+- Must use escrowBalances(userId, currentPackageLevel) only
+- Must NOT use getTotalEscrow() for progress or status
+- Progress formula: currentPkgEscrow / (packagePrice * 2)
+- xSlot column: currentPkgEscrow / packagePrice (cycle position, not event count) ✅
+
+### 3. UpgradeMonitor.tsx — Escrow Separation Rule
+- Current package escrow → upgrade progress only
+- Higher package buckets → displayed as "waiting income"
+- Rebirth escrow → displayed separately
+- Never mix buckets for progress calculation ✅
+
+### 4. Box Earnings Display (Web Dashboard)
+- Box 1 = package 1 bucket earnings (always shown if > 0)
+- Box 2+ = current package bucket (only shown when packageLevel > 1)
+- Box 2 absence for package 1 users is expected behavior, not a bug ✅
+
+### 5. escrowBalances Bucket Design (Critical)
+- escrowBalances[userId][pkgLevel] = per-package separate bucket
+- Higher package income routes to higher bucket when user is on lower package
+- These are NOT mixed for auto-upgrade threshold check
+- Auto-upgrade fires only when current package bucket >= pkgPrice * 2 ✅

@@ -270,3 +270,27 @@ After first paid registrations, verify on explorer:
   - frontend dashboard refresh needed explicit analytics cache invalidation after upgrades so post-upgrade snapshots stop showing stale package data
   - staking reward generation stayed at zero until `rewardRate` was explicitly set after deploy
   - public landing stats needed a dedicated testnet RPC path independent of wallet state
+
+## Admin Panel Pre-Launch Checklist
+
+1. Treasury wallet configured
+   - setTreasury(treasuryWallet) called on MGXStaking ✅
+   - Verify non-zero address shown in admin staking page
+
+2. UpgradeEscrow display verified
+   - Progress shows current package escrow only ✅
+   - xSlot shows escrow cycle position (not event count) ✅
+   - Waiting income from higher buckets shown separately ✅
+
+3. Box earnings display verified
+   - Box 1 shows for all active users ✅
+   - Box 2+ shows only after package upgrade ✅
+
+4. Auto-upgrade status verified
+   - "Ready to upgrade" only when currentPkgEscrow >= threshold ✅
+   - Cross-bucket totals not used for status ✅
+
+5. Staking rewards
+   - First reward cycle completes ~24h after deploy
+   - Pending reward = 0 before first cycle is expected ✅
+   - Reward rate: 10.95% APY (0.03% daily) at rewardRate = 3
