@@ -80,8 +80,7 @@ async function loadUpgradeEscrowData(): Promise<UpgradeEscrowData> {
         CONTRACTS.MetaGuildXCore,
         [
           ...ABIS.MetaGuildXCore,
-          "function getPackagePriceByLevel(uint256) view returns (uint256)",
-          "event PackageUpgraded(uint256 indexed userId, uint8 fromLevel, uint8 toLevel, uint256 amount)"
+          "function getPackagePriceByLevel(uint256) view returns (uint256)"
         ],
         provider
       );
@@ -92,17 +91,6 @@ async function loadUpgradeEscrowData(): Promise<UpgradeEscrowData> {
       let usersWithFrozenEscrow = 0;
       let usersNearUpgrade = 0;
 
-      const xSlotMap = new Map<number, number>();
-      const currentBlock = await provider.getBlockNumber();
-      for (let start = NETWORK.startBlock; start <= currentBlock; start += 49_000) {
-        const end = Math.min(start + 48_999, currentBlock);
-        const chunk = await core.queryFilter(core.filters.PackageUpgraded(), start, end);
-        for (const log of chunk) {
-          const uid = Number((log as any).args.userId);
-          xSlotMap.set(uid, (xSlotMap.get(uid) ?? 0) + 1);
-        }
-      }
-
       const userIds = Array.from({ length: Math.max(nextUserId - 1, 0) }, (_, index) => index + 1);
       const rows = await mapInBatches(userIds, 12, async (userId) => {
         const profile = await core.usersById(userId);
@@ -111,7 +99,9 @@ async function loadUpgradeEscrowData(): Promise<UpgradeEscrowData> {
         const thresholdRaw = packagePriceRaw * 2n;
         const frozenRaw = await getUpgradeEscrowOnly(income, userId, packageLevel);
         const progress = thresholdRaw > 0n ? Math.min(Number((frozenRaw * 100n) / thresholdRaw), 100) : 0;
-        const xSlot = xSlotMap.get(userId) ?? 0;
+        const xSlot = packagePriceRaw > 0n
+          ? Number(frozenRaw / packagePriceRaw)
+          : 0;
 
         let status: UpgradeEscrowRow["status"] = "No escrow";
         if (frozenRaw > 0n) {
