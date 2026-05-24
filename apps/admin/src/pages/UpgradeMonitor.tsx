@@ -28,6 +28,7 @@ type EscrowStatusRow = {
 };
 
 async function getEscrowStatusRows(): Promise<EscrowStatusRow[]> {
+  console.log("getEscrowStatusRows START");
   const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
   const core = new Contract(
     CONTRACTS.MetaGuildXCore,
@@ -79,6 +80,7 @@ async function getEscrowStatusRows(): Promise<EscrowStatusRow[]> {
       ? "Rebirth Escrow"
       : waitingIncomeRaw > 0n ? "Package Escrow + Waiting Income" : "Package Escrow";
 
+    console.log("User", userId, "currentPkg:", currentPkgEscrowRaw.toString(), "waiting:", waitingIncomeRaw.toString(), "progress:", progress);
     rows.push({
       userId,
       wallet: String(profile.account),
@@ -122,19 +124,33 @@ export function UpgradeMonitor() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      try {
-        const [upgradeData, nextEscrowRows] = await Promise.all([
-          getUpgradeMonitorData(),
-          getEscrowStatusRows()
-        ]);
-        setData(upgradeData);
-        setEscrowRows(nextEscrowRows);
-        await loadBalances();
-      } catch (error) {
-        console.error("UpgradeMonitor load error:", error);
-      } finally {
-        setLoading(false);
+      
+      // Run both independently - one failure won't block the other
+      const [upgradeResult, escrowResult] = await Promise.allSettled([
+        getUpgradeMonitorData(),
+        getEscrowStatusRows()
+      ]);
+
+      if (upgradeResult.status === "fulfilled") {
+        setData(upgradeResult.value);
+      } else {
+        console.error("getUpgradeMonitorData failed:", upgradeResult.reason);
       }
+
+      if (escrowResult.status === "fulfilled") {
+        console.log("escrowRows loaded:", escrowResult.value.length, escrowResult.value);
+        setEscrowRows(escrowResult.value);
+      } else {
+        console.error("getEscrowStatusRows failed:", escrowResult.reason);
+      }
+
+      try {
+        await loadBalances();
+      } catch (e) {
+        console.error("loadBalances failed:", e);
+      }
+
+      setLoading(false);
     };
     void load();
   }, []);

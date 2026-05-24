@@ -54,14 +54,13 @@ async function safeBigIntRead(read: () => Promise<bigint>) {
   }
 }
 
-async function getUpgradeEscrowOnly(income: Contract, userId: number) {
-  const totalEscrow = await safeBigIntRead(() => income.getTotalEscrow(userId));
-  if (totalEscrow === 0n) {
+async function getUpgradeEscrowOnly(income: Contract, userId: number, packageLevel: number) {
+  try {
+    const currentPkgEscrow = await income.escrowBalances(userId, BigInt(packageLevel));
+    return BigInt(currentPkgEscrow);
+  } catch {
     return 0n;
   }
-
-  const rebirthEscrow = await safeBigIntRead(() => income.rebirthEscrow(userId));
-  return totalEscrow > rebirthEscrow ? totalEscrow - rebirthEscrow : 0n;
 }
 
 async function mapInBatches<T, R>(items: T[], batchSize: number, mapper: (item: T) => Promise<R>) {
@@ -106,14 +105,11 @@ async function loadUpgradeEscrowData(): Promise<UpgradeEscrowData> {
 
       const userIds = Array.from({ length: Math.max(nextUserId - 1, 0) }, (_, index) => index + 1);
       const rows = await mapInBatches(userIds, 12, async (userId) => {
-        const [profile, frozenRaw] = await Promise.all([
-          core.usersById(userId),
-          getUpgradeEscrowOnly(income, userId)
-        ]);
-
+        const profile = await core.usersById(userId);
         const packageLevel = Number(profile.packageLevel);
         const packagePriceRaw = packageLevel > 0 ? BigInt(await core.getPackagePriceByLevel(packageLevel)) : 0n;
         const thresholdRaw = packagePriceRaw * 2n;
+        const frozenRaw = await getUpgradeEscrowOnly(income, userId, packageLevel);
         const progress = thresholdRaw > 0n ? Math.min(Number((frozenRaw * 100n) / thresholdRaw), 100) : 0;
         const xSlot = xSlotMap.get(userId) ?? 0;
 
