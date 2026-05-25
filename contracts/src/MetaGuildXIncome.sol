@@ -325,6 +325,10 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         return escrowBalances[userId][pkgLevel];
     }
 
+    function getEscrowByPkg(uint256 userId, uint8 pkgLevel) external view returns (uint256) {
+        return escrowBalances[userId][pkgLevel];
+    }
+
     function getTotalEscrow(uint256 userId) external view returns (uint256) {
         uint256 total = 0;
         for (uint8 i = 1; i <= 10; i++) {

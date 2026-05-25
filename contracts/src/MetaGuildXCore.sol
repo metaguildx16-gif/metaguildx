@@ -51,8 +51,10 @@ interface IMetaGuildXRouter {
 
 interface IMetaGuildXIncome {
     function getEscrow(uint256 userId) external view returns (uint256);
+    function getEscrowByPkg(uint256 userId, uint8 pkgLevel) external view returns (uint256);
     function getTotalEscrow(uint256 userId) external view returns (uint256);
     function releaseEscrow(uint256 userId, uint256 amount) external;
+    function releaseEscrowByPkg(uint256 userId, uint8 pkgLevel, uint256 amount) external;
     function releaseAllEscrow(uint256 userId, uint256 amount) external;
     function releaseStrandedEscrow(uint256 userId, address paymentAsset) external;
     function resetIncome(uint256 userId) external;
@@ -288,8 +290,12 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
 
         uint256 upgradeAmount = UpgradeCycleLib.calcUpgradeCost(packagePricesArray[profile.packageLevel - 1]);
         address paymentAsset = defaultPaymentAsset;
+        uint8 currentPkg = profile.packageLevel;
         uint256 currentPackageEscrow = IMetaGuildXIncome(incomeEngineContract).getEscrow(userId);
-        uint256 walletCharge = upgradeAmount > currentPackageEscrow ? upgradeAmount - currentPackageEscrow : 0;
+        uint256 nextPackageEscrow = IMetaGuildXIncome(incomeEngineContract).getEscrowByPkg(userId, currentPkg + 1);
+        uint256 combinedEscrow = currentPackageEscrow + nextPackageEscrow;
+        uint256 walletCharge = upgradeAmount > combinedEscrow ? upgradeAmount - combinedEscrow : 0;
+
         if (productionMode) {
             if (walletCharge > 0) {
                 _collectPayment(paymentAsset, walletCharge);
@@ -299,15 +305,26 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
             paymentAsset = address(0);
         }
 
-        if (currentPackageEscrow > 0) {
-            uint256 escrowUsed = currentPackageEscrow >= upgradeAmount ? upgradeAmount : currentPackageEscrow;
-            IMetaGuildXIncome(incomeEngineContract).releaseEscrow(userId, escrowUsed);
+        // Release escrow: drain pkg1 bucket first, then pkg2 bucket
+        uint256 escrowToUse = upgradeAmount < combinedEscrow ? upgradeAmount : combinedEscrow;
 
-            uint256 escrowRemainder = currentPackageEscrow - escrowUsed;
-            if (escrowRemainder > 0) {
-                IMetaGuildXIncome(incomeEngineContract).releaseEscrow(userId, escrowRemainder);
-                _payoutSettlement(profile.account, paymentAsset, _platformToSettlement(paymentAsset, escrowRemainder));
-            }
+        if (currentPackageEscrow > 0 && escrowToUse > 0) {
+            uint256 fromPkg1 = currentPackageEscrow >= escrowToUse ? escrowToUse : currentPackageEscrow;
+            IMetaGuildXIncome(incomeEngineContract).releaseEscrow(userId, fromPkg1);
+            escrowToUse -= fromPkg1;
+        }
+
+        if (nextPackageEscrow > 0 && escrowToUse > 0) {
+            uint256 fromPkg2 = nextPackageEscrow >= escrowToUse ? escrowToUse : nextPackageEscrow;
+            IMetaGuildXIncome(incomeEngineContract).releaseEscrowByPkg(userId, currentPkg + 1, fromPkg2);
+            escrowToUse -= fromPkg2;
+        }
+
+        // Release any remainder from pkg1 bucket to user wallet
+        uint256 pkg1Remainder = IMetaGuildXIncome(incomeEngineContract).getEscrow(userId);
+        if (pkg1Remainder > 0) {
+            IMetaGuildXIncome(incomeEngineContract).releaseEscrow(userId, pkg1Remainder);
+            _payoutSettlement(profile.account, paymentAsset, _platformToSettlement(paymentAsset, pkg1Remainder));
         }
 
         // resetIncomeByCore removed — manual upgrade must not reset xSlot cycle

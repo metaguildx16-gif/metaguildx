@@ -294,3 +294,8 @@ After first paid registrations, verify on explorer:
    - First reward cycle completes ~24h after deploy
    - Pending reward = 0 before first cycle is expected ✅
    - Reward rate: 10.95% APY (0.03% daily) at rewardRate = 3
+
+6. Manual upgrade cross-bucket escrow verified
+   - upgradePackage() uses pkg1 + next pkg bucket combined ✅
+   - User not overcharged when higher pkg income exists ✅
+   - getEscrowByPkg() and releaseEscrowByPkg() interfaces present ✅

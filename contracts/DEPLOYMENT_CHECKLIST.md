@@ -324,3 +324,11 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - Higher package income routes to higher bucket when user is on lower package
 - These are NOT mixed for auto-upgrade threshold check
 - Auto-upgrade fires only when current package bucket >= pkgPrice * 2 ✅
+
+### 6. Manual Upgrade — Cross-Bucket Escrow Fix
+- upgradePackage() now uses pkg1 + pkg2 bucket escrow combined
+- Drain order: pkg1 first, then pkg2
+- walletCharge = upgradeAmount - (pkg1 escrow + pkg2 escrow)
+- If combined escrow >= upgradeAmount → no wallet charge needed
+- releaseEscrowByPkg() used to drain higher bucket ✅
+- getEscrowByPkg() added to MetaGuildXIncome.sol ✅
