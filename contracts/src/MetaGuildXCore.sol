@@ -57,7 +57,7 @@ interface IMetaGuildXIncome {
     function releaseEscrowByPkg(uint256 userId, uint8 pkgLevel, uint256 amount) external;
     function releaseAllEscrow(uint256 userId, uint256 amount) external;
     function releaseStrandedEscrow(uint256 userId, address paymentAsset) external;
-    function resetIncome(uint256 userId) external;
+    function resetIncomeByPkg(uint256 userId, uint8 pkgLevel) external;
 }
 
 interface IMetaGuildXCashbackPool {

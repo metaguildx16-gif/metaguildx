@@ -27,7 +27,7 @@ interface IMetaGuildXUpgradeIncome {
     function getRebirthEscrow(uint256 userId) external view returns (uint256);
     function releaseEscrow(uint256 userId, uint256 amount) external;
     function releaseEscrowByPkg(uint256 userId, uint8 pkgLevel, uint256 amount) external;
-    function resetIncome(uint256 userId) external;
+    function resetIncomeByPkg(uint256 userId, uint8 pkgLevel) external;
     function releaseRebirthEscrow(uint256 userId) external;
     function clearRebirthEscrow(uint256 userId) external;
 }
@@ -122,7 +122,7 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
         rebirthIdsByUser[userId].push(newId);
         emit RebirthCreated(userId, newId);
         uint256 escrowBefore = income.getRebirthEscrow(userId);
-        income.resetIncome(userId);
+        income.resetIncomeByPkg(userId, 1);
         uint256 remaining = escrowBefore > pkgPrice ? escrowBefore - pkgPrice : 0;
         income.clearRebirthEscrow(userId);
         if (remaining > 0) {

@@ -95,6 +95,11 @@ Rule: staking reward rate must be set after deploy; default deployment target is
 Verify: `rewardRate()` is non-zero after post-deploy setup and rewards begin accruing after full-day intervals
 Impact: if reward rate remains `0`, staking appears funded but no user earns any rewards
 
+### 22. `resetIncome()` wiped wrong pkg bucket during rebirth
+File: `MetaGuildXIncome.sol`, `MetaGuildXUpgrade.sol`, `MetaGuildXCore.sol`
+Rule: rebirth must reset only package 1 income via `resetIncomeByPkg(userId, 1)`, never the user's current package bucket
+Verify: package-2+ `totalEarnings` survive rebirth, reset is blocked when escrow exists, and xSlot routing reverts on invalid bucket state instead of silently restarting at `0` ✅
+
 ## Payment Normalization (Critical)
 
 - `PLATFORM_SCALE = 10`

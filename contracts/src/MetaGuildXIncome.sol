@@ -54,7 +54,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
     event AdminEscrowReleased(uint256 indexed userId, uint256 amount);
     event AdminEscrowAdded(uint256 indexed userId, uint256 amount);
     event StrandedEscrowReleased(uint256 indexed userId, uint256 pkgLevel, uint256 amount);
-    event IncomeReset(uint256 indexed userId);
+event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
     event AdminEarningsBackfilled(
         uint256 indexed userId,
         uint256 pkgLevel,
@@ -148,8 +148,8 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         }
 
         uint256 escrowBefore = escrowBalances[userId][pkgLevel];
-        uint256 bucketReceived = totalBefore > escrowBefore
-            ? totalBefore - escrowBefore : 0;
+        require(totalBefore >= escrowBefore, "Invalid bucket state");
+        uint256 bucketReceived = totalBefore - escrowBefore;
         uint256 xSlot = bucketReceived / effectivePackagePrice;
 
         uint256 zoneEnd = (xSlot + 1) * effectivePackagePrice;
@@ -295,10 +295,11 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
         }
     }
 
-    function resetIncome(uint256 userId) external onlyUpgradeEngine {
-        uint256 pkgLevel = IMetaGuildXIncomeCore(coreContract).getUserPackageLevel(userId);
+    function resetIncomeByPkg(uint256 userId, uint8 pkgLevel) external onlyUpgradeEngine {
+        require(pkgLevel != 0, "Invalid package");
+        require(escrowBalances[userId][pkgLevel] == 0, "Escrow must be empty");
         totalEarnings[userId][pkgLevel] = 0;
-        emit IncomeReset(userId);
+        emit IncomeReset(userId, pkgLevel);
     }
 
     function releaseRebirthEscrow(uint256 userId) external onlyUpgradeEngine {

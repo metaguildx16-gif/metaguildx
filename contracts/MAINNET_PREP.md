@@ -271,6 +271,14 @@ After first paid registrations, verify on explorer:
   - staking reward generation stayed at zero until `rewardRate` was explicitly set after deploy
   - public landing stats needed a dedicated testnet RPC path independent of wallet state
 
+Bug Fixed (Deploy Block: 163462778 -> next deploy):
+- `resetIncome()` was resetting `Pkg2 totalEarnings` during rebirth flow
+- Root cause: rebirth called `resetIncome(userId)` which read `getUserPackageLevel() = 2`, wiping the `Pkg2` bucket instead of `Pkg1`
+- Fix: `resetIncomeByPkg(userId, 1)` so rebirth always resets `Pkg1` only
+- Guard: `escrowBalances[userId][pkgLevel]` must be `0` before reset is allowed
+- Safety: xSlot calculation now uses `require()` instead of silent clamp
+- Files changed: `MetaGuildXIncome.sol`, `MetaGuildXUpgrade.sol`, `MetaGuildXCore.sol`
+
 ## Admin Panel Pre-Launch Checklist
 
 1. Treasury wallet configured
