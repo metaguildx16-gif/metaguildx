@@ -122,6 +122,16 @@ Also verify:
 - [ ] `normalizeNetworkKey(...)` default fallback remains `testnet`, not `local`
 - [ ] testnet env addresses match the current deployment set and deploy block
 
+Admin Panel (completed):
+- Support tickets moved from localStorage to shared signer API
+- Tickets stored at /etc/metaguildx/tickets.json on VPS
+- Signer endpoints: POST/GET /support/tickets, PATCH /support/tickets/:id
+- Admin reads tickets with x-admin-token auth
+- admin.metaguildx.net nginx server block configured
+- admin.metaguildx.net DNS A record added -> 103.91.186.181
+- Admin dist built at /var/www/metaguildx/apps/admin/dist ✅
+- DNS propagation pending (Bigrock: 4-6 hours)
+
 ## ProductionMode Safety
 
 `productionMode = true` enforces real settlement collection.

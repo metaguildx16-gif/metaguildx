@@ -286,6 +286,11 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - frontend upgrade flow must invalidate dashboard analytics caches before reloading the dashboard snapshot
 - `MGXStaking.setRewardRate()` must be called post-deploy with `DEFAULT_STAKING_REWARD_RATE = 3`
 - `contracts/scripts/set-staking-reward-rate.ts` is the repair script for already-deployed staking contracts with `rewardRate = 0`
+- 22. Support ticket system -> shared VPS storage via signer API ✅
+- 23. Admin support page -> reads from signer API (not localStorage) ✅
+- 24. Mobile support layout -> single column, ticket ID prominent card ✅
+- 25. Admin nginx config -> admin.metaguildx.net added ✅
+- 26. DNS -> admin.metaguildx.net A record added (103.91.186.181) ✅
 
 ## Environment Variables (NEVER commit to git)
 
