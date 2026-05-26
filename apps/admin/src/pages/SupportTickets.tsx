@@ -16,32 +16,36 @@ type SupportTicket = {
   respondedAt: number | null;
 };
 
-const MGX_TICKETS_KEY = "mgx_tickets";
+const SIGNER_URL =
+  ((import.meta.env as ImportMetaEnv & { VITE_SIGNER_URL?: string; VITE_PLACEMENT_SIGNER_URL?: string }).VITE_SIGNER_URL)
+  || ((import.meta.env as ImportMetaEnv & { VITE_SIGNER_URL?: string; VITE_PLACEMENT_SIGNER_URL?: string }).VITE_PLACEMENT_SIGNER_URL)
+  || "https://signer.metaguildx.net";
+const ADMIN_TOKEN =
+  ((import.meta.env as ImportMetaEnv & { VITE_ADMIN_TOKEN?: string }).VITE_ADMIN_TOKEN)
+  || "mgxS1gn3rT0k3n2024";
 const categories: Array<TicketCategory | "all"> = ["all", "Income Issue", "Tree Issue", "Registration", "Upgrade", "Other"];
 const statuses: Array<TicketStatus | "all"> = ["all", "open", "in_review", "resolved"];
 
-function loadTickets() {
-  if (typeof window === "undefined") {
-    return [] as SupportTicket[];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(MGX_TICKETS_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as SupportTicket[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+async function loadTickets(): Promise<SupportTicket[]> {
+  const res = await fetch(`${SIGNER_URL}/support/tickets`, {
+    headers: { "x-admin-token": ADMIN_TOKEN }
+  });
+  return res.json();
 }
 
-function saveTickets(tickets: SupportTicket[]) {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.setItem(MGX_TICKETS_KEY, JSON.stringify(tickets));
+async function respondToTicket(
+  id: string,
+  adminResponse: string,
+  status: string
+): Promise<void> {
+  await fetch(`${SIGNER_URL}/support/tickets/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "x-admin-token": ADMIN_TOKEN
+    },
+    body: JSON.stringify({ adminResponse, status })
+  });
 }
 
 function statusLabel(status: TicketStatus) {
@@ -81,10 +85,16 @@ export function SupportTicketsPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
 
   useEffect(() => {
-    const syncTickets = () => setTickets(loadTickets());
-    syncTickets();
-    window.addEventListener("storage", syncTickets);
-    return () => window.removeEventListener("storage", syncTickets);
+    const syncTickets = async () => {
+      try {
+        const nextTickets = await loadTickets();
+        setTickets(Array.isArray(nextTickets) ? nextTickets : []);
+      } catch {
+        setTickets([]);
+      }
+    };
+
+    void syncTickets();
   }, []);
 
   const filteredTickets = useMemo(() => {
@@ -112,23 +122,22 @@ export function SupportTicketsPage() {
     setNextStatus(selectedTicket?.status ?? "open");
   }, [selectedTicketId, selectedTicket?.adminResponse, selectedTicket?.status]);
 
-  function handleSave() {
+  async function handleSave() {
     if (!selectedTicket) {
       return;
     }
 
+    await respondToTicket(selectedTicket.id, responseDraft.trim(), nextStatus);
     const nextTickets = tickets.map((ticket) =>
       ticket.id === selectedTicket.id
         ? {
             ...ticket,
             status: nextStatus,
             adminResponse: responseDraft.trim() || null,
-            respondedAt: responseDraft.trim() || nextStatus !== ticket.status ? Date.now() : ticket.respondedAt
+            respondedAt: Date.now()
           }
         : ticket
     );
-
-    saveTickets(nextTickets);
     setTickets(nextTickets);
     setFeedback(`Saved ${selectedTicket.id} with status ${statusLabel(nextStatus)}.`);
   }

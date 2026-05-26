@@ -21,42 +21,7 @@ type SupportPageProps = {
   walletAddress: string | null;
 };
 
-const MGX_TICKETS_KEY = "mgx_tickets";
 const categories: TicketCategory[] = ["Income Issue", "Tree Issue", "Registration", "Upgrade", "Other"];
-
-function loadTickets() {
-  if (typeof window === "undefined") {
-    return [] as SupportTicket[];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(MGX_TICKETS_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as SupportTicket[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveTickets(tickets: SupportTicket[]) {
-  if (typeof window === "undefined") {
-    return;
-  }
-  window.localStorage.setItem(MGX_TICKETS_KEY, JSON.stringify(tickets));
-}
-
-function generateTicketId(tickets: SupportTicket[]) {
-  const nextNumber =
-    tickets.reduce((highest, ticket) => {
-      const match = ticket.id.match(/(\d+)$/);
-      return Math.max(highest, match ? Number(match[1]) : 0);
-    }, 0) + 1;
-
-  return `TKT-${String(nextNumber).padStart(3, "0")}`;
-}
 
 function statusLabel(status: TicketStatus) {
   if (status === "in_review") {
@@ -123,12 +88,29 @@ export function SupportPage({ userId, walletAddress }: SupportPageProps) {
   const [description, setDescription] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
 
+  async function loadUserTickets() {
+    if (!walletAddress) {
+      setTickets([]);
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_PLACEMENT_SIGNER_URL}/support/tickets?wallet=${encodeURIComponent(walletAddress.toLowerCase())}`
+      );
+      if (!res.ok) {
+        throw new Error("Failed to load tickets");
+      }
+      const mine = await res.json() as SupportTicket[];
+      setTickets(Array.isArray(mine) ? mine : []);
+    } catch {
+      setTickets([]);
+    }
+  }
+
   useEffect(() => {
-    const syncTickets = () => setTickets(loadTickets());
-    syncTickets();
-    window.addEventListener("storage", syncTickets);
-    return () => window.removeEventListener("storage", syncTickets);
-  }, []);
+    void loadUserTickets();
+  }, [walletAddress]);
 
   const myTickets = useMemo(() => {
     return tickets
@@ -158,34 +140,40 @@ export function SupportPage({ userId, walletAddress }: SupportPageProps) {
   const selectedTicket = myTickets.find((ticket) => ticket.id === selectedTicketId) ?? null;
   const canSubmit = Boolean(walletAddress) && subject.trim().length > 0 && description.trim().length > 0;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSubmit || !walletAddress) {
       return;
     }
 
-    const existingTickets = loadTickets();
-    const nextTicket: SupportTicket = {
-      id: generateTicketId(existingTickets),
-      userId: userId ?? 0,
-      wallet: walletAddress.toLowerCase(),
-      category,
-      subject: subject.trim(),
-      description: description.trim(),
-      status: "open",
-      createdAt: Date.now(),
-      adminResponse: null,
-      respondedAt: null
-    };
-
-    const nextTickets = [nextTicket, ...existingTickets];
-    saveTickets(nextTickets);
-    setTickets(nextTickets);
-    setSelectedTicketId(nextTicket.id);
-    setSubject("");
-    setDescription("");
-    setCategory("Income Issue");
-    setFeedback(`Ticket ${nextTicket.id} submitted. We can now track it inside the dashboard.`);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_PLACEMENT_SIGNER_URL}/support/tickets`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId,
+            wallet: walletAddress.toLowerCase(),
+            category,
+            subject: subject.trim(),
+            description: description.trim()
+          })
+        }
+      );
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error("Failed");
+      }
+      setFeedback(`✅ Ticket ${data.ticketId} submitted successfully!`);
+      setSelectedTicketId(data.ticketId);
+      setSubject("");
+      setDescription("");
+      setCategory("Income Issue");
+      await loadUserTickets();
+    } catch {
+      setFeedback("❌ Failed to submit ticket. Please try again.");
+    }
   }
 
   return (
@@ -212,7 +200,7 @@ export function SupportPage({ userId, walletAddress }: SupportPageProps) {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 1.05fr) minmax(320px, 1fr)", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
           <div style={shellCardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", marginBottom: 18 }}>
               <div>
@@ -278,7 +266,23 @@ export function SupportPage({ userId, walletAddress }: SupportPageProps) {
               >
                 Submit Ticket
               </button>
-              {feedback ? <p style={{ margin: 0, color: "#00ff88", fontSize: 13 }}>{feedback}</p> : null}
+              {feedback ? (
+                <div style={{
+                  background: feedback.startsWith("✅") ? "#1a2a1a" : "#2a1a1a",
+                  border: feedback.startsWith("✅") ? "1px solid #4ade80" : "1px solid #f87171",
+                  borderRadius: 12,
+                  padding: 16,
+                  marginTop: 12,
+                  textAlign: "center"
+                }}>
+                  <div style={{ color: feedback.startsWith("✅") ? "#4ade80" : "#f87171", fontWeight: 700, fontSize: 18 }}>
+                    {feedback}
+                  </div>
+                  <div style={{ color: "#9ca3af", fontSize: 13, marginTop: 4 }}>
+                    Save this ticket ID for reference
+                  </div>
+                </div>
+              ) : null}
             </form>
           </div>
 
