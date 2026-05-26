@@ -1885,6 +1885,10 @@ function formatUserFacingContractError(error: unknown, fallback = "Network error
     return "Please complete registration first.";
   }
 
+  if (normalized.includes("no reward")) {
+    return "No staking reward is claimable yet. Please wait for the next reward window.";
+  }
+
   if (normalized.includes("call_exception") || normalized.includes("missing revert data") || normalized.includes("execution reverted")) {
     return fallback;
   }
@@ -2543,8 +2547,14 @@ export async function stakeTokens(input: { amount: number; durationKey: StakeDur
 }
 
 export async function claimReward() {
-  const { core, address } = await getWriteContracts();
+  const { core, staking, address } = await getWriteContracts();
   try {
+    if (staking) {
+      const pending = await staking.pendingStakingReward(address);
+      if (pending <= 0n) {
+        throw new Error("No staking reward is claimable yet. Please wait for the next reward window.");
+      }
+    }
     const tx = await core.claimStakingReward();
     const receipt = await tx.wait();
     const stakingEvents = new Interface([
