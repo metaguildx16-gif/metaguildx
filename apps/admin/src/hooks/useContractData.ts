@@ -260,6 +260,7 @@ export type StakingMonitorRow = {
   lockDurationDays: number;
   pendingReward: number;
   startTime: number;
+  rewardDebt: number;
 };
 
 export type StakingMonitorData = {
@@ -1668,7 +1669,8 @@ export async function getStakingMonitorData(): Promise<StakingMonitorData> {
         staked: amount,
         lockDurationDays: Math.round(Number(position.lockDuration) / 86400),
         pendingReward,
-        startTime: Number(position.lockStartedAt)
+        startTime: Number(position.lockStartedAt),
+        rewardDebt: Number(position.rewardDebt)
       };
     })
   );

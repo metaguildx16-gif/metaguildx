@@ -67,6 +67,43 @@ function formatDaysRemaining(days: number): string {
   return `${Math.floor(days)} days`;
 }
 
+const REWARD_INTERVAL = 86400;
+
+function getAdminCountdown(stakers: StakingMonitorData["topStakers"]) {
+  if (!stakers.length) {
+    return null;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const earliestNext = stakers.reduce((min, staker) => {
+    if (!staker.rewardDebt || staker.rewardDebt <= 0) {
+      return min;
+    }
+    const nextReward = staker.rewardDebt + REWARD_INTERVAL;
+    return nextReward < min ? nextReward : min;
+  }, Number.POSITIVE_INFINITY);
+
+  if (!Number.isFinite(earliestNext)) {
+    return null;
+  }
+
+  return Math.max(earliestNext - now, 0);
+}
+
+function formatRewardCountdown(seconds: number | null) {
+  if (seconds === null) {
+    return "No reward data";
+  }
+  if (seconds <= 0) {
+    return "Reward ready to claim!";
+  }
+
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `Next reward in ${h}h ${m}m ${s}s`;
+}
+
 function StatCard({
   title,
   accentClass,
@@ -96,6 +133,7 @@ function StatRow({ label, value }: { label: string; value: ReactNode }) {
 export function StakingMonitor() {
   const [data, setData] = useState<StakingMonitorData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [stakePosition, setStakePosition] = useState<StakePositionState | null>(null);
   const [positionLoading, setPositionLoading] = useState(false);
@@ -173,6 +211,20 @@ export function StakingMonitor() {
     void loadStakePosition(walletAddress);
   }, [walletAddress]);
 
+  useEffect(() => {
+    setCountdown(getAdminCountdown(data?.topStakers ?? []));
+  }, [data?.topStakers]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setCountdown(getAdminCountdown(data?.topStakers ?? []));
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [data?.topStakers]);
+
   const unlockTime = stakePosition ? stakePosition.lockStartedAt + stakePosition.lockDuration : 0n;
   const now = Math.floor(Date.now() / 1000);
   const isLocked = unlockTime > 0n ? BigInt(now) < unlockTime : false;
@@ -244,8 +296,8 @@ export function StakingMonitor() {
             <div className="h-10 w-28 animate-pulse rounded-2xl bg-gray-800" />
           ) : (
             <div className="space-y-1">
-              <h3 className="text-xl font-bold text-white">Per-position</h3>
-              <p className="text-sm text-gray-400">See Top Stakers for live pending rewards. Reward windows are based on each position&apos;s reward debt, not a global timer.</p>
+              <h3 className="text-xl font-bold text-white">{formatRewardCountdown(countdown)}</h3>
+              <p className="text-sm text-gray-400">Earliest next reward window across Top Stakers, based on each position&apos;s reward debt.</p>
             </div>
           )}
         </StatCard>
