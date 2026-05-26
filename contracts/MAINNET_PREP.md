@@ -313,6 +313,18 @@ Bug Fixed (Deploy Block: 163462778 -> next deploy):
    - Pending reward = 0 before first cycle is expected ✅
    - Reward rate: 10.95% APY (0.03% daily) at rewardRate = 3
 
+Staking System (frontend fixed, contract needs fresh deploy):
+- pendingStakingReward(wallet) reverts on current deployment
+- Root cause: MGXStaking proxy wiring issue in current testnet deploy
+- All staking view functions except totalStaked() revert on direct RPC call
+- Fix: fresh deploy will reset staking proxy cleanly
+- Frontend fixes applied:
+  * rewardDebt-based countdown (per-position, not global)
+  * claim button gated by reward window readiness
+  * clear error messages for no reward / window not reached
+  * live state preferred over snapshot for pending reward display
+  * admin fake global timer removed
+
 6. Manual upgrade cross-bucket escrow verified
    - upgradePackage() uses pkg1 + next pkg bucket combined ✅
    - User not overcharged when higher pkg income exists ✅

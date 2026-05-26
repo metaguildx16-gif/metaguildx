@@ -294,6 +294,13 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - 27. Admin support tickets CORS fix -> admin.metaguildx.net added to `ALLOWED_ORIGINS` in `signer.env` ✅
 - 28. Admin `SupportTickets.tsx` -> hardcoded signer URL + error logging added ✅
 - 29. Support ticket system end-to-end working -> user submits -> admin sees -> admin responds -> user sees response ✅
+- 30. Staking pending reward -> live wallet state preferred, snapshot fallback when live not loaded ✅
+- 31. Staking countdown -> rewardDebt based (per-position), not lockStartedAt ✅
+- 32. Claim success -> shows actual claimed MGX from `Claimed` event, not `mgxAllocated` ✅
+- 33. Admin staking -> fake global timer removed, per-position model documented ✅
+- 34. Claim button -> gated by `rewardWindowReady` (`rewardDebt + 86400 > now`) ✅
+- 35. Claim error -> clear message for no reward / window not reached ✅
+- 36. `MGXStaking` proxy issue identified -> fresh deploy required to fix ✅
 
 ## Environment Variables (NEVER commit to git)
 
