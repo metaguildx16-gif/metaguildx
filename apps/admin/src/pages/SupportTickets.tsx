@@ -16,13 +16,8 @@ type SupportTicket = {
   respondedAt: number | null;
 };
 
-const SIGNER_URL =
-  ((import.meta.env as ImportMetaEnv & { VITE_SIGNER_URL?: string; VITE_PLACEMENT_SIGNER_URL?: string }).VITE_SIGNER_URL)
-  || ((import.meta.env as ImportMetaEnv & { VITE_SIGNER_URL?: string; VITE_PLACEMENT_SIGNER_URL?: string }).VITE_PLACEMENT_SIGNER_URL)
-  || "https://signer.metaguildx.net";
-const ADMIN_TOKEN =
-  ((import.meta.env as ImportMetaEnv & { VITE_ADMIN_TOKEN?: string }).VITE_ADMIN_TOKEN)
-  || "mgxS1gn3rT0k3n2024";
+const SIGNER_URL = "https://signer.metaguildx.net";
+const ADMIN_TOKEN = "mgxS1gn3rT0k3n2024";
 const categories: Array<TicketCategory | "all"> = ["all", "Income Issue", "Tree Issue", "Registration", "Upgrade", "Other"];
 const statuses: Array<TicketStatus | "all"> = ["all", "open", "in_review", "resolved"];
 
@@ -30,6 +25,9 @@ async function loadTickets(): Promise<SupportTicket[]> {
   const res = await fetch(`${SIGNER_URL}/support/tickets`, {
     headers: { "x-admin-token": ADMIN_TOKEN }
   });
+  if (!res.ok) {
+    throw new Error(`Failed to load tickets: ${res.status}`);
+  }
   return res.json();
 }
 
@@ -38,7 +36,7 @@ async function respondToTicket(
   adminResponse: string,
   status: string
 ): Promise<void> {
-  await fetch(`${SIGNER_URL}/support/tickets/${id}`, {
+  const res = await fetch(`${SIGNER_URL}/support/tickets/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -46,6 +44,9 @@ async function respondToTicket(
     },
     body: JSON.stringify({ adminResponse, status })
   });
+  if (!res.ok) {
+    throw new Error(`Failed to update ticket: ${res.status}`);
+  }
 }
 
 function statusLabel(status: TicketStatus) {
@@ -89,7 +90,8 @@ export function SupportTicketsPage() {
       try {
         const nextTickets = await loadTickets();
         setTickets(Array.isArray(nextTickets) ? nextTickets : []);
-      } catch {
+      } catch (error) {
+        console.error("SupportTickets load failed:", error);
         setTickets([]);
       }
     };
