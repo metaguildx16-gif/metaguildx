@@ -301,6 +301,8 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - 34. Claim button -> gated by `rewardWindowReady` (`rewardDebt + 86400 > now`) ✅
 - 35. Claim error -> clear message for no reward / window not reached ✅
 - 36. `MGXStaking` proxy issue identified -> fresh deploy required to fix ✅
+- 37. Admin staking reward cycle -> live countdown from earliest rewardDebt across top stakers ✅
+- 38. useContractData.ts -> rewardDebt added to staking monitor data per position ✅
 
 ## Environment Variables (NEVER commit to git)
 

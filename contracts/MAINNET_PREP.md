@@ -325,6 +325,13 @@ Staking System (frontend fixed, contract needs fresh deploy):
   * live state preferred over snapshot for pending reward display
   * admin fake global timer removed
 
+Staking Timer Fix (completed ✅):
+- Admin reward cycle now shows live countdown
+- Based on earliest rewardDebt + 86400 across all top stakers
+- Shows "Reward ready to claim!" when any position past window
+- Web user staking page timer also rewardDebt based
+- Both admin and web staking pages verified working
+
 6. Manual upgrade cross-bucket escrow verified
    - upgradePackage() uses pkg1 + next pkg bucket combined ✅
    - User not overcharged when higher pkg income exists ✅
