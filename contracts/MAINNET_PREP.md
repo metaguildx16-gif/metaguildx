@@ -317,3 +317,11 @@ Bug Fixed (Deploy Block: 163462778 -> next deploy):
    - upgradePackage() uses pkg1 + next pkg bucket combined ✅
    - User not overcharged when higher pkg income exists ✅
    - getEscrowByPkg() and releaseEscrowByPkg() interfaces present ✅
+
+Support Ticket System (fully working ✅):
+- User submits ticket -> stored in /etc/metaguildx/tickets.json
+- Admin reads all tickets via GET /support/tickets
+- Admin responds via PATCH /support/tickets/:id
+- User sees admin response in mobile app
+- CORS: admin.metaguildx.net added to signer.env ALLOWED_ORIGINS
+- End-to-end tested and verified 26/05/2026

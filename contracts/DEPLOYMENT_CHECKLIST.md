@@ -291,6 +291,9 @@ If `VITE_DEPLOY_BLOCK` or router/income addresses are wrong:
 - 24. Mobile support layout -> single column, ticket ID prominent card ✅
 - 25. Admin nginx config -> admin.metaguildx.net added ✅
 - 26. DNS -> admin.metaguildx.net A record added (103.91.186.181) ✅
+- 27. Admin support tickets CORS fix -> admin.metaguildx.net added to `ALLOWED_ORIGINS` in `signer.env` ✅
+- 28. Admin `SupportTickets.tsx` -> hardcoded signer URL + error logging added ✅
+- 29. Support ticket system end-to-end working -> user submits -> admin sees -> admin responds -> user sees response ✅
 
 ## Environment Variables (NEVER commit to git)
 
