@@ -289,6 +289,13 @@ Bug Fixed (Deploy Block: 163462778 -> next deploy):
 - Safety: xSlot calculation now uses `require()` instead of silent clamp
 - Files changed: `MetaGuildXIncome.sol`, `MetaGuildXUpgrade.sol`, `MetaGuildXCore.sol`
 
+Bug Fixed (IncomeRouter.sol - spillover duplicate payout):
+- Root cause: spillover receiver not added to `paidIds`, `placementCursor` not advanced after spillover
+- Effect: same user paid multiple times in one registration
+- Fix: spillover receiver -> `paidIds`, cursor advances after spillover
+- Verified: contracts compile passed
+- Requires fresh deploy to go live
+
 ## Admin Panel Pre-Launch Checklist
 
 1. Treasury wallet configured

@@ -372,7 +372,17 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
                     );
                     distributed += spilloverPayout;
                     emit SpilloverIncome(spilloverReceiver, spilloverPayout, level);
+                    // FIX 1: Add spillover receiver to paidIds to prevent duplicate payment
+                    if (paidCount < 10) {
+                        paidIds[paidCount++] = spilloverReceiver;
+                    }
                 }
+                // FIX 2: Advance placementCursor after spillover so next level starts fresh
+                uint256 nextCursor = core.getLevelParent(candidateId);
+                if (nextCursor == 0) {
+                    nextCursor = core.getBinaryParent(candidateId);
+                }
+                placementCursor = nextCursor;
                 level++;
                 continue;
             }

@@ -100,6 +100,11 @@ File: `MetaGuildXIncome.sol`, `MetaGuildXUpgrade.sol`, `MetaGuildXCore.sol`
 Rule: rebirth must reset only package 1 income via `resetIncomeByPkg(userId, 1)`, never the user's current package bucket
 Verify: package-2+ `totalEarnings` survive rebirth, reset is blocked when escrow exists, and xSlot routing reverts on invalid bucket state instead of silently restarting at `0` ✅
 
+### 22. Spillover level income duplicate payout bug
+File: `IncomeRouter.sol`
+Rule: spillover receiver must be added to `paidIds`, and `placementCursor` must advance after spillover so the same user cannot be paid repeatedly in one registration
+Verify: spillover receiver added to `paidIds` + placementCursor advances after spillover âœ…
+
 ## Payment Normalization (Critical)
 
 - `PLATFORM_SCALE = 10`
