@@ -19,6 +19,7 @@ type DeployedAddresses = {
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployed-addresses.json");
 const FIXED_USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
 const EXPECTED_USDT_UNIT_PRICE = 10n ** 17n;
+const EXPECTED_CHECKS = 14;
 
 function loadAddresses(): DeployedAddresses | null {
   if (!fs.existsSync(ADDRESSES_PATH)) {
@@ -197,6 +198,7 @@ async function main() {
   });
 
   console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);
+  console.log(`Expected success target: ${EXPECTED_CHECKS} passed, 0 failed`);
 
   if (failed > 0) {
     console.log("\n⚠️  FIX FAILURES BEFORE MAINNET DEPLOY!");
