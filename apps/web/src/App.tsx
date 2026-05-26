@@ -195,7 +195,7 @@ function App() {
   const [totalVolume, setTotalVolume] = useState(0);
   const [stakingContractMGXBalance, setStakingContractMGXBalance] = useState<bigint>(0n);
   const [stakingDataLoading, setStakingDataLoading] = useState(true);
-  const [stakingRewardCountdown, setStakingRewardCountdown] = useState(0);
+  const [stakingRewardCountdown, setStakingRewardCountdown] = useState("--:--:--");
   const [regStep, setRegStep] = useState(0);
   const [registrationConsent, setRegistrationConsent] = useState({ terms: false, restrictedCountry: false });
   const [showWalletSelection, setShowWalletSelection] = useState(false);
@@ -892,7 +892,7 @@ function App() {
 
     if (!snapshot.walletAddress || !mgxAddress || !stakingAddress || !rpcUrl) {
       setStakingContractMGXBalance(0n);
-      setStakingRewardCountdown(0);
+      setStakingRewardCountdown("--:--:--");
       setStakingDataLoading(false);
       return;
     }
@@ -930,17 +930,6 @@ function App() {
       isActive = false;
     };
   }, [snapshot.walletAddress, snapshot.totalStaked]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setStakingRewardCountdown((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, []);
-
 
   useEffect(() => {
     if (!["tree", "network"].includes(dashboardView) || treeMode !== "level") {
@@ -1256,25 +1245,29 @@ function App() {
     await handleRegisterUser();
   }
 
-  async function runWalletAction(
-    action: () => Promise<void>,
+  async function runWalletAction<T>(
+    action: () => Promise<T>,
     pendingLabel: string,
     successLabel: string,
-    onSuccess?: (nextSnapshot: DashboardSnapshot) => { title: string; detail: string } | null
+    onSuccess?: (nextSnapshot: DashboardSnapshot, actionResult: T) => { title: string; detail: string } | null
   ) {
     setIsLoading(true);
     setStatus(pendingLabel);
     setActionFeedback(null);
 
     try {
-      await action();
+      const actionResult = await action();
       await new Promise((resolve) => setTimeout(resolve, 2000));
       const nextSnapshot = await refreshSnapshot();
       setStatus(successLabel);
-      setActionFeedback(onSuccess ? onSuccess(nextSnapshot) : null);
+      setActionFeedback(onSuccess ? onSuccess(nextSnapshot, actionResult) : null);
   } catch (error) {
-    setStatus(getFriendlyErrorMessage(error));
-    setActionFeedback(null);
+    const message = getFriendlyErrorMessage(error);
+    setStatus(message);
+    setActionFeedback({
+      title: "Action failed",
+      detail: message
+    });
   } finally {
       setIsLoading(false);
     }
@@ -1569,9 +1562,9 @@ function App() {
       ? snapshot.mgxAllocated
       : liveWalletStakeState.mgxAllocated;
   const displayedPendingStakingReward =
-    parseDisplayNumber(snapshot.pendingStakingReward) > 0 || !liveWalletStakeState
-      ? snapshot.pendingStakingReward
-      : liveWalletStakeState.pendingStakingReward;
+    snapshot.walletAddress
+      ? liveWalletStakeState?.pendingStakingReward ?? snapshot.pendingStakingReward
+      : snapshot.pendingStakingReward;
   const displayedPersonalStaked =
     parseDisplayNumber(snapshot.personalStaked) > 0 || !liveWalletStakeState
       ? snapshot.personalStaked
@@ -1780,21 +1773,21 @@ function App() {
         ? 365
         : 0;
   const hasActiveStake = stakingUserAmountValue > 0;
-  const getCountdown = (position?: { startTime?: number } | null) => {
-    const now = Math.floor(Date.now() / 1000);
-    const lastUpdate = position?.startTime || now;
-    let remaining = lastUpdate + 86400 - now;
-
-    if (remaining <= 0) {
-      remaining = 86400 - (now % 86400);
+  const getCountdown = (rewardDebt?: bigint | null) => {
+    if (!rewardDebt || rewardDebt <= 0n) {
+      return "Ready to claim";
     }
 
-    return remaining;
-  };
-  const formatTime = (sec: number) => {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    const s = sec % 60;
+    const nextReward = Number(rewardDebt) + 86400;
+    const now = Math.floor(Date.now() / 1000);
+    const remaining = nextReward - now;
+    if (remaining <= 0) {
+      return "Ready to claim";
+    }
+
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
+    const s = remaining % 60;
     return `${h}h ${m}m ${s}s`;
   };
   const StatCard = ({
@@ -1843,7 +1836,7 @@ function App() {
         <div>
           <span className="staking-countdown-label">Next Reward Window</span>
           <strong className="staking-countdown-value">
-            {stakingDataLoading ? "Loading..." : hasActiveStake ? formatTime(stakingRewardCountdown) : "--:--:--"}
+            {stakingDataLoading ? "Loading..." : hasActiveStake ? stakingRewardCountdown : "--:--:--"}
           </strong>
         </div>
         <span className="staking-countdown-glow" aria-hidden="true" />
@@ -1901,12 +1894,20 @@ function App() {
   };
   useEffect(() => {
     if (!hasActiveStake) {
-      setStakingRewardCountdown(0);
+      setStakingRewardCountdown("--:--:--");
       return;
     }
 
-    setStakingRewardCountdown(getCountdown(primaryStakePosition));
-  }, [hasActiveStake, primaryStakePosition?.startTime]);
+    setStakingRewardCountdown(getCountdown(primaryStakePosition?.rewardDebt));
+
+    const interval = window.setInterval(() => {
+      setStakingRewardCountdown(getCountdown(primaryStakePosition?.rewardDebt));
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [hasActiveStake, primaryStakePosition?.rewardDebt]);
   const stakingSharePercent =
     stakingTotalStakedValue > 0
       ? ((stakingUserAmountValue / stakingTotalStakedValue) * 100).toFixed(2)
@@ -4262,9 +4263,9 @@ function App() {
                           () => metaguildx.claimReward(),
                           "Claiming staking reward...",
                           "Reward claimed",
-                          (nextSnapshot) => ({
+                          (_nextSnapshot, result) => ({
                             title: "Reward claimed successfully",
-                            detail: `Pending staking reward credited to your MGX allocation. Available MGX is now ${nextSnapshot.mgxAllocated} MGX.`
+                            detail: `Successfully claimed ${result.claimedReward} MGX.`
                           })
                         )
                       }
@@ -4347,9 +4348,9 @@ function App() {
                               () => metaguildx.claimReward(),
                               "Claiming staking reward...",
                               "Reward claimed",
-                              (nextSnapshot) => ({
+                              (_nextSnapshot, result) => ({
                                 title: "Reward claimed successfully",
-                                detail: `Pending staking reward credited to your MGX allocation. Available MGX is now ${nextSnapshot.mgxAllocated} MGX.`
+                                detail: `Successfully claimed ${result.claimedReward} MGX.`
                               })
                             )
                           }
@@ -4550,9 +4551,9 @@ function App() {
                                     () => metaguildx.claimReward(),
                                     "Claiming staking reward...",
                                     "Reward claimed",
-                                    (nextSnapshot) => ({
+                                    (_nextSnapshot, result) => ({
                                       title: "Reward claimed successfully",
-                                      detail: `Pending staking reward credited to your MGX allocation. Available MGX is now ${nextSnapshot.mgxAllocated} MGX.`
+                                      detail: `Successfully claimed ${result.claimedReward} MGX.`
                                     })
                                   )
                                 }

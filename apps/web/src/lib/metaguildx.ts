@@ -284,6 +284,7 @@ export type UserIncomeHistoryRow = {
 export type StakePositionView = {
   index: number;
   amount: string;
+  rewardDebt: bigint;
   lockDurationSeconds: number;
   lockDurationLabel: string;
   startTime: number;
@@ -1043,6 +1044,7 @@ function mapStakePositions(positions: ReadonlyArray<RawStakePosition>): StakePos
       return {
         index,
         amount: formatTokenAmount(BigInt(position[0]), 18),
+        rewardDebt: BigInt(position[1]),
         lockDurationSeconds,
         lockDurationLabel: formatStakeDurationLabel(BigInt(position[4])),
         startTime,
@@ -2544,7 +2546,27 @@ export async function claimReward() {
   const { core, address } = await getWriteContracts();
   try {
     const tx = await core.claimStakingReward();
-    await tx.wait();
+    const receipt = await tx.wait();
+    const stakingEvents = new Interface([
+      "event Claimed(address indexed account, uint256 amount, address indexed paymentAsset, uint256 settlementAmount)"
+    ]);
+    let claimedReward = 0n;
+
+    for (const log of receipt.logs) {
+      try {
+        const parsed = stakingEvents.parseLog(log);
+        if (parsed?.name === "Claimed") {
+          claimedReward = BigInt(parsed.args.amount);
+          break;
+        }
+      } catch {
+        // Ignore unrelated logs.
+      }
+    }
+
+    return {
+      claimedReward: formatTokenAmount(claimedReward, 18)
+    };
   } catch (error) {
     throw new Error(formatUserFacingContractError(error));
   }

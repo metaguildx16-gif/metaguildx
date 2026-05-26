@@ -67,30 +67,6 @@ function formatDaysRemaining(days: number): string {
   return `${Math.floor(days)} days`;
 }
 
-const REWARD_INTERVAL = 86400;
-
-function formatCountdown(seconds: number) {
-  if (seconds <= 0) return "0h 0m 0s";
-
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-
-  return `${h}h ${m}m ${s}s`;
-}
-
-function getAdminCountdown(stakers: StakingMonitorData["topStakers"]) {
-  const now = Math.floor(Date.now() / 1000);
-  const latest = stakers?.[0]?.startTime || now;
-
-  let remaining = latest + REWARD_INTERVAL - now;
-  if (remaining <= 0) {
-    remaining = REWARD_INTERVAL - (now % REWARD_INTERVAL);
-  }
-
-  return remaining;
-}
-
 function StatCard({
   title,
   accentClass,
@@ -120,7 +96,6 @@ function StatRow({ label, value }: { label: string; value: ReactNode }) {
 export function StakingMonitor() {
   const [data, setData] = useState<StakingMonitorData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [countdown, setCountdown] = useState(0);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [stakePosition, setStakePosition] = useState<StakePositionState | null>(null);
   const [positionLoading, setPositionLoading] = useState(false);
@@ -198,20 +173,6 @@ export function StakingMonitor() {
     void loadStakePosition(walletAddress);
   }, [walletAddress]);
 
-  useEffect(() => {
-    setCountdown(getAdminCountdown(data?.topStakers ?? []));
-  }, [data?.topStakers]);
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setCountdown(getAdminCountdown(data?.topStakers ?? []));
-    }, 1000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [data?.topStakers]);
-
   const unlockTime = stakePosition ? stakePosition.lockStartedAt + stakePosition.lockDuration : 0n;
   const now = Math.floor(Date.now() / 1000);
   const isLocked = unlockTime > 0n ? BigInt(now) < unlockTime : false;
@@ -281,10 +242,11 @@ export function StakingMonitor() {
         <StatCard title="Reward Cycle" accentClass="text-blue-300">
           {loading ? (
             <div className="h-10 w-28 animate-pulse rounded-2xl bg-gray-800" />
-          ) : data?.totalStakers === 0 ? (
-            <h3 className="text-3xl font-bold text-gray-500">--:--:--</h3>
           ) : (
-            <h3 className="text-3xl font-bold text-white">{formatCountdown(countdown)}</h3>
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold text-white">Per-position</h3>
+              <p className="text-sm text-gray-400">See Top Stakers for live pending rewards. Reward windows are based on each position&apos;s reward debt, not a global timer.</p>
+            </div>
           )}
         </StatCard>
       </section>
