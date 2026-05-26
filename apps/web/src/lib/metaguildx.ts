@@ -2546,14 +2546,11 @@ export async function stakeTokens(input: { amount: number; durationKey: StakeDur
   }
 }
 
-export async function claimReward() {
-  const { core, staking, address } = await getWriteContracts();
+export async function claimReward(pendingReward?: string) {
+  const { core } = await getWriteContracts();
   try {
-    if (staking) {
-      const pending = await staking.pendingStakingReward(address);
-      if (pending <= 0n) {
-        throw new Error("No staking reward is claimable yet. Please wait for the next reward window.");
-      }
+    if (!pendingReward || parseFloat(pendingReward) <= 0) {
+      throw new Error("No staking reward is claimable yet. Please wait for the next reward window.");
     }
     const tx = await core.claimStakingReward();
     const receipt = await tx.wait();

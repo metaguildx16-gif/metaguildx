@@ -4260,7 +4260,7 @@ function App() {
                       disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
                       onClick={() =>
                         runWalletAction(
-                          () => metaguildx.claimReward(),
+                          () => metaguildx.claimReward(displayedPendingStakingReward),
                           "Claiming staking reward...",
                           "Reward claimed",
                           (_nextSnapshot, result) => ({
@@ -4345,7 +4345,7 @@ function App() {
                           disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
                           onClick={() =>
                             runWalletAction(
-                              () => metaguildx.claimReward(),
+                              () => metaguildx.claimReward(displayedPendingStakingReward),
                               "Claiming staking reward...",
                               "Reward claimed",
                               (_nextSnapshot, result) => ({
@@ -4548,7 +4548,7 @@ function App() {
                                 disabled={isLoading || !snapshot.walletAddress || !canUseIndexedStakingActions || parseDisplayNumber(position.pendingReward) <= 0}
                                 onClick={() =>
                                   runWalletAction(
-                                    () => metaguildx.claimReward(),
+                                    () => metaguildx.claimReward(position.pendingReward),
                                     "Claiming staking reward...",
                                     "Reward claimed",
                                     (_nextSnapshot, result) => ({
