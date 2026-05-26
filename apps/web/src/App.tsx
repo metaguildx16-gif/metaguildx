@@ -1640,10 +1640,19 @@ function App() {
   const availableStakeAmount = parseDisplayNumber(displayedMgxAllocated);
   const requestedStakeAmount = Number(stakeForm.amount || "0");
   const canSubmitStake = requestedStakeAmount > 0 && requestedStakeAmount <= availableStakeAmount;
-  const hasClaimableReward = parseDisplayNumber(displayedPendingStakingReward) > 0;
   const hasWithdrawableStake = parseDisplayNumber(displayedPersonalStaked) > 0;
-  const hasStakingPosition = hasWithdrawableStake || hasClaimableReward;
   const canUseIndexedStakingActions = displayedStakePositions.length <= 1;
+  const primaryStakePosition = displayedStakePositions[0] ?? null;
+  const rewardWindowReady = (() => {
+    const rewardDebt = primaryStakePosition?.rewardDebt ?? 0n;
+    if (!rewardDebt) return false;
+    const nextReward = Number(rewardDebt) + 86400;
+    return Math.floor(Date.now() / 1000) >= nextReward;
+  })();
+  const hasClaimableReward =
+    parseDisplayNumber(displayedPendingStakingReward) > 0
+    && rewardWindowReady;
+  const hasStakingPosition = hasWithdrawableStake || hasClaimableReward;
   const isConnectedWalletLoading = isLoading && Boolean(snapshot.walletAddress);
   const isConnectedWalletHistoryLoading = isConnectedWalletLoading || isLoadingMoreHistory;
   const walletBalanceDisplayRows = walletBalanceRows.map((token) => ({
@@ -1759,7 +1768,6 @@ function App() {
     !!snapshot.userId &&
     !!nextUpgradeLevel &&
     outerUsdtBalanceValue >= Math.max(nextUpgradeNeed - parseDisplayNumber(escrowBalance), 0);
-  const primaryStakePosition = displayedStakePositions[0] ?? null;
   const stakingRewardPoolValue = parseDisplayNumber(snapshot.stakingRewardPool);
   const stakingTotalStakedValue = parseDisplayNumber(displayedTotalStaked);
   const stakingUserAmountValue = parseDisplayNumber(displayedPersonalStaked);
@@ -4260,7 +4268,7 @@ function App() {
                       disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
                       onClick={() =>
                         runWalletAction(
-                          () => metaguildx.claimReward(displayedPendingStakingReward),
+                          () => metaguildx.claimReward(displayedPendingStakingReward, rewardWindowReady),
                           "Claiming staking reward...",
                           "Reward claimed",
                           (_nextSnapshot, result) => ({
@@ -4345,7 +4353,7 @@ function App() {
                           disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
                           onClick={() =>
                             runWalletAction(
-                              () => metaguildx.claimReward(displayedPendingStakingReward),
+                              () => metaguildx.claimReward(displayedPendingStakingReward, rewardWindowReady),
                               "Claiming staking reward...",
                               "Reward claimed",
                               (_nextSnapshot, result) => ({
@@ -4548,7 +4556,7 @@ function App() {
                                 disabled={isLoading || !snapshot.walletAddress || !canUseIndexedStakingActions || parseDisplayNumber(position.pendingReward) <= 0}
                                 onClick={() =>
                                   runWalletAction(
-                                    () => metaguildx.claimReward(position.pendingReward),
+                                    () => metaguildx.claimReward(position.pendingReward, rewardWindowReady),
                                     "Claiming staking reward...",
                                     "Reward claimed",
                                     (_nextSnapshot, result) => ({
