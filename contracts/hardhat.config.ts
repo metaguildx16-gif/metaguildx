@@ -40,6 +40,14 @@ const config: HardhatUserConfig = {
         : [],
       gasPrice: "auto",
     },
+    opbnbMainnet: {
+      url: "https://opbnb-mainnet-rpc.bnbchain.org",
+      chainId: 204,
+      accounts: process.env.MAINNET_DEPLOYER_PRIVATE_KEY
+        ? [process.env.MAINNET_DEPLOYER_PRIVATE_KEY]
+        : [],
+      gasPrice: "auto",
+    },
   },
 };
 

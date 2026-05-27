@@ -17,7 +17,6 @@ type DeployedAddresses = {
 };
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployed-addresses.json");
-const FIXED_USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
 const EXPECTED_USDT_UNIT_PRICE = 10n ** 17n;
 const DEFAULT_STAKING_REWARD_RATE = 3; // 3 bps/day ~= 10.95% simple annualized
 
@@ -29,9 +28,20 @@ async function main() {
   const addresses = loadAddresses();
   const [deployer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
+  const USDT_ADDRESS =
+    network.name === "opbnbMainnet"
+      ? "0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3"
+      : "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
+  const SAFE_ADDRESS =
+    network.name === "opbnbMainnet"
+      ? "0x6D01d1E9771193467B5fae47Ce8463d7060098eA"
+      : "";
 
   console.log("=== Post-Deploy Setup ===");
   console.log("Deployer:", deployer.address);
+  if (SAFE_ADDRESS) {
+    console.log("Target Safe owner:", SAFE_ADDRESS);
+  }
 
   const core = await ethers.getContractAt("MetaGuildXCore", addresses.Core);
   const staking = await ethers.getContractAt("MGXStaking", addresses.MGXStaking);
@@ -44,7 +54,7 @@ async function main() {
       "function decimals() view returns (uint8)",
       "function mint(address,uint256)"
     ],
-    FIXED_USDT,
+    USDT_ADDRESS,
     deployer
   );
 
@@ -64,8 +74,8 @@ async function main() {
   ] = await Promise.all([
     core.defaultPaymentAsset(),
     core.usdtAddress(),
-    core.enabledPaymentAssets(FIXED_USDT),
-    core.paymentAssetUnitPrice(FIXED_USDT),
+    core.enabledPaymentAssets(USDT_ADDRESS),
+    core.paymentAssetUnitPrice(USDT_ADDRESS),
     core.productionMode(),
     core.creatorFeeWallet(),
     core.incomeRouterContract(),
@@ -86,10 +96,10 @@ async function main() {
   console.log("tokenEngine:", tokenEngineAddress);
   console.log("binaryTree:", binaryTreeAddress);
 
-  if (paymentAsset.toLowerCase() !== FIXED_USDT.toLowerCase()) {
+  if (paymentAsset.toLowerCase() !== USDT_ADDRESS.toLowerCase()) {
     throw new Error("CRITICAL: defaultPaymentAsset wrong!");
   }
-  if (usdtAddress.toLowerCase() !== FIXED_USDT.toLowerCase()) {
+  if (usdtAddress.toLowerCase() !== USDT_ADDRESS.toLowerCase()) {
     throw new Error("CRITICAL: usdtAddress wrong!");
   }
   if (!usdtEnabled) {
