@@ -14,25 +14,32 @@
 
 ## Remaining Before Mainnet
 
-- [ ] Owner -> multisig wallet
-- [ ] SSL for `metaguildx.net` + `www.metaguildx.net` (main domain)
+- [x] Owner -> Gnosis Safe multisig wallet
+  Safe: `0x6D01d1E9771193467B5fae47Ce8463d7060098eA`
+  Threshold: 2 of 3 signers
+  Contracts transferred: Core, Income, Upgrade, MGXStaking, MGXToken, TokenEngine (6/6)
+- [x] SSL for `metaguildx.net` + `www.metaguildx.net` (main domain)
+  Certbot deployed, auto-renewal active until 2026-08-24
+- [x] Mainnet USDT address configured
+  opBNB Mainnet USDT: `0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3`
+  Network-aware selection in `fresh-deploy-v3.ts` and `post-deploy-setup.ts`
+  `opbnbMainnet` network added to `hardhat.config.ts`
 - [ ] Redis-backed rate limiting
-- [ ] Mainnet USDT address configured
 - [ ] Final security audit
 
 ## Security
 
 - [ ] `VITE_LOCAL_PLACEMENT_SIGNER_KEY` removed from all env files
 - [ ] Placement signer = hardware wallet address
-- [ ] Owner = hardware wallet or multisig
+- [x] Owner = Gnosis Safe multisig
 - [ ] Creator fee wallet = separate hardware wallet
 - [ ] Treasury wallet = separate hardware wallet
 - [ ] Private keys never stored in repo
 
 ## Payment Asset (Critical for Registration)
 
-- [ ] `defaultPaymentAsset = mainnet USDT address`
-- [ ] `usdtAddress = mainnet USDT address`
+- [x] `defaultPaymentAsset = mainnet USDT address`
+- [x] `usdtAddress = mainnet USDT address`
 - [ ] `enabledPaymentAssets[mainnet USDT] = true`
 - [ ] `paymentAssetUnitPrice[mainnet USDT] = 100000000000000000` (`1e17`)
 - [ ] `productionMode = true` only after wiring and payment checks are complete
@@ -46,7 +53,7 @@
 - [x] Spillover duplicate payout fix deployed
 - [x] `resetIncomeByPkg` rebirth fix deployed
 - [ ] Final security audit completed
-- [ ] UUPS upgrade keys secured
+- [x] UUPS upgrade ownership transferred to Gnosis Safe multisig
 
 ## Frontend
 
@@ -69,7 +76,8 @@
 - [x] Signer endpoints: `POST/GET /support/tickets`, `PATCH /support/tickets/:id`
 - [x] Admin reads tickets with `x-admin-token`
 - [x] `admin.metaguildx.net` added to signer `ALLOWED_ORIGINS`
-- [ ] SSL for `metaguildx.net` + `www.metaguildx.net` (main domain)
+- [x] SSL for `metaguildx.net` + `www.metaguildx.net` (main domain)
+  Certbot deployed, auto-renewal active until 2026-08-24
 - [ ] Redis-backed rate limiting
 
 ## Testing
@@ -86,9 +94,9 @@
 
 ## Launch Prerequisites
 
-- [ ] Mainnet USDT address configured
-- [ ] Owner moved to multisig
-- [ ] Main domain SSL live
+- [x] Mainnet USDT address configured
+- [x] Owner moved to Gnosis Safe multisig
+- [x] Main domain SSL live
 - [ ] Final security audit complete
 - [ ] Run `npx hardhat run scripts/verify-deployment.ts --network <mainnet>`
 - [ ] Run `npx hardhat run scripts/distribution-test.ts --network <mainnet>`
