@@ -33,7 +33,7 @@ const config: HardhatUserConfig = {
       url: "http://127.0.0.1:8545",
     },
     opbnbTestnet: {
-      url: "https://opbnb-testnet-rpc.publicnode.com",
+      url: "https://opbnb-testnet-rpc.bnbchain.org",
       chainId: 5611,
       accounts: process.env.DEPLOYER_PRIVATE_KEY
         ? [process.env.DEPLOYER_PRIVATE_KEY]
@@ -44,3 +44,4 @@ const config: HardhatUserConfig = {
 };
 
 export default config;
+
