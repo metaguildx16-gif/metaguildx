@@ -100,6 +100,20 @@ File: `IncomeRouter.sol`
 Rule: spillover receiver must be added to `paidIds`, and `placementCursor` must advance after spillover so the same user cannot be paid repeatedly in one registration
 Verify: spillover receiver added to `paidIds` + `placementCursor` advances after spillover ✅
 
+### 24. adminFundStakingPool missing platformReserve/assetReserve update
+File: `MGXStaking.sol`
+Rule: `adminFundStakingPool()` must update `rewardPool`, `stakingRewardPoolPlatformReserve`, and `stakingRewardPoolAssetReserve`
+Verify: staking claim no longer always reverts with `Insufficient reward reserve` after admin funding ✅
+
+## Post-Deploy Fixes
+
+1. Bug #24 — Staking claim reliability fixes (polling mutex, RPC fallback, error messages) ✅
+
+## distribution-test.ts Coverage
+
+- Test 13: Bug #24 — adminFundStakingPool sets platformReserve ✅
+- Test 14: Bug #24 — rewardPool increases after adminFundStakingPool ✅
+
 ## Payment Normalization (Critical)
 
 - `PLATFORM_SCALE = 10`
@@ -127,6 +141,10 @@ This must verify at minimum:
 - `enabledPaymentAssets[USDT] = true`
 - `paymentAssetUnitPrice[USDT] = 1e17`
 - `productionMode = true`
+
+## Pre-Deploy Mandatory Tests
+
+Note: `distribution-test.ts` now covers 14 checks (was 12)
 
 ## Fresh Deploy Order (Exact)
 

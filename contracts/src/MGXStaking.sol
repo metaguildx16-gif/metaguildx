@@ -168,6 +168,8 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
         require(success, "MGX transfer failed");
 
         rewardPool += amount;
+        stakingRewardPoolPlatformReserve[mgx] += amount;
+        stakingRewardPoolAssetReserve[mgx] += amount;
         emit StakingPoolFunded(msg.sender, amount);
     }
 

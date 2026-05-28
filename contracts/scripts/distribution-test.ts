@@ -101,6 +101,16 @@ const usdtAbi = [
   "event Transfer(address indexed from, address indexed to, uint256 value)"
 ] as const;
 
+const mgxTokenAbi = [
+  "function approve(address,uint256) returns (bool)"
+] as const;
+
+const stakingAbi = [
+  "function adminFundStakingPool(uint256 amount)",
+  "function rewardPool() view returns (uint256)",
+  "function stakingRewardPoolPlatformReserve(address) view returns (uint256)"
+] as const;
+
 const routerEventInterface = new ethers.Interface([
   "event DirectIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint256 amount, uint8 cyclePkgLevel)",
   "event LevelIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint8 level, uint256 amount, uint8 cyclePkgLevel)",
@@ -575,6 +585,32 @@ async function main() {
       `creator=${formatSettlement(test2.creatorTransferredSettlement, usdtDecimals)} cashback=${formatSettlement(test2.cashbackTransferredSettlement, usdtDecimals)} outflow=${formatSettlement(test2.totalTransferredOutOfCore, usdtDecimals)}`
     );
   }
+
+  const staking = await ethers.getContractAt(stakingAbi, addresses.MGXStaking, deployer);
+  const mgxToken = await ethers.getContractAt(mgxTokenAbi, addresses.MGXToken, deployer);
+  const stakingFundAmount = ethers.parseEther("1");
+
+  const platformReserveBefore = await staking.stakingRewardPoolPlatformReserve(addresses.MGXToken);
+  await (await mgxToken.approve(addresses.MGXStaking, stakingFundAmount)).wait();
+  await (await staking.adminFundStakingPool(stakingFundAmount)).wait();
+  const platformReserveAfter = await staking.stakingRewardPoolPlatformReserve(addresses.MGXToken);
+
+  assertResult(
+    "Bug #24 — adminFundStakingPool sets platformReserve",
+    platformReserveAfter > platformReserveBefore,
+    `before=${platformReserveBefore.toString()} after=${platformReserveAfter.toString()}`
+  );
+
+  const rewardPoolBefore = await staking.rewardPool();
+  await (await mgxToken.approve(addresses.MGXStaking, stakingFundAmount)).wait();
+  await (await staking.adminFundStakingPool(stakingFundAmount)).wait();
+  const rewardPoolAfter = await staking.rewardPool();
+
+  assertResult(
+    "Bug #24 — rewardPool increases after adminFundStakingPool",
+    rewardPoolAfter > rewardPoolBefore,
+    `before=${rewardPoolBefore.toString()} after=${rewardPoolAfter.toString()}`
+  );
 
   console.log("\n=== Distribution Test Results ===");
   console.log(`${passed} passed, ${failed} failed`);
