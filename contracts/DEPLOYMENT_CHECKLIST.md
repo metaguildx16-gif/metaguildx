@@ -105,14 +105,22 @@ File: `MGXStaking.sol`
 Rule: `adminFundStakingPool()` must update `rewardPool`, `stakingRewardPoolPlatformReserve`, and `stakingRewardPoolAssetReserve`
 Verify: staking claim no longer always reverts with `Insufficient reward reserve` after admin funding ✅
 
+### 25. stakeFor() missing MGX transferFrom
+File: `MGXStaking.sol`
+Rule: `stakeFor()` must transfer MGX from the user wallet before recording stake state
+Verify: users can no longer stake unlimited times without spending MGX ✅
+
 ## Post-Deploy Fixes
 
 1. Bug #24 — Staking claim reliability fixes (polling mutex, RPC fallback, error messages) ✅
+39. Bug #25 — isStakePending guard prevents double-stake from stale MGX balance display ✅
 
 ## distribution-test.ts Coverage
 
 - Test 13: Bug #24 — adminFundStakingPool sets platformReserve ✅
 - Test 14: Bug #24 — rewardPool increases after adminFundStakingPool ✅
+- Test 15: Bug #26 — stakeFor transfers MGX from user wallet ✅
+- Test 16: Bug #25 — double stake not possible with 0 MGX balance ✅
 
 ## Payment Normalization (Critical)
 
@@ -144,7 +152,7 @@ This must verify at minimum:
 
 ## Pre-Deploy Mandatory Tests
 
-Note: `distribution-test.ts` now covers 14 checks (was 12)
+Note: `distribution-test.ts` now covers 16 checks (was 14)
 
 ## Fresh Deploy Order (Exact)
 

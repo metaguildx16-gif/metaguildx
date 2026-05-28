@@ -208,6 +208,7 @@ function App() {
   const [currentWalletChainId, setCurrentWalletChainId] = useState<number | null>(null);
   const [liveWalletStakeState, setLiveWalletStakeState] = useState<LiveWalletStakeState | null>(null);
   const isDashboardPolling = useRef(false);
+  const isStakePending = useRef(false);
 
   function beginLoadPhase(phase: DashboardLoadPhase, nextStatus?: string) {
     setLoadPhase(phase);
@@ -1569,8 +1570,9 @@ function App() {
           logo: null
         }
       ];
-  const displayedMgxAllocated =
-    parseDisplayNumber(snapshot.mgxAllocated) > 0 || !liveWalletStakeState
+  const displayedMgxAllocated = isStakePending.current
+    ? "0"
+    : parseDisplayNumber(snapshot.mgxAllocated) > 0 || !liveWalletStakeState
       ? snapshot.mgxAllocated
       : liveWalletStakeState.mgxAllocated;
   const displayedPendingStakingReward =
@@ -2811,17 +2813,28 @@ function App() {
           .lp-scroll-line{width:1px;height:36px;
             background:linear-gradient(180deg,#7A93C0 0%,transparent 100%)}
           @media(max-width:768px){
-            .lp-nav{padding:.875rem 1.5rem}
+            .lp-nav{padding:.75rem 1rem}
             .lp-navlinks{display:none}
-            .lp-section{padding:4rem 1.5rem}
+            .lp-logo{font-size:.95rem;gap:6px;white-space:nowrap}
+            .lp-logo img{width:28px;height:28px}
+            .lp-nav .lp-btn-out{display:none}
+            .lp-nav .lp-btn-gold{padding:7px 14px;font-size:.8rem;white-space:nowrap}
+            .lp-section{padding:4rem 1.25rem}
             .lp-how-grid,.lp-tok-grid{grid-template-columns:1fr}
             .lp-pkg-grid{grid-template-columns:repeat(2,1fr)}
             .lp-feat-grid{grid-template-columns:1fr}
             .lp-rm-items{grid-template-columns:repeat(2,1fr)}.lp-rm-line{display:none}
             .lp-ft-top{flex-direction:column;gap:2rem}
             .lp-ft-links{grid-template-columns:1fr 1fr;gap:2rem}
-            .lp-cta-box{padding:3rem 1.5rem}.lp-cta-outer{padding:0 1.5rem 4rem}
-            .lp-hero-logo-img{width:140px !important;height:140px !important}
+            .lp-cta-box{padding:3rem 1.25rem}.lp-cta-outer{padding:0 1.25rem 4rem}
+            .lp-hero-logo-img{width:130px !important;height:130px !important}
+            .lp-h1{font-size:2.4rem !important}
+            .lp-hero-content{padding:0 1rem}
+            .lp-acts{flex-direction:column;align-items:center;gap:10px}
+            .lp-acts button,.lp-acts a{width:100%;max-width:280px;text-align:center}
+            .lp-rm-wrap{padding:5rem 1.25rem}
+            .lp-tbl-wrap{overflow-x:auto}
+            .lp-pkg-grid{gap:10px}
           }
         `}</style>
 
@@ -2856,6 +2869,46 @@ function App() {
             <img src={logoMark} alt="MetaGuildX" className="lp-logo-img" style={{width:180,height:180,objectFit:"contain",filter:"drop-shadow(0 0 35px rgba(201,168,76,.55)) drop-shadow(0 0 70px rgba(46,111,216,.3))"}} />
           </div>
           <div className="lp-hero-content">
+            {referralSponsorId ? (
+              <div style={{
+                marginBottom:"1.5rem",
+                background:"rgba(12,22,48,.85)",
+                border:"1px solid rgba(201,168,76,.3)",
+                borderRadius:14,
+                padding:"1.25rem 1.75rem",
+                maxWidth:420,
+                margin:"0 auto 1.5rem",
+                backdropFilter:"blur(12px)",
+                textAlign:"left"
+              }}>
+                <div style={{fontSize:".65rem",color:"#C9A84C",textTransform:"uppercase",letterSpacing:".12em",marginBottom:".75rem",display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{width:6,height:6,background:"#2EC48F",borderRadius:"50%",display:"inline-block"}}></span>
+                  You were invited by
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:14}}>
+                  <div style={{width:44,height:44,borderRadius:"50%",background:"linear-gradient(135deg,rgba(201,168,76,.2),rgba(46,111,216,.1))",border:"1px solid rgba(201,168,76,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1rem",color:"#C9A84C",flexShrink:0}}>
+                    #{referralSponsorId}
+                  </div>
+                  <div>
+                    <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1rem",marginBottom:2}}>
+                      User #{referralSponsorId}
+                    </div>
+                    <div style={{fontSize:".78rem",color:"#7A93C0"}}>
+                      {referralSponsorProfile ? (
+                        <>Pkg {referralSponsorProfile.packageLevel} · {referralSponsorProfile.directReferrals} referrals</>
+                      ) : "MetaGuildX Member"}
+                    </div>
+                  </div>
+                  <div style={{marginLeft:"auto",textAlign:"right"}}>
+                    <div style={{fontSize:".7rem",color:"#3D5580",marginBottom:2}}>Partner #{referralSponsorId}</div>
+                    <div style={{fontSize:".72rem",padding:"3px 10px",background:"rgba(201,168,76,.1)",border:"1px solid rgba(201,168,76,.2)",borderRadius:5,color:"#C9A84C"}}>Verified ✓</div>
+                  </div>
+                </div>
+                <div style={{marginTop:"1rem",paddingTop:".875rem",borderTop:"1px solid rgba(255,255,255,.05)",fontSize:".78rem",color:"#7A93C0"}}>
+                  Register now and start earning with your sponsor's network.
+                </div>
+              </div>
+            ) : null}
             <div className="lp-badge"><span className="lp-bdot"></span>Live on opBNB Network</div>
             <h1 className="lp-h1">
               The Future of<br/>
@@ -2864,7 +2917,13 @@ function App() {
             </h1>
             <p className="lp-sub">Every registration automatically distributes USDT across 10 levels of your network — instantly, transparently, and forever on-chain.</p>
             <div className="lp-acts">
-              <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Start Earning →</button>
+              {referralSponsorId ? (
+                <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>
+                  Register with Sponsor #{referralSponsorId} →
+                </button>
+              ) : (
+                <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Start Earning →</button>
+              )}
               <a href="#lp-how" className="lp-btn-hero-out">How it works</a>
             </div>
           </div>
@@ -4772,7 +4831,8 @@ function App() {
                               return;
                             }
 
-                            runWalletAction(
+                            isStakePending.current = true;
+                            void runWalletAction(
                               () =>
                                 metaguildx.stakeTokens({
                                   amount: Number(stakeForm.amount),
@@ -4785,7 +4845,10 @@ function App() {
                                 title: "? Stake confirmed",
                                 detail: "Position updated"
                               })
-                            );
+                            ).finally(() => {
+                              isStakePending.current = false;
+                              setStakeForm((current) => ({ ...current }));
+                            });
                           }}
                         >
                           Stake Now

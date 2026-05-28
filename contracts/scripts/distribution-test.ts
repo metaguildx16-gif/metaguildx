@@ -53,6 +53,7 @@ type ParsedPaymentWithdrawn = {
 
 type RegistrationAnalysis = {
   userId: bigint;
+  wallet?: ethers.Wallet;
   directEvents: ParsedDirectIncome[];
   levelEvents: ParsedLevelIncome[];
   spilloverEvents: ParsedSpilloverIncome[];
@@ -81,6 +82,7 @@ const coreAbi = [
   "function nextUserId() view returns (uint256)",
   "function nonces(address) view returns (uint256)",
   "function registerWithPlacement(uint256,uint256,bool,bytes,uint256) external payable returns (uint256)",
+  "function stake(uint256,uint256,bool)",
   "function paymentAssetUnitPrice(address) view returns (uint256)",
   "function getPackagePrices() view returns (uint256[])",
   "function creatorFeeWallet() view returns (address)",
@@ -102,6 +104,7 @@ const usdtAbi = [
 ] as const;
 
 const mgxTokenAbi = [
+  "function balanceOf(address) view returns (uint256)",
   "function approve(address,uint256) returns (bool)"
 ] as const;
 
@@ -399,6 +402,7 @@ async function registerTestUser(
     BigInt(coreBalanceBefore),
     BigInt(coreBalanceAfter)
   );
+  analysis.wallet = testUser;
 
   console.log(`  tx=${tx.hash}`);
   console.log(`  assignedUserId=${analysis.userId.toString()}`);
@@ -611,6 +615,55 @@ async function main() {
     rewardPoolAfter > rewardPoolBefore,
     `before=${rewardPoolBefore.toString()} after=${rewardPoolAfter.toString()}`
   );
+
+  const stakeAmount = ethers.parseEther("1");
+  const stakeDuration = 30;
+  const deployerAddress = await deployer.getAddress();
+  const deployerMgxBefore = await mgxToken.balanceOf(deployerAddress);
+  const stakingMgxBefore = await mgxToken.balanceOf(addresses.MGXStaking);
+  await (await mgxToken.approve(addresses.MGXStaking, stakeAmount)).wait();
+  await (await core.stake(stakeAmount, stakeDuration, false)).wait();
+  const deployerMgxAfter = await mgxToken.balanceOf(deployerAddress);
+  const stakingMgxAfter = await mgxToken.balanceOf(addresses.MGXStaking);
+
+  assertResult(
+    "Bug #26 - stakeFor transfers MGX from user",
+    deployerMgxAfter < deployerMgxBefore,
+    `before=${deployerMgxBefore.toString()} after=${deployerMgxAfter.toString()}`
+  );
+  assertResult(
+    "Bug #26 - staking contract receives staked MGX",
+    stakingMgxAfter > stakingMgxBefore,
+    `before=${stakingMgxBefore.toString()} after=${stakingMgxAfter.toString()}`
+  );
+
+  const zeroMgxWallet = test2?.wallet;
+  if (!zeroMgxWallet) {
+    assertResult(
+      "Bug #25 - double stake not possible with 0 balance",
+      false,
+      "missing registered zero-MGX test wallet"
+    );
+  } else {
+    const zeroWalletMgxBalance = await mgxToken.balanceOf(zeroMgxWallet.address);
+    try {
+      const mgxAsZeroWallet = mgxToken.connect(zeroMgxWallet);
+      await (await mgxAsZeroWallet.approve(addresses.MGXStaking, stakeAmount)).wait();
+      const coreAsZeroWallet = core.connect(zeroMgxWallet);
+      await (await coreAsZeroWallet.stake(stakeAmount, stakeDuration, false)).wait();
+      assertResult(
+        "Bug #25 - double stake not possible with 0 balance",
+        false,
+        `stake succeeded with wallet MGX balance ${zeroWalletMgxBalance.toString()}`
+      );
+    } catch {
+      assertResult(
+        "Bug #25 - double stake not possible with 0 balance",
+        zeroWalletMgxBalance === 0n,
+        `stake reverted, but wallet MGX balance was ${zeroWalletMgxBalance.toString()}`
+      );
+    }
+  }
 
   console.log("\n=== Distribution Test Results ===");
   console.log(`${passed} passed, ${failed} failed`);

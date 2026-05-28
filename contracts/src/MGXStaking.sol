@@ -203,6 +203,11 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
         }
         require(validDuration, "Invalid duration");
 
+        address mgxToken = _getMgxToken();
+        require(mgxToken != address(0), "MGX not set");
+        bool success = IERC20(mgxToken).transferFrom(account, address(this), amount);
+        require(success, "MGX transfer failed");
+
         _ensureMigratedPositions(account);
         (autoCompoundedReward, ) = _accrueAllRewards(account);
 
