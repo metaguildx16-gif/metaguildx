@@ -1842,6 +1842,28 @@ async function getReadProvider() {
   );
 }
 
+async function getReadProviderWithFallback() {
+  const rpcUrls = getReadRpcUrls().slice(0, 2);
+  let lastError: unknown = null;
+
+  for (const rpcUrl of rpcUrls) {
+    try {
+      const provider = new JsonRpcProvider(rpcUrl);
+      await getBlockNumberWithDiagnostics(provider, `dashboard.provider.getBlockNumber:${rpcUrl}`);
+      return provider;
+    } catch (error) {
+      lastError = error;
+      console.warn("MetaGuildX dashboard RPC probe failed", { rpcUrl, error });
+    }
+  }
+
+  throw new Error(
+    lastError instanceof Error
+      ? `Could not reach the network. Check the RPC connection and try again.. ${lastError.message}`
+      : "Could not reach the network. Check the RPC connection and try again.."
+  );
+}
+
 function normalizeSponsorId(value: number | string | bigint) {
   try {
     const normalized = BigInt(value);
@@ -1885,12 +1907,24 @@ function formatUserFacingContractError(error: unknown, fallback = "Network error
     return "Please complete registration first.";
   }
 
-  if (normalized.includes("no reward")) {
-    return "No staking reward is claimable yet. Please wait for the next reward window.";
+  if (normalized.includes("timeout") || normalized.includes("getblocknumber")) {
+    return "RPC connection slow. Please wait a moment and retry.";
+  }
+
+  if (normalized.includes("user rejected") || normalized.includes("user denied")) {
+    return "Transaction cancelled.";
+  }
+
+  if (normalized.includes("cooldown") || normalized.includes("not yet") || normalized.includes("too early")) {
+    return "Reward not ready yet. Please wait for the next claim window.";
+  }
+
+  if (normalized.includes("no reward") || normalized.includes("nothing to claim")) {
+    return "No reward available to claim right now.";
   }
 
   if (normalized.includes("call_exception") || normalized.includes("missing revert data") || normalized.includes("execution reverted")) {
-    return fallback;
+    return "Transaction failed. Please retry in a moment.";
   }
 
   return message;
@@ -3505,7 +3539,7 @@ export async function loadDashboardSnapshot(
     };
   }
 
-  const provider = await getReadProvider();
+  const provider = await getReadProviderWithFallback();
   const code = await provider.getCode(contractAddress);
   const treeCode =
     configuredBinaryTreeAddress && configuredBinaryTreeAddress !== "0x0000000000000000000000000000000000000000"

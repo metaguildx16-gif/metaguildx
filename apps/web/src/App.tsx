@@ -1,5 +1,5 @@
 ﻿import { Contract, JsonRpcProvider, ethers, formatUnits } from "ethers";
-import { Suspense, lazy, startTransition, useEffect, useState } from "react";
+import { Suspense, lazy, startTransition, useEffect, useRef, useState } from "react";
 import logoMark from "./assets/mgx logo.png";
 import { fallbackSnapshot } from "./appFallback";
 import { SupportPage } from "./pages/Support";
@@ -207,6 +207,7 @@ function App() {
   const [isCheckingAdminAccess, setIsCheckingAdminAccess] = useState(false);
   const [currentWalletChainId, setCurrentWalletChainId] = useState<number | null>(null);
   const [liveWalletStakeState, setLiveWalletStakeState] = useState<LiveWalletStakeState | null>(null);
+  const isDashboardPolling = useRef(false);
 
   function beginLoadPhase(phase: DashboardLoadPhase, nextStatus?: string) {
     setLoadPhase(phase);
@@ -633,12 +634,23 @@ function App() {
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
+      if (isDashboardPolling.current) {
+        return;
+      }
+
+      isDashboardPolling.current = true;
       Promise.resolve(metaguildx.loadDashboardSnapshot(snapshot.walletAddress))
         .then(setSnapshot)
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => {
+          isDashboardPolling.current = false;
+        });
     }, 30000);
 
-    return () => window.clearInterval(intervalId);
+    return () => {
+      window.clearInterval(intervalId);
+      isDashboardPolling.current = false;
+    };
   }, [snapshot.walletAddress]);
 
   useEffect(() => {
@@ -2548,307 +2560,606 @@ function App() {
 
   function renderLanding() {
     return (
-      <div className="landing-page">
-        <nav className="landing-nav">
-          <div className="landing-nav-inner">
-            <div className="landing-logo">
-              <img src={logoMark} alt="MGX" className="landing-logo-image" />
-              <span className="logo-text">MetaGuildX</span>
-            </div>
+      <div className="landing-page" style={{
+        fontFamily: '"DM Sans", sans-serif',
+        background: '#030610',
+        color: '#EEF4FF',
+        overflowX: 'hidden',
+        minHeight: '100vh',
+      }}>
 
-            <div className="landing-nav-links">
-              <a href="#how-it-works">How It Works</a>
-              <a href="#packages">Packages</a>
-              <a href="#income">Income Types</a>
-              <a href="#why">Why Us</a>
-            </div>
+        {/* ── STYLES ── */}
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
+          :root{
+            --gold:#C9A84C;--gold-l:#E8C96A;
+            --blue:#1E5FBF;--blue-l:#2E6FD8;--cyan:#00D4FF;
+            --border-b:rgba(46,111,216,.18);
+            --t1:#EEF4FF;--t2:#7A93C0;--t3:#3D5580;--green:#2EC48F;
+          }
+          .lp-nav{position:fixed;top:0;left:0;right:0;z-index:200;
+            padding:1rem 3rem;display:flex;align-items:center;justify-content:space-between;
+            background:rgba(3,6,16,.92);backdrop-filter:blur(24px);
+            border-bottom:1px solid rgba(46,111,216,.12)}
+          .lp-logo{display:flex;align-items:center;gap:10px;text-decoration:none;
+            font-family:Syne,sans-serif;font-size:1.15rem;font-weight:800;color:#EEF4FF}
+          .lp-logo img{width:36px;height:36px;object-fit:contain}
+          .lp-logo span{color:#C9A84C}
+          .lp-navlinks{display:flex;gap:2rem;list-style:none;padding:0;margin:0}
+          .lp-navlinks a{font-size:.875rem;color:rgba(238,244,255,.7);text-decoration:none;transition:color .2s}
+          .lp-navlinks a:hover{color:#EEF4FF}
+          .lp-btn-out{padding:8px 20px;border-radius:7px;border:1px solid rgba(255,255,255,.15);
+            color:rgba(238,244,255,.8);background:rgba(255,255,255,.04);
+            font-family:"DM Sans",sans-serif;font-size:.875rem;cursor:pointer;text-decoration:none;transition:all .2s}
+          .lp-btn-out:hover{border-color:rgba(201,168,76,.4);color:#EEF4FF}
+          .lp-btn-gold{padding:9px 22px;border-radius:7px;background:#C9A84C;
+            color:#080604;font-weight:600;border:none;font-family:"DM Sans",sans-serif;
+            font-size:.875rem;cursor:pointer;transition:all .2s}
+          .lp-btn-gold:hover{background:#E8C96A;transform:translateY(-1px)}
+          .lp-hero{position:relative;height:100vh;min-height:700px;
+            display:flex;flex-direction:column;align-items:center;justify-content:center;
+            text-align:center;overflow:hidden}
+          .lp-hero-bg{position:absolute;inset:0;z-index:0;
+            background:
+              radial-gradient(ellipse 80% 60% at 50% 0%,rgba(30,95,191,.3) 0%,transparent 60%),
+              radial-gradient(ellipse 50% 40% at 20% 80%,rgba(201,168,76,.07) 0%,transparent 50%),
+              radial-gradient(ellipse 50% 40% at 80% 70%,rgba(0,212,255,.05) 0%,transparent 50%),
+              linear-gradient(180deg,#05091A 0%,#030610 100%)}
+          .lp-stars{position:absolute;inset:0;z-index:1;overflow:hidden}
+          .lp-star{position:absolute;border-radius:50%;background:rgba(255,255,255,.8)}
+          .lp-ring-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2;pointer-events:none}
+          .lp-ring{position:absolute;border-radius:50%;border:1px solid;top:50%;left:50%}
+          .lp-r1{width:300px;height:300px;border-color:rgba(201,168,76,.12);transform:translate(-50%,-50%);animation:lp-spin 22s linear infinite}
+          .lp-r2{width:440px;height:440px;border-color:rgba(46,111,216,.08);transform:translate(-50%,-50%);animation:lp-spin 32s linear infinite reverse}
+          .lp-r3{width:580px;height:580px;border-color:rgba(0,212,255,.05);transform:translate(-50%,-50%);animation:lp-spin 48s linear infinite}
+          .lp-r1::before{content:"";position:absolute;width:8px;height:8px;background:#C9A84C;
+            border-radius:50%;top:-4px;left:50%;transform:translateX(-50%);box-shadow:0 0 12px #C9A84C}
+          .lp-r2::before{content:"";position:absolute;width:6px;height:6px;background:#2E6FD8;
+            border-radius:50%;top:-3px;left:50%;transform:translateX(-50%);box-shadow:0 0 10px #2E6FD8}
+          @keyframes lp-spin{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+          .lp-logo-wrap{position:relative;z-index:3;margin-bottom:2rem;animation:lp-float 4s ease-in-out infinite}
+          @keyframes lp-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+          .lp-logo-img{width:180px;height:180px;object-fit:contain;
+            filter:drop-shadow(0 0 35px rgba(201,168,76,.55)) drop-shadow(0 0 70px rgba(46,111,216,.3))}
+          .lp-hero-content{position:relative;z-index:3}
+          .lp-badge{display:inline-flex;align-items:center;gap:8px;padding:5px 16px;
+            border:1px solid rgba(201,168,76,.25);border-radius:100px;
+            font-size:.7rem;color:#C9A84C;letter-spacing:.12em;text-transform:uppercase;
+            margin-bottom:1.5rem;background:rgba(201,168,76,.06);backdrop-filter:blur(10px)}
+          .lp-bdot{width:6px;height:6px;background:#2EC48F;border-radius:50%;animation:lp-pulse 2s infinite}
+          @keyframes lp-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+          .lp-h1{font-family:Syne,sans-serif;font-size:clamp(2.8rem,6.5vw,5rem);font-weight:800;
+            line-height:1.05;letter-spacing:-.04em;max-width:860px;margin:0 auto}
+          .lp-h1-gold{background:linear-gradient(135deg,#C9A84C 0%,#E8C96A 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+          .lp-h1-cyan{background:linear-gradient(135deg,#00D4FF 0%,#2E6FD8 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+          .lp-sub{font-size:1.1rem;color:rgba(122,147,192,.9);max-width:500px;
+            margin:1.5rem auto 2.5rem;font-weight:300;line-height:1.75}
+          .lp-acts{display:flex;gap:14px;justify-content:center}
+          .lp-btn-hero-gold{padding:14px 34px;border-radius:9px;background:linear-gradient(135deg,#C9A84C,#E8C96A);
+            color:#080604;font-weight:600;border:none;font-size:1rem;
+            font-family:"DM Sans",sans-serif;cursor:pointer;transition:all .25s}
+          .lp-btn-hero-gold:hover{transform:translateY(-3px);box-shadow:0 16px 48px rgba(201,168,76,.28)}
+          .lp-btn-hero-out{padding:13px 34px;border-radius:9px;
+            border:1px solid rgba(255,255,255,.15);color:rgba(238,244,255,.85);
+            background:rgba(255,255,255,.05);font-size:1rem;
+            font-family:"DM Sans",sans-serif;cursor:pointer;transition:all .25s;text-decoration:none;display:inline-block}
+          .lp-btn-hero-out:hover{border-color:rgba(201,168,76,.4);color:#EEF4FF}
+          .lp-ticker{border-top:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.05);
+            background:rgba(5,9,26,.9);padding:1rem 0;overflow:hidden;position:relative;z-index:1}
+          .lp-ticker-track{display:flex;gap:3rem;animation:lp-tick 38s linear infinite;width:max-content}
+          @keyframes lp-tick{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+          .lp-ti{display:flex;align-items:center;gap:9px;white-space:nowrap}
+          .lp-ti-l{font-size:.7rem;color:#3D5580;text-transform:uppercase;letter-spacing:.08em}
+          .lp-ti-v{font-family:Syne,sans-serif;font-size:.9rem;font-weight:700;color:#C9A84C}
+          .lp-sep{height:1px;background:rgba(255,255,255,.04)}
+          .lp-section{padding:6rem 3rem;max-width:1200px;margin:0 auto}
+          .lp-lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.15em;color:#C9A84C;
+            margin-bottom:1rem;display:flex;align-items:center;gap:10px}
+          .lp-lbl::before{content:"";width:16px;height:1px;background:#C9A84C}
+          .lp-stitle{font-family:Syne,sans-serif;font-size:clamp(1.8rem,3.5vw,2.75rem);
+            font-weight:700;letter-spacing:-.025em;line-height:1.1;max-width:580px}
+          .lp-sdesc{color:#7A93C0;font-size:1rem;max-width:460px;margin-top:.875rem;
+            font-weight:300;line-height:1.8}
+          .lp-how-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;margin-top:4rem;align-items:start}
+          .lp-steps{display:flex;flex-direction:column}
+          .lp-step{display:flex;gap:1.5rem;padding:1.75rem 0;border-bottom:1px solid rgba(255,255,255,.04)}
+          .lp-step:first-child{padding-top:0}.lp-step:last-child{border-bottom:none;padding-bottom:0}
+          .lp-st-n{font-family:Syne,sans-serif;font-size:.65rem;font-weight:700;
+            color:rgba(46,111,216,.5);letter-spacing:.1em;margin-top:4px;min-width:26px}
+          .lp-st-t{font-family:Syne,sans-serif;font-size:1rem;font-weight:600;margin-bottom:.4rem}
+          .lp-st-d{font-size:.875rem;color:#7A93C0;line-height:1.7}
+          .lp-ibox{background:linear-gradient(145deg,rgba(12,22,48,.9),rgba(8,15,36,.95));
+            border:1px solid rgba(46,111,216,.2);border-radius:20px;padding:2.5rem}
+          .lp-ibox-logo{width:36px;height:36px;object-fit:contain;margin-bottom:1.25rem;
+            filter:drop-shadow(0 0 8px rgba(201,168,76,.3))}
+          .lp-ibox-title{font-family:Syne,sans-serif;font-size:.72rem;font-weight:600;
+            color:#3D5580;text-transform:uppercase;letter-spacing:.12em;margin-bottom:1.5rem}
+          .lp-irow{display:flex;justify-content:space-between;align-items:center;
+            padding:.8rem 0;border-bottom:1px solid rgba(255,255,255,.04)}
+          .lp-irow:last-of-type{border-bottom:none;margin-bottom:1.5rem}
+          .lp-idot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:10px}
+          .lp-iname{font-size:.875rem;color:#7A93C0}
+          .lp-ipct{font-family:Syne,sans-serif;font-size:1rem;font-weight:700;color:#C9A84C}
+          .lp-ibar{height:6px;background:rgba(255,255,255,.05);border-radius:6px;overflow:hidden;display:flex}
+          .lp-pkg-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:2.5rem}
+          .lp-pkg{background:rgba(12,22,48,.7);border:1px solid rgba(46,111,216,.15);
+            border-radius:14px;padding:1.5rem 1.25rem;transition:all .3s;position:relative}
+          .lp-pkg:hover{border-color:rgba(201,168,76,.4);transform:translateY(-5px);
+            box-shadow:0 20px 50px rgba(0,0,0,.4)}
+          .lp-pkg.hot{border-color:rgba(201,168,76,.5);
+            background:linear-gradient(145deg,rgba(17,30,64,.9),rgba(201,168,76,.05))}
+          .lp-pkg.hot::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+            background:linear-gradient(90deg,transparent,#C9A84C,transparent)}
+          .lp-pkg-badge{position:absolute;top:10px;right:10px;padding:2px 8px;
+            background:#C9A84C;border-radius:4px;font-size:.6rem;font-weight:700;
+            color:#080604;text-transform:uppercase}
+          .lp-pkg-n{font-size:.65rem;color:#3D5580;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.5rem}
+          .lp-pkg-p{font-family:Syne,sans-serif;font-size:1.65rem;font-weight:800;line-height:1;margin-bottom:.2rem}
+          .lp-pkg-u{font-size:.78rem;color:#7A93C0;font-weight:400}
+          .lp-pkg-d{font-size:.75rem;color:#2EC48F;margin-bottom:1rem}
+          .lp-pkg-feats{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+          .lp-pkg-feats li{font-size:.73rem;color:#7A93C0;display:flex;align-items:center;gap:7px}
+          .lp-pkg-feats li::before{content:"";width:3px;height:3px;background:rgba(201,168,76,.4);
+            border-radius:50%;flex-shrink:0}
+          .lp-tbl-wrap{margin-top:2rem;border:1px solid rgba(46,111,216,.12);
+            border-radius:14px;overflow:hidden}
+          .lp-tbl{width:100%;border-collapse:collapse;font-size:.85rem}
+          .lp-tbl thead tr{background:rgba(8,15,36,.9)}
+          .lp-tbl th{padding:.875rem 1.25rem;color:#3D5580;font-weight:500;
+            font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;
+            border-bottom:1px solid rgba(46,111,216,.12)}
+          .lp-tbl th:not(:first-child){text-align:right}
+          .lp-tbl td{padding:.875rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.03)}
+          .lp-tbl td:not(:first-child){text-align:right}
+          .lp-tbl tbody tr:last-child td{border-bottom:none}
+          .lp-tbl tbody tr:hover{background:rgba(46,111,216,.04)}
+          .lp-tbl tbody tr:nth-child(even){background:rgba(46,111,216,.025)}
+          .lp-rm-wrap{position:relative;padding:6rem 3rem;
+            background:radial-gradient(ellipse 70% 50% at 50% 100%,rgba(30,95,191,.1) 0%,transparent 60%)}
+          .lp-rm-inner{max-width:1200px;margin:0 auto}
+          .lp-rm-track{position:relative;margin-top:4rem}
+          .lp-rm-line{position:absolute;top:36px;left:5%;right:5%;height:2px;
+            background:linear-gradient(90deg,transparent,rgba(46,111,216,.3) 15%,rgba(201,168,76,.3) 45%,rgba(46,111,216,.2) 75%,transparent)}
+          .lp-rm-items{display:grid;grid-template-columns:repeat(8,1fr);gap:1rem;position:relative;z-index:1}
+          .lp-rm-item{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
+          .lp-rm-dot{width:72px;height:72px;display:flex;align-items:center;justify-content:center;
+            border-radius:50%;font-size:1.6rem}
+          .lp-rm-item.done .lp-rm-dot{background:linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.04));
+            border:1px solid rgba(201,168,76,.35);box-shadow:0 0 18px rgba(201,168,76,.12)}
+          .lp-rm-item.active .lp-rm-dot{background:linear-gradient(135deg,rgba(46,111,216,.2),rgba(46,111,216,.04));
+            border:1px solid rgba(46,111,216,.5);box-shadow:0 0 18px rgba(46,111,216,.2)}
+          .lp-rm-item:not(.done):not(.active) .lp-rm-dot{background:rgba(255,255,255,.03);
+            border:1px solid rgba(255,255,255,.07)}
+          .lp-rm-t{font-family:Syne,sans-serif;font-size:.78rem;font-weight:700;line-height:1.3}
+          .lp-rm-s{font-size:.62rem;color:#3D5580;line-height:1.4}
+          .lp-rm-tag{font-size:.58rem;padding:3px 8px;border-radius:5px;font-weight:600;display:inline-block}
+          .lp-tag-done{background:rgba(201,168,76,.12);color:#C9A84C;border:1px solid rgba(201,168,76,.2)}
+          .lp-tag-active{background:rgba(46,111,216,.12);color:#5B9EF8;border:1px solid rgba(46,111,216,.25)}
+          .lp-tag-soon{background:rgba(255,255,255,.04);color:#3D5580;border:1px solid rgba(255,255,255,.06)}
+          .lp-feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+            margin-top:4rem;border-radius:20px;overflow:hidden;background:rgba(255,255,255,.04)}
+          .lp-feat{background:rgba(5,9,26,.95);padding:2.25rem;transition:background .3s}
+          .lp-feat:hover{background:rgba(12,22,48,.95)}
+          .lp-feat-icon{width:42px;height:42px;border:1px solid rgba(201,168,76,.18);border-radius:10px;
+            display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;
+            font-size:1.1rem;color:#C9A84C;background:rgba(201,168,76,.05)}
+          .lp-feat-n{font-family:Syne,sans-serif;font-size:.95rem;font-weight:600;margin-bottom:.5rem}
+          .lp-feat-d{font-size:.855rem;color:#7A93C0;line-height:1.65}
+          .lp-tok-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;
+            margin-top:4rem;align-items:center}
+          .lp-tok-row{display:flex;align-items:center;gap:1.25rem;margin-bottom:.5rem}
+          .lp-tok-logo{width:54px;height:54px;object-fit:contain;
+            filter:drop-shadow(0 0 14px rgba(201,168,76,.4))}
+          .lp-tok-name{font-family:Syne,sans-serif;font-size:2.8rem;font-weight:800;
+            background:linear-gradient(135deg,#C9A84C,#E8C96A);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+            letter-spacing:-.03em;line-height:1}
+          .lp-tok-sub{font-size:.9rem;color:#7A93C0;margin-bottom:2rem}
+          .lp-tok-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+          .lp-ts{background:rgba(12,22,48,.7);border:1px solid rgba(46,111,216,.15);
+            border-radius:12px;padding:1.1rem;transition:border-color .3s}
+          .lp-ts:hover{border-color:rgba(201,168,76,.3)}
+          .lp-ts-l{font-size:.68rem;color:#3D5580;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.4rem}
+          .lp-ts-v{font-family:Syne,sans-serif;font-size:1.15rem;font-weight:700}
+          .lp-donut-wrap{display:flex;flex-direction:column;align-items:center;gap:1.75rem}
+          .lp-legend{display:flex;flex-direction:column;gap:9px;width:100%}
+          .lp-leg{display:flex;align-items:center;justify-content:space-between;font-size:.85rem}
+          .lp-leg-l{display:flex;align-items:center;gap:9px}
+          .lp-leg-dot{width:9px;height:9px;border-radius:2px}
+          .lp-leg-pct{font-family:Syne,sans-serif;font-weight:700;color:#7A93C0}
+          .lp-cta-outer{padding:0 3rem 6rem;max-width:1200px;margin:0 auto}
+          .lp-cta-box{position:relative;overflow:hidden;border-radius:24px;
+            padding:5rem 4rem;text-align:center;
+            background:linear-gradient(145deg,rgba(12,22,48,.95),rgba(8,15,36,.98));
+            border:1px solid rgba(46,111,216,.18)}
+          .lp-cta-box::before{content:"";position:absolute;inset:0;
+            background:radial-gradient(ellipse 60% 60% at 50% 0%,rgba(46,111,216,.1) 0%,transparent 60%);
+            pointer-events:none}
+          .lp-cta-logo{width:80px;height:80px;object-fit:contain;margin-bottom:1.75rem;
+            filter:drop-shadow(0 0 20px rgba(201,168,76,.4));animation:lp-float 4s ease-in-out infinite;
+            position:relative;z-index:1}
+          .lp-cta-box h2{font-family:Syne,sans-serif;font-size:clamp(1.8rem,3.5vw,3rem);
+            font-weight:800;letter-spacing:-.03em;margin-bottom:1rem;position:relative;z-index:1}
+          .lp-cta-box p{color:#7A93C0;font-size:1rem;margin-bottom:2.5rem;
+            position:relative;z-index:1;max-width:480px;margin-left:auto;margin-right:auto}
+          .lp-cta-acts{display:flex;gap:14px;justify-content:center;position:relative;z-index:1}
+          .lp-footer{border-top:1px solid rgba(255,255,255,.04);
+            padding:3rem;max-width:1200px;margin:0 auto}
+          .lp-ft-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3rem}
+          .lp-ft-logo-r{display:flex;align-items:center;gap:9px;margin-bottom:.75rem}
+          .lp-ft-logo{width:30px;height:30px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(201,168,76,.3))}
+          .lp-ft-name{font-family:Syne,sans-serif;font-size:1rem;font-weight:800}
+          .lp-ft-name span{color:#C9A84C}
+          .lp-ft-tag{font-size:.8rem;color:#3D5580;max-width:210px;line-height:1.6}
+          .lp-ft-links{display:grid;grid-template-columns:repeat(3,1fr);gap:3rem}
+          .lp-ft-ct{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:#3D5580;margin-bottom:.875rem}
+          .lp-ft-col ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:7px}
+          .lp-ft-col a{font-size:.84rem;color:#7A93C0;text-decoration:none;transition:color .2s}
+          .lp-ft-col a:hover{color:#C9A84C}
+          .lp-ft-bot{display:flex;justify-content:space-between;align-items:center;
+            padding-top:2rem;border-top:1px solid rgba(255,255,255,.04);font-size:.76rem;color:#3D5580}
+          .lp-socials{display:flex;gap:9px}
+          .lp-soc{width:32px;height:32px;border:1px solid rgba(255,255,255,.07);border-radius:7px;
+            display:flex;align-items:center;justify-content:center;color:#7A93C0;
+            text-decoration:none;font-size:.72rem;transition:all .2s;background:rgba(255,255,255,.03)}
+          .lp-soc:hover{border-color:rgba(201,168,76,.35);color:#C9A84C}
+          .lp-scroll-hint{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);
+            z-index:3;display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.45}
+          .lp-scroll-hint span{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#7A93C0}
+          .lp-scroll-line{width:1px;height:36px;
+            background:linear-gradient(180deg,#7A93C0 0%,transparent 100%)}
+          @media(max-width:768px){
+            .lp-nav{padding:.875rem 1.5rem}
+            .lp-navlinks{display:none}
+            .lp-section{padding:4rem 1.5rem}
+            .lp-how-grid,.lp-tok-grid{grid-template-columns:1fr}
+            .lp-pkg-grid{grid-template-columns:repeat(2,1fr)}
+            .lp-feat-grid{grid-template-columns:1fr}
+            .lp-rm-items{grid-template-columns:repeat(2,1fr)}.lp-rm-line{display:none}
+            .lp-ft-top{flex-direction:column;gap:2rem}
+            .lp-ft-links{grid-template-columns:1fr 1fr;gap:2rem}
+            .lp-cta-box{padding:3rem 1.5rem}.lp-cta-outer{padding:0 1.5rem 4rem}
+            .lp-hero-logo-img{width:140px !important;height:140px !important}
+          }
+        `}</style>
 
-            <button className="btn-connect-nav" type="button" onClick={() => void handleConnectWallet()} disabled={isLoading}>
-              {isLoading ? "Connecting..." : "Connect Wallet"}
-            </button>
+        {/* ── NAV ── */}
+        <nav className="lp-nav">
+          <a href="#" className="lp-logo">
+            <img src={logoMark} alt="MGX" />
+            Meta<span>Guild</span>X
+          </a>
+          <ul className="lp-navlinks">
+            <li><a href="#lp-how">How it works</a></li>
+            <li><a href="#lp-packages">Packages</a></li>
+            <li><a href="#lp-roadmap">Roadmap</a></li>
+            <li><a href="#lp-token">MGX Token</a></li>
+          </ul>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            <button className="lp-btn-out" type="button" onClick={() => void handleConnectWallet()}>Sign in</button>
+            <button className="lp-btn-gold" type="button" onClick={() => void handleConnectWallet()}>Launch App →</button>
           </div>
         </nav>
 
-        <section className="hero-section" id="hero">
-          <div className="hero-content">
-            <h1 className="hero-title">MetaGuildX Ecosystem</h1>
-
-            <p className="hero-subtitle">
-              Earn | Grow | Rebirth | Decentralized Income System
-            </p>
-
-            <div className="hero-buttons">
-              {referralSponsorId ? (
-                <button className="btn-primary-large" type="button" onClick={handleBeginRegistrationFlow} disabled={isLoading || !canStartSignUp}>
-                  {isLoading ? "Opening MetaMask..." : "Sign Up"}
-                </button>
-              ) : (
-                <button className="btn-connect-nav" type="button" onClick={() => void handleConnectWallet()} disabled={isLoading}>
-                  {isLoading ? "Connecting..." : "Connect Wallet"}
-                </button>
-              )}
-            </div>
-
-            <div className="hero-status">
-              <p className="landing-status-text">{status}</p>
-              {connectError ? <p className="connect-error">{connectError}</p> : null}
-              {snapshot.contractWarning ? <p className="error-text">{snapshot.contractWarning}</p> : null}
-              {referralSponsorId ? (
-                <div className="register-intro-card">
-                  <div className="sponsor-info">
-                    <div className="sponsor-label">Referral Link Active</div>
-                    <div className="register-intro-grid">
-                      <div>
-                        <span>Your Upline</span>
-                        <strong>{`User ${referralSponsorId}`}</strong>
-                      </div>
-                      <div>
-                        <span>Partners</span>
-                        <strong>{sponsorPartnerCount}</strong>
-                      </div>
-                      <div>
-                        <span>Registration</span>
-                        <strong>{sponsorRegistrationLabel}</strong>
-                      </div>
-                    </div>
-                    <p className="text-secondary">
-                      {referredSponsorPreview
-                        ? `Invited by User ${referredSponsorPreview.userId}${"account" in referredSponsorPreview ? ` | ${referredSponsorPreview.account.slice(0, 6)}...${referredSponsorPreview.account.slice(-4)}` : ""} | Package ${referredSponsorPreview.packageLevel}`
-                        : "Sponsor preview will load after contract data refresh."}
-                    </p>
-                  </div>
-                  <label className="register-consent-row">
-                    <input
-                      type="checkbox"
-                      checked={registrationConsent.terms}
-                      onChange={(event) => setRegistrationConsent((current) => ({ ...current, terms: event.target.checked }))}
-                    />
-                    <span>I agree to terms of use</span>
-                  </label>
-                  <label className="register-consent-row">
-                    <input
-                      type="checkbox"
-                      checked={registrationConsent.restrictedCountry}
-                      onChange={(event) => setRegistrationConsent((current) => ({ ...current, restrictedCountry: event.target.checked }))}
-                    />
-                    <span>I am not from restricted countries</span>
-                  </label>
-                  <p className="text-secondary register-flow-note">
-                    Sign Up opens wallet selection first. After wallet connection, the dashboard opens in Not active mode and you can continue with Package 1 activation.
-                  </p>
-                </div>
-              ) : null}
+        {/* ── HERO ── */}
+        <div className="lp-hero">
+          <div className="lp-hero-bg"></div>
+          <div className="lp-stars" id="lp-stars-container"></div>
+          <div className="lp-ring-wrap">
+            <div className="lp-ring lp-r1"></div>
+            <div className="lp-ring lp-r2"></div>
+            <div className="lp-ring lp-r3"></div>
+          </div>
+          <div className="lp-logo-wrap">
+            <img src={logoMark} alt="MetaGuildX" className="lp-logo-img" style={{width:180,height:180,objectFit:"contain",filter:"drop-shadow(0 0 35px rgba(201,168,76,.55)) drop-shadow(0 0 70px rgba(46,111,216,.3))"}} />
+          </div>
+          <div className="lp-hero-content">
+            <div className="lp-badge"><span className="lp-bdot"></span>Live on opBNB Network</div>
+            <h1 className="lp-h1">
+              The Future of<br/>
+              <span className="lp-h1-gold">Decentralized</span>{" "}
+              <span className="lp-h1-cyan">Income</span>
+            </h1>
+            <p className="lp-sub">Every registration automatically distributes USDT across 10 levels of your network — instantly, transparently, and forever on-chain.</p>
+            <div className="lp-acts">
+              <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Start Earning →</button>
+              <a href="#lp-how" className="lp-btn-hero-out">How it works</a>
             </div>
           </div>
-        </section>
-
-        <section className="stats-bar">
-          <div className="stat-item">
-            <div className="stat-value">{totalUsers.toLocaleString()}</div>
-            <div className="stat-label">Users</div>
+          <div className="lp-scroll-hint">
+            <span>Scroll</span>
+            <div className="lp-scroll-line"></div>
           </div>
-          <div className="stat-item">
-            <div className="stat-value">${totalVolume.toLocaleString()}</div>
-            <div className="stat-label">Volume</div>
+        </div>
+
+        {/* ── TICKER ── */}
+        <div className="lp-ticker">
+          <div className="lp-ticker-track">
+            {[["Registration","$10 USDT"],["Direct income","46%"],["Level income","40%"],
+              ["Cashback pool","4%"],["Network depth","10 Levels"],["Package tiers","10 Tiers"],
+              ["Blockchain","opBNB"],["MGX Staking APY","10.95%"],
+              ["Registration","$10 USDT"],["Direct income","46%"],["Level income","40%"],
+              ["Cashback pool","4%"],["Network depth","10 Levels"],["Package tiers","10 Tiers"],
+              ["Blockchain","opBNB"],["MGX Staking APY","10.95%"]
+            ].map(([l,v],i) => (
+              <span key={i} className="lp-ti">
+                <span className="lp-ti-l">{l}</span>
+                <span className="lp-ti-v">{v}</span>
+                <span style={{color:"rgba(46,111,216,.25)",margin:"0 .5rem"}}>·</span>
+              </span>
+            ))}
           </div>
-          <div className="stat-item">
-            <div className="stat-value">10</div>
-            <div className="stat-label">Packages</div>
-          </div>
-        </section>
+        </div>
+        <div className="lp-sep"></div>
 
-        <section className="section-how" id="how-it-works">
-          <div className="section-container">
-            <div className="landing-page section-label">Simple Process</div>
-            <h2 className="landing-page section-title">Start Earning in 3 Steps</h2>
-
-            <div className="steps-grid">
-              <div className="step-card">
-                <div className="step-number">01</div>
-                <div className="step-icon">W</div>
-                <h3>Connect Wallet</h3>
-                <p>Connect MetaMask to OPBNB. No signup. No email. Pure Web3.</p>
-              </div>
-
-              <div className="step-card">
-                <div className="step-number">02</div>
-                <div className="step-icon">P</div>
-                <h3>Choose Package</h3>
-                <p>Start with just $10 USDT. Auto-upgrade as you earn more.</p>
-              </div>
-
-              <div className="step-card">
-                <div className="step-number">03</div>
-                <div className="step-icon">E</div>
-                <h3>Earn Daily</h3>
-                <p>Earn from referrals, 10 levels deep, and automatic network growth.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="section-income" id="income">
-          <div className="section-container">
-            <div className="landing-page section-label">Multiple Income Streams</div>
-            <h2 className="landing-page section-title">How You Earn</h2>
-
-            <div className="income-cards-grid">
-              <div className="income-card income-card--direct">
-                <div className="income-card-icon">DI</div>
-                <h3>Direct Income</h3>
-                <div className="income-pct">46%</div>
-                <p>Earn 46% of every direct referral's package price, instantly.</p>
-              </div>
-
-              <div className="income-card income-card--level">
-                <div className="income-card-icon">LI</div>
-                <h3>Level Income</h3>
-                <div className="income-pct">4% x 10</div>
-                <p>Earn 4% across 10 levels deep in your network.</p>
-              </div>
-
-              <div className="income-card income-card--upgrade">
-                <div className="income-card-icon">AU</div>
-                <h3>Auto Upgrade</h3>
-                <div className="income-pct">2X</div>
-                <p>Earn 2X your package? Auto-upgrade to next level. No action needed.</p>
-              </div>
-
-              <div className="income-card income-card--cashback">
-                <div className="income-card-icon">CB</div>
-                <h3>Cashback Pool</h3>
-                <div className="income-pct">4%</div>
-                <p>4% of every join goes to cashback pool. Surrender and earn daily.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="section-packages" id="packages">
-          <div className="section-container">
-            <div className="landing-page section-label">Choose Your Level</div>
-            <h2 className="landing-page section-title">Investment Packages</h2>
-            <p className="landing-page section-subtitle">Start small, grow automatically. Each level unlocks higher earnings.</p>
-
-            <div className="packages-grid-new">
+        {/* ── HOW IT WORKS ── */}
+        <section className="lp-section" id="lp-how">
+          <div className="lp-lbl">How it works</div>
+          <h2 className="lp-stitle">Income flows automatically<br/>to your wallet</h2>
+          <p className="lp-sdesc">No middlemen. No delays. Smart contracts distribute every dollar the moment it enters the system.</p>
+          <div className="lp-how-grid">
+            <div className="lp-steps">
               {[
-                { level: 1, price: 10, direct: 4.6 },
-                { level: 2, price: 20, direct: 9.2 },
-                { level: 3, price: 40, direct: 18.4 },
-                { level: 4, price: 80, direct: 36.8 },
-                { level: 5, price: 160, direct: 73.6 },
-                { level: 6, price: 320, direct: 147.2 },
-                { level: 7, price: 640, direct: 294.4 },
-                { level: 8, price: 1280, direct: 588.8 },
-                { level: 9, price: 2560, direct: 1177.6 },
-                { level: 10, price: 5120, direct: 2355.2 }
-              ].map((pkg) => (
-                <div key={pkg.level} className={`pkg-card ${pkg.level === 1 ? "pkg-card--featured" : ""}`}>
-                  {pkg.level === 1 ? <div className="pkg-badge">Start Here</div> : null}
-                  <div className="pkg-level">Level {pkg.level}</div>
-                  <div className="pkg-price">
-                    ${pkg.price}
-                    <span> USDT</span>
-                  </div>
-                  <div className="pkg-direct">
-                    Direct:
-                    <strong> ${pkg.direct.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                  </div>
+                ["01","Register with $10 USDT","Connect your wallet and pay a one-time $10 USDT fee. Instantly activates your Package 1 position in the MetaGuildX network."],
+                ["02","Build your downline","Invite others with your referral link. 46% of their registration goes directly to your wallet — instantly, on-chain."],
+                ["03","Earn across 10 levels","Level income distributes 40% across your upline chain. As your network grows deeper, passive income compounds automatically."],
+                ["04","Auto-upgrade & rebirth","Escrow accumulates toward package upgrades. Hit the threshold — the contract automatically elevates your position."],
+              ].map(([n,t,d]) => (
+                <div key={n} className="lp-step">
+                  <div className="lp-st-n">{n}</div>
+                  <div><div className="lp-st-t">{t}</div><div className="lp-st-d">{d}</div></div>
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        <section className="section-why" id="why">
-          <div className="section-container">
-            <h2 className="landing-page section-title">Why MetaGuildX?</h2>
-
-            <div className="why-grid">
+            <div className="lp-ibox">
+              <img src={logoMark} alt="MGX" className="lp-ibox-logo" />
+              <div className="lp-ibox-title">Income distribution per $10 registration</div>
               {[
-                { icon: "OC", title: "Fully On-Chain", desc: "All logic runs on OPBNB smart contracts. No human can interfere." },
-                { icon: "TR", title: "100% Transparent", desc: "Every transaction is publicly verifiable on-chain." },
-                { icon: "IP", title: "Instant Payouts", desc: "Income is distributed automatically in the same transaction flow." },
-                { icon: "AG", title: "Auto Growth", desc: "2X income triggers auto-upgrade so your account grows itself." },
-                { icon: "GL", title: "Global Access", desc: "Open to anyone with a Web3 wallet and OPBNB access." },
-                { icon: "LE", title: "Low Entry", desc: "Start with just $10 USDT without large capital requirements." }
-              ].map((item) => (
-                <div key={item.title} className="why-card">
-                  <div className="why-icon">{item.icon}</div>
-                  <h3>{item.title}</h3>
-                  <p>{item.desc}</p>
+                ["#C9A84C","Direct sponsor income","46%"],
+                ["#2EC48F","Level income (L1–L10)","40%"],
+                ["#5B8DEF","Cashback pool","4%"],
+                ["#3D5580","Creator wallet","10%"],
+              ].map(([c,n,p]) => (
+                <div key={n} className="lp-irow">
+                  <div style={{display:"flex",alignItems:"center"}}>
+                    <span className="lp-idot" style={{background:c}}></span>
+                    <span className="lp-iname">{n}</span>
+                  </div>
+                  <span className="lp-ipct">{p}</span>
                 </div>
               ))}
+              <div className="lp-ibar">
+                <div style={{width:"46%",height:"100%",background:"#C9A84C"}}></div>
+                <div style={{width:"40%",height:"100%",background:"#2EC48F"}}></div>
+                <div style={{width:"4%",height:"100%",background:"#5B8DEF"}}></div>
+                <div style={{width:"10%",height:"100%",background:"#3D5580"}}></div>
+              </div>
             </div>
           </div>
         </section>
+        <div className="lp-sep"></div>
 
-        <section className="section-cta">
-          <div className="section-container text-center">
-            <h2 className="cta-title">Ready to Start Earning?</h2>
-            <p className="cta-subtitle">Join MetaGuildX today. Connect your wallet and start in under 2 minutes.</p>
-            <button className="btn-primary btn-primary-large" type="button" onClick={() => void handleConnectWallet()} disabled={isLoading}>
-              Connect Wallet & Start
-            </button>
-            <p className="cta-note">Powered by OPBNB Blockchain | USDT Payments | Fully Decentralized</p>
+        {/* ── PACKAGES ── */}
+        <section className="lp-section" id="lp-packages">
+          <div className="lp-lbl">Package tiers</div>
+          <h2 className="lp-stitle">Choose your entry level</h2>
+          <p className="lp-sdesc">10 package tiers with doubling rewards. Start at $10 and scale up to $5,120.</p>
+          <div className="lp-pkg-grid">
+            {[
+              {pkg:1,amt:10,desc:"Entry level · All features",feats:["$4.60 direct income","Level income eligible","Auto-upgrade enabled","MGX staking access"],hot:false},
+              {pkg:2,amt:20,desc:"2× income potential",feats:["$9.20 direct income","Higher level earnings","Rebirth eligible","Priority placement"],hot:true},
+              {pkg:3,amt:40,desc:"4× income potential",feats:["$18.40 direct income","Deep level penetration","Enhanced cashback","Bonus xSlot cycles"],hot:false},
+              {pkg:4,amt:80,desc:"8× income potential",feats:["$36.80 direct income","Network multiplier","Token engine bonus","Max level benefits"],hot:false},
+              {pkg:5,amt:160,desc:"Elite · $160–$5,120",feats:["Up to $2,355 direct","Elite network status","Maximum earnings","All bonuses unlocked"],hot:false},
+            ].map(({pkg,amt,desc,feats,hot}) => (
+              <div key={pkg} className={`lp-pkg${hot?" hot":""}`}>
+                {hot && <div className="lp-pkg-badge">Popular</div>}
+                <div className="lp-pkg-n">Pkg {String(pkg).padStart(2,"0")}</div>
+                <div className="lp-pkg-p">${amt} <span className="lp-pkg-u">USDT</span></div>
+                <div className="lp-pkg-d">{desc}</div>
+                <ul className="lp-pkg-feats">{feats.map(f=><li key={f}>{f}</li>)}</ul>
+              </div>
+            ))}
+          </div>
+          <div className="lp-tbl-wrap">
+            <table className="lp-tbl">
+              <thead><tr>
+                <th style={{textAlign:"left"}}>Package</th>
+                <th>Amount</th>
+                <th>Direct Income (46%)</th>
+                <th>Auto-Upgrade Threshold</th>
+              </tr></thead>
+              <tbody>
+                {[[1,10],[2,20],[3,40],[4,80],[5,160],[6,320],[7,640],[8,1280],[9,2560],[10,5120]].map(([p,a]) => (
+                  <tr key={p}>
+                    <td style={{fontFamily:"Syne,sans-serif",fontWeight:600}}>Pkg {String(p).padStart(2,"0")}</td>
+                    <td style={{color:"#C9A84C",fontFamily:"Syne,sans-serif",fontWeight:700}}>${a}</td>
+                    <td style={{color:"#2EC48F"}}>${(a*0.46).toFixed(2)}</td>
+                    <td style={{color:"#7A93C0"}}>${a*2}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
+        <div className="lp-sep"></div>
 
-        <footer className="landing-footer">
-          <div className="footer-inner">
-            <div className="footer-brand">
-              <img src={logoMark} alt="MGX" className="footer-brand-image" />
-              <span>MetaGuildX</span>
+        {/* ── ROADMAP ── */}
+        <div className="lp-rm-wrap" id="lp-roadmap">
+          <div className="lp-rm-inner">
+            <div className="lp-lbl">Roadmap</div>
+            <h2 className="lp-stitle">Building the future of<br/>decentralized finance</h2>
+            <p className="lp-sdesc">MetaGuildX ecosystem expansion — from community platform to full metaverse.</p>
+            <div className="lp-rm-track">
+              <div className="lp-rm-line"></div>
+              <div className="lp-rm-items">
+                {[
+                  {icon:"🏗️",title:"C&B Platform",sub:"Community Building",tag:"done",label:"Live ✓"},
+                  {icon:"🪙",title:"MGX Token",sub:"Token Launch",tag:"done",label:"Live ✓"},
+                  {icon:"🏦",title:"MGX Staking",sub:"Stake & Earn Rewards",tag:"done",label:"Live ✓"},
+                  {icon:"🖼️",title:"NFT Creation",sub:"NFT Minting Platform",tag:"active",label:"In Progress"},
+                  {icon:"🏪",title:"NFT Marketplace",sub:"Buy, Sell & Trade",tag:"soon",label:"Coming Soon"},
+                  {icon:"⚡",title:"MGX DEX",sub:"Decentralized Exchange",tag:"soon",label:"Coming Soon"},
+                  {icon:"🎮",title:"Gaming Platform",sub:"Play-to-Earn Games",tag:"soon",label:"Coming Soon"},
+                  {icon:"🌐",title:"Metaverse",sub:"Virtual World & Helping",tag:"soon",label:"Future"},
+                ].map(({icon,title,sub,tag,label}) => (
+                  <div key={title} className={`lp-rm-item ${tag==="done"?"done":tag==="active"?"active":""}`}>
+                    <div className="lp-rm-dot">{icon}</div>
+                    <div className="lp-rm-t">{title}</div>
+                    <div className="lp-rm-s">{sub}</div>
+                    <span className={`lp-rm-tag lp-tag-${tag}`}>{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+          </div>
+        </div>
+        <div className="lp-sep"></div>
 
-            <div className="footer-links">
-              <a href="#how-it-works">How It Works</a>
-              <a href="#packages">Packages</a>
-              <a href="https://opbnb.bscscan.com" target="_blank" rel="noreferrer">
-                BSCScan
-              </a>
+        {/* ── FEATURES ── */}
+        <section className="lp-section" id="lp-features">
+          <div className="lp-lbl">Platform features</div>
+          <h2 className="lp-stitle">Built for transparency<br/>and performance</h2>
+          <div className="lp-feat-grid">
+            {[
+              ["◈","UUPS Upgradeable Proxy","OpenZeppelin v5 with ERC-7201 namespaced storage. Contracts upgrade safely without disrupting user funds."],
+              ["⬡","Binary placement tree","Smart queue of 1000 positions. Overflow users auto-place on the opposite side for balanced network growth."],
+              ["⟳","Auto-upgrade engine","Escrow accumulates toward your next package. When threshold is hit, the contract upgrades automatically."],
+              ["✦","Rebirth mechanism","Complete Package 1 cycle and re-enter the network on the opposite side — unlocking a fresh income cycle."],
+              ["◎","MGX staking rewards","Stake MGX tokens and earn 10.95% APY. Rewards distribute every 24 hours from the 10.23M MGX reward pool."],
+              ["⊞","Cashback pool","4% of every registration flows to the cashback pool, distributed proportionally to qualifying members."],
+            ].map(([icon,name,desc]) => (
+              <div key={name} className="lp-feat">
+                <div className="lp-feat-icon">{icon}</div>
+                <div className="lp-feat-n">{name}</div>
+                <div className="lp-feat-d">{desc}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+        <div className="lp-sep"></div>
+
+        {/* ── MGX TOKEN ── */}
+        <section className="lp-section" id="lp-token">
+          <div className="lp-lbl">MGX Token</div>
+          <div className="lp-tok-grid">
+            <div>
+              <div className="lp-tok-row">
+                <img src={logoMark} alt="MGX" className="lp-tok-logo" />
+                <div className="lp-tok-name">$MGX</div>
+              </div>
+              <div className="lp-tok-sub">The native utility token of the MetaGuildX ecosystem</div>
+              <div className="lp-tok-stats">
+                {[["Staking APY","10.95%"],["Reward cycle","24 hours"],["Reward pool","10.23M MGX"],["Network","opBNB"]].map(([l,v])=>(
+                  <div key={l} className="lp-ts">
+                    <div className="lp-ts-l">{l}</div>
+                    <div className="lp-ts-v">{v}</div>
+                  </div>
+                ))}
+              </div>
             </div>
+            <div className="lp-donut-wrap">
+              <svg style={{transform:"rotate(-90deg)",filter:"drop-shadow(0 0 16px rgba(201,168,76,.1))"}} width="200" height="200" viewBox="0 0 200 200">
+                <circle cx="100" cy="100" r="70" fill="none" stroke="rgba(46,111,216,.08)" strokeWidth="28"/>
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#C9A84C" strokeWidth="28" strokeDasharray="439.8 537.2" strokeDashoffset="0"/>
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#2E6FD8" strokeWidth="28" strokeDasharray="195.5 781.5" strokeDashoffset="-439.8"/>
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#2EC48F" strokeWidth="28" strokeDasharray="195.5 781.5" strokeDashoffset="-635.3"/>
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#1A4B8C" strokeWidth="28" strokeDasharray="146.6 830.4" strokeDashoffset="-830.8"/>
+              </svg>
+              <div className="lp-legend">
+                {[["#C9A84C","Staking rewards","45%"],["#2E6FD8","Team & development","20%"],["#2EC48F","Community & ecosystem","20%"],["#1A4B8C","Reserve","15%"]].map(([c,n,p])=>(
+                  <div key={n} className="lp-leg">
+                    <div className="lp-leg-l"><div className="lp-leg-dot" style={{background:c}}></div><span style={{color:"#7A93C0"}}>{n}</span></div>
+                    <div className="lp-leg-pct">{p}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+        <div className="lp-sep"></div>
 
-            <div className="footer-copy">� 2025 MetaGuildX. Powered by OPBNB Blockchain.</div>
+        {/* ── CTA ── */}
+        <div className="lp-cta-outer">
+          <div className="lp-cta-box">
+            <img src={logoMark} alt="MetaGuildX" className="lp-cta-logo" />
+            <h2>Ready to start earning?</h2>
+            <p>Join the MetaGuildX network and build real passive income on-chain.</p>
+            <div className="lp-cta-acts">
+              <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Connect Wallet →</button>
+              <a href="#lp-how" className="lp-btn-hero-out">Learn more</a>
+            </div>
+          </div>
+        </div>
+
+        {/* ── FOOTER ── */}
+        <footer className="lp-footer">
+          <div className="lp-ft-top">
+            <div>
+              <div className="lp-ft-logo-r">
+                <img src={logoMark} alt="MGX" className="lp-ft-logo" />
+                <div className="lp-ft-name">Meta<span>Guild</span>X</div>
+              </div>
+              <div className="lp-ft-tag">Decentralized multi-level income on opBNB blockchain.</div>
+            </div>
+            <div className="lp-ft-links">
+              <div className="lp-ft-col">
+                <div className="lp-ft-ct">Platform</div>
+                <ul><li><a href="#">Dashboard</a></li><li><a href="#">Register</a></li><li><a href="#">Staking</a></li><li><a href="#">Network tree</a></li></ul>
+              </div>
+              <div className="lp-ft-col">
+                <div className="lp-ft-ct">Resources</div>
+                <ul><li><a href="#">Documentation</a></li><li><a href="#">Smart contracts</a></li><li><a href="#">Whitepaper</a></li><li><a href="#">Support</a></li></ul>
+              </div>
+              <div className="lp-ft-col">
+                <div className="lp-ft-ct">Legal</div>
+                <ul><li><a href="#">Terms of service</a></li><li><a href="#">Privacy policy</a></li><li><a href="#">Risk disclaimer</a></li></ul>
+              </div>
+            </div>
+          </div>
+          <div className="lp-ft-bot">
+            <span>© 2026 MetaGuildX. All rights reserved.</span>
+            <div className="lp-socials">
+              <a href="#" className="lp-soc">𝕏</a>
+              <a href="#" className="lp-soc">tg</a>
+              <a href="#" className="lp-soc">dc</a>
+              <a href="#" className="lp-soc">yt</a>
+            </div>
           </div>
         </footer>
 
-        {showWalletSelection ? (
-          <div className="flow-modal-overlay" role="presentation">
-            <div className="flow-modal-card">
-              <div className="flow-modal-header">
-                <div>
-                  <p className="section-label">Step 2</p>
-                  <h3>Select Wallet</h3>
-                </div>
-                <button type="button" className="secondary-button" onClick={() => setShowWalletSelection(false)}>
-                  Close
-                </button>
-              </div>
-                  <p className="text-secondary">Choose the wallet provider for step 1. This step only connects the wallet and may show a small gas estimate. No USDT approval or registration happens here.</p>
-              <div className="wallet-choice-grid">
-                <button
-                  type="button"
-                  className={`wallet-choice-card ${selectedWalletOption === "metamask" ? "selected" : ""}`}
-                  onClick={() => void handleSelectWalletOption("metamask")}
-                  disabled={isLoading}
-                >
-                  <strong>MetaMask</strong>
-                  <span>Use biometric or password confirmation, then approve the connection.</span>
-                </button>
-                <button
-                  type="button"
-                  className={`wallet-choice-card ${selectedWalletOption === "walletconnect" ? "selected" : ""}`}
-                  onClick={() => void handleSelectWalletOption("walletconnect")}
-                  disabled={isLoading}
-                >
-                  <strong>WalletConnect</strong>
-                  <span>Listed for future support. Use MetaMask for the live registration flow.</span>
-                </button>
+        {/* ── STAR GENERATOR SCRIPT ── */}
+        <script dangerouslySetInnerHTML={{__html:`
+          (function(){
+            var c=document.getElementById("lp-stars-container");
+            if(!c)return;
+            for(var i=0;i<100;i++){
+              var s=document.createElement("div");
+              s.className="lp-star";
+              var sz=Math.random()*2+0.5;
+              var dur=2+Math.random()*4;
+              var del=Math.random()*3;
+              s.style.cssText="width:"+sz+"px;height:"+sz+"px;top:"+(Math.random()*100)+"%;left:"+(Math.random()*100)+"%;animation:lp-pulse "+dur+"s "+del+"s ease-in-out infinite;opacity:0.6";
+              c.appendChild(s);
+            }
+          })();
+        `}} />
+
+        {/* Wallet selection modal */}
+        {showWalletSelection && (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}}>
+            <div style={{background:"#0C1630",border:"1px solid rgba(46,111,216,.25)",borderRadius:16,padding:"2rem",maxWidth:360,width:"90%",textAlign:"center"}}>
+              <h3 style={{fontFamily:"Syne,sans-serif",marginBottom:"1.5rem"}}>Connect Wallet</h3>
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                <button className="lp-btn-gold" type="button" style={{width:"100%",padding:"14px"}} onClick={() => { setShowWalletSelection(false); void handleConnectWallet(); }}>MetaMask</button>
+                <button className="lp-btn-out" type="button" style={{width:"100%",padding:"14px"}} onClick={() => setShowWalletSelection(false)}>Cancel</button>
               </div>
             </div>
           </div>
-        ) : null}
+        )}
+
       </div>
     );
   }
