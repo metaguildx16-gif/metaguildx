@@ -1753,18 +1753,7 @@ function App() {
   const outerUsdtBalanceDisplay = parseDisplayNumber(usdtWalletRow?.amount ?? "0").toFixed(2);
   const outerUsdtBalanceValue = parseDisplayNumber(usdtWalletRow?.amount ?? "0");
   const opBnbGasDisplay = parseDisplayNumber(nativeWalletRow?.amount ?? snapshot.externalWalletBalance).toFixed(4);
-  const mgxAvailableDisplay = (() => {
-    const allocated = parseDisplayNumber(snapshot.mgxAllocated ?? "0");
-    const staked = parseDisplayNumber((snapshot as { mgxStaked?: string }).mgxStaked ?? snapshot.personalStaked ?? "0");
-    const available = Math.max(0, allocated - staked);
-    return available.toFixed(2);
-  })();
-  console.log("MGX DEBUG:", {
-    allocated: snapshot.mgxAllocated,
-    staked: (snapshot as { mgxStaked?: string }).mgxStaked,
-    personalStaked: snapshot.personalStaked,
-    result: mgxAvailableDisplay
-  });
+  const mgxAvailableDisplay = parseDisplayNumber(snapshot.mgxAllocated ?? "0").toFixed(2);
   const totalMgxAllocatedDisplay = parseDisplayNumber(displayedMgxAllocated).toFixed(2);
   const connectedWalletTotalDisplay = outerUsdtBalanceValue.toFixed(2);
   const frozenEscrowDisplay = parseDisplayNumber(escrowBalance).toFixed(2);
