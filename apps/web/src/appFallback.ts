@@ -25,6 +25,7 @@ export const fallbackSnapshot: DashboardSnapshot = {
   withdrawableSettlementBalance: "0",
   externalWalletBalance: "0",
   connectedWalletValue: "0",
+  mgxWalletBalance: "0",
   connectedWalletAssets: [],
   connectedWalletAssetsError: null,
   connectedWalletHistory: [],

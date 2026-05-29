@@ -318,6 +318,7 @@ export type DashboardSnapshot = {
   withdrawableSettlementBalance: string;
   externalWalletBalance: string;
   connectedWalletValue: string;
+  mgxWalletBalance: string;
   connectedWalletAssets: Array<{
     id: string;
     name: string;
@@ -532,6 +533,7 @@ export const fallbackSnapshot: DashboardSnapshot = {
   withdrawableSettlementBalance: "0",
   externalWalletBalance: "0",
   connectedWalletValue: "0",
+  mgxWalletBalance: "0",
   connectedWalletAssets: [],
   connectedWalletAssetsError: null,
   connectedWalletHistory: [],
@@ -775,6 +777,7 @@ const configuredRouterAddress = getConfiguredRouterAddress();
 const configuredBinaryTreeAddress = readTrimmedEnv("VITE_BINARY_TREE_ADDRESS") || (activeNetworkConfig.key === "testnet" ? TESTNET_BINARY_TREE_ADDRESS : "");
 const configuredStakingAddress =
   readTrimmedEnv("VITE_MGX_STAKING_ADDRESS", "VITE_STAKING_ADDRESS") || (activeNetworkConfig.key === "testnet" ? TESTNET_STAKING_ADDRESS : "");
+const configuredMgxTokenAddress = readTrimmedEnv("VITE_MGX_TOKEN_ADDRESS");
 const configuredCashbackAddress =
   readTrimmedEnv("VITE_CASHBACK_POOL_ADDRESS", "VITE_CASHBACK_ADDRESS") || (activeNetworkConfig.key === "testnet" ? TESTNET_CASHBACK_POOL_ADDRESS : "");
 const configuredIncomeRouterAddress = configuredRouterAddress;
@@ -885,7 +888,8 @@ async function buildUnregisteredSnapshot(input: {
     nativeBalanceFormatted: formatTokenAmount(externalWalletBalanceRaw, 18),
     nativeValueFormatted: "$0.00",
     provider: input.provider,
-    usdtAddress: defaultPaymentAsset
+    usdtAddress: defaultPaymentAsset,
+    mgxTokenAddress: configuredMgxTokenAddress
   });
   const connectedWalletHistory = await loadConnectedWalletHistory(input.walletAddress);
 
@@ -923,6 +927,7 @@ async function buildUnregisteredSnapshot(input: {
     withdrawableSettlementBalance: "0",
     externalWalletBalance: formatTokenAmount(externalWalletBalanceRaw, 18),
     connectedWalletValue: formatUsdAmount(connectedWalletPortfolio.nativeAssetUsdValue),
+    mgxWalletBalance: connectedWalletPortfolio.mgxBalance,
     connectedWalletAssets: connectedWalletPortfolio.assets,
     connectedWalletAssetsError: connectedWalletPortfolio.error,
     connectedWalletHistory: connectedWalletHistory.history,
@@ -1676,6 +1681,7 @@ async function loadConnectedWalletAssets(input: {
   nativeValueFormatted: string;
   provider?: BrowserProvider | JsonRpcProvider;
   usdtAddress?: string | null;
+  mgxTokenAddress?: string | null;
 }) {
   const nativeAssetRow = {
     id: "native",
@@ -1715,7 +1721,23 @@ async function loadConnectedWalletAssets(input: {
     }
   }
 
+  async function loadMgxBalance() {
+    if (!input.provider || !input.mgxTokenAddress || input.mgxTokenAddress === "0x0000000000000000000000000000000000000000") {
+      return "0";
+    }
+
+    try {
+      const mgxToken = new Contract(normalizeAddress(input.mgxTokenAddress), erc20ApprovalAbi, input.provider);
+      const mgxBalanceRaw = (await mgxToken.balanceOf(input.walletAddress)) as bigint;
+      return formatTokenAmount(mgxBalanceRaw, 18);
+    } catch (error) {
+      console.error("MGX balance read failed", error);
+      return "0";
+    }
+  }
+
   const usdtRow = await loadUsdtAssetRow();
+  const mgxBalance = await loadMgxBalance();
   const tokenRows = usdtRow ? [usdtRow] : [];
   const hasNativeRow = tokenRows.some(
     (token) => token.id.toLowerCase() === "native" ||
@@ -1725,6 +1747,7 @@ async function loadConnectedWalletAssets(input: {
 
   return {
     assets,
+    mgxBalance,
     error: null as string | null,
     nativeAssetUsdValue: 0
   };
@@ -3727,6 +3750,7 @@ export async function loadDashboardSnapshot(
       withdrawableSettlementBalance: "0",
       externalWalletBalance: "0",
       connectedWalletValue: "0",
+      mgxWalletBalance: "0",
       connectedWalletAssets: [],
       settlementAssetLabel: "Settlement asset",
       settlementAssetAddress: null,
@@ -3877,7 +3901,8 @@ export async function loadDashboardSnapshot(
       nativeBalanceFormatted: formatTokenAmount(externalWalletBalanceRaw, 18),
       nativeValueFormatted: connectedWalletValue,
       provider,
-      usdtAddress: defaultPaymentAsset
+      usdtAddress: defaultPaymentAsset,
+      mgxTokenAddress: configuredMgxTokenAddress
     });
     const usdtAsset = connectedWalletAssets.assets.find(
       (asset) => asset.name === "USDT"
@@ -3948,6 +3973,7 @@ export async function loadDashboardSnapshot(
       withdrawableSettlementBalance: formatAmountWithDecimals(withdrawableSettlementBalanceRaw, settlementAssetDecimals),
       externalWalletBalance: formatTokenAmount(externalWalletBalanceRaw, 18),
       connectedWalletValue: correctedConnectedWalletValue,
+      mgxWalletBalance: connectedWalletAssets.mgxBalance,
       connectedWalletAssets: connectedWalletAssets.assets,
       connectedWalletAssetsError: connectedWalletAssets.error,
       connectedWalletHistory: connectedWalletHistory.history,

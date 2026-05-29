@@ -1753,7 +1753,7 @@ function App() {
   const outerUsdtBalanceDisplay = parseDisplayNumber(usdtWalletRow?.amount ?? "0").toFixed(2);
   const outerUsdtBalanceValue = parseDisplayNumber(usdtWalletRow?.amount ?? "0");
   const opBnbGasDisplay = parseDisplayNumber(nativeWalletRow?.amount ?? snapshot.externalWalletBalance).toFixed(4);
-  const mgxWalletBalanceDisplay = parseDisplayNumber(mgxWalletRow?.amount ?? displayedMgxAllocated).toFixed(2);
+  const mgxWalletBalanceDisplay = parseDisplayNumber(snapshot.mgxWalletBalance).toFixed(2);
   const totalMgxAllocatedDisplay = parseDisplayNumber(displayedMgxAllocated).toFixed(2);
   const connectedWalletTotalDisplay = outerUsdtBalanceValue.toFixed(2);
   const frozenEscrowDisplay = parseDisplayNumber(escrowBalance).toFixed(2);
