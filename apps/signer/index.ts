@@ -3,6 +3,8 @@ import * as path from "path";
 import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
+import Redis from "ioredis";
+import { RedisStore } from "rate-limit-redis";
 import { ethers } from "ethers";
 
 type SupportTicket = {
@@ -44,6 +46,19 @@ const AUTH_TOKEN = process.env.SIGNER_AUTH_TOKEN;
 const ADMIN_TOKEN = process.env.SIGNER_TOKEN ?? AUTH_TOKEN;
 const SIGNER_KEY = process.env.SIGNER_PRIVATE_KEY;
 const TICKETS_FILE = "/etc/metaguildx/tickets.json";
+const redisClient = new Redis({
+  host: process.env.REDIS_HOST ?? "localhost",
+  port: parseInt(process.env.REDIS_PORT ?? "6379", 10),
+  enableOfflineQueue: false
+});
+
+redisClient.on("error", (err) => {
+  console.error("Redis error:", err);
+});
+
+function sendRedisCommand(...args: string[]): Promise<any> {
+  return (redisClient.call as (...command: string[]) => Promise<any>)(...args);
+}
 
 if (!SIGNER_KEY) {
   throw new Error("SIGNER_PRIVATE_KEY is required");
@@ -75,13 +90,21 @@ function saveTicketsToFile(tickets: SupportTicket[]): void {
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
-  message: "Too many requests"
+  message: "Too many requests",
+  store: new RedisStore({
+    prefix: "mgx:signer:global:",
+    sendCommand: sendRedisCommand
+  })
 });
 
 const ticketSubmissionLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 3,
-  message: "Too many ticket submissions"
+  message: "Too many ticket submissions",
+  store: new RedisStore({
+    prefix: "mgx:signer:tickets:",
+    sendCommand: sendRedisCommand
+  })
 });
 
 app.use((req, res, next) => {
