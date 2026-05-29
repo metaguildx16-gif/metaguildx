@@ -78,13 +78,19 @@ const limiter = rateLimit({
   message: "Too many requests"
 });
 
+const ticketSubmissionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  message: "Too many ticket submissions"
+});
+
 app.use((req, res, next) => {
   const requestOrigin = req.headers.origin;
   if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
     res.header("Access-Control-Allow-Origin", requestOrigin);
   }
   res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type,x-signer-token,x-admin-token");
+  res.header("Access-Control-Allow-Headers", "Content-Type,x-signer-token,x-admin-token,x-wallet-address");
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
@@ -93,12 +99,12 @@ app.use((req, res, next) => {
 app.use(cors({
   origin: allowedOrigins,
   methods: ["GET", "POST", "PATCH"],
-  allowedHeaders: ["Content-Type", "x-signer-token", "x-admin-token"],
+  allowedHeaders: ["Content-Type", "x-signer-token", "x-admin-token", "x-wallet-address"],
 }));
 app.use(express.json());
 app.use(limiter);
 app.use((req, res, next) => {
-  if (req.path === "/health" || req.path.startsWith("/support/tickets")) {
+  if (req.path === "/health" || req.path === "/sign" || req.path.startsWith("/support/tickets")) {
     return next();
   }
 
@@ -113,6 +119,41 @@ app.use((req, res, next) => {
 const signer = new ethers.Wallet(SIGNER_KEY);
 
 console.log("Placement signer:", signer.address);
+
+app.post("/sign", async (req, res) => {
+  try {
+    const requestOrigin = req.headers.origin;
+    if (!requestOrigin || !allowedOrigins.includes(requestOrigin)) {
+      return res.status(403).json({ error: "Forbidden origin" });
+    }
+
+    const {
+      account,
+      sponsorId,
+      nonce,
+      chainId,
+      contractAddress,
+    } = req.body;
+
+    const msgHash = ethers.solidityPackedKeccak256(
+      ["uint256", "address", "address", "uint256", "uint256"],
+      [
+        BigInt(chainId),
+        contractAddress,
+        account,
+        BigInt(sponsorId),
+        BigInt(nonce),
+      ]
+    );
+
+    const signature = await signer.signMessage(ethers.getBytes(msgHash));
+
+    res.json({ signature, signer: signer.address });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    res.status(500).json({ error: message });
+  }
+});
 
 app.post("/sign-placement", async (req, res) => {
   try {
@@ -144,7 +185,7 @@ app.post("/sign-placement", async (req, res) => {
   }
 });
 
-app.post("/support/tickets", (req, res) => {
+app.post("/support/tickets", ticketSubmissionLimiter, (req, res) => {
   try {
     const { userId, wallet, category, subject, description } = req.body;
     if (!wallet || !subject || !description) {
@@ -189,6 +230,18 @@ app.get("/support/tickets", (req, res) => {
 
   if (!wallet) {
     return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const walletHeader = typeof req.headers["x-wallet-address"] === "string"
+    ? req.headers["x-wallet-address"].toLowerCase()
+    : null;
+
+  if (!walletHeader) {
+    return res.status(401).json({ error: "Wallet header required" });
+  }
+
+  if (walletHeader !== wallet) {
+    return res.status(403).json({ error: "Wallet header mismatch" });
   }
 
   return res.json(tickets.filter((ticket) => ticket.wallet === wallet));

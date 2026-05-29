@@ -2238,7 +2238,6 @@ async function signPlacementInstruction(input: {
     throw new Error("Placement signer URL not configured");
   }
   const signerUrl = configuredSignerUrl;
-  const signerToken = readTrimmedEnv("VITE_PLACEMENT_SIGNER_TOKEN");
   const digest = solidityPackedKeccak256(
     ["uint256", "address", "address", "uint256", "uint256"],
     [
@@ -2256,11 +2255,10 @@ async function signPlacementInstruction(input: {
   }
 
   try {
-      const response = await fetch(`${signerUrl}/sign-placement`, {
+      const response = await fetch(`${signerUrl}/sign`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          ...(signerToken ? { "x-signer-token": signerToken } : {})
+          "Content-Type": "application/json"
         },
         body: JSON.stringify(placementData)
       });
