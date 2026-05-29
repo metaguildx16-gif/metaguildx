@@ -353,13 +353,23 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
         address account
     ) external onlyCore nonReentrant returns (uint256 reward, address paymentAsset, uint256 settlementAmount, uint256 autoCompoundedReward) {
         require(account != address(0), "Invalid account");
-        (autoCompoundedReward, ) = _accrueReward(account);
+        (autoCompoundedReward, ) = _accrueAllRewards(account);
 
-        MGXTypes.StakePosition storage position = positionsByAccount[account];
-        reward = position.accruedReward;
+        uint256 count = positionsByAccountV2[account].length;
+        if (count == 0) {
+            MGXTypes.StakePosition storage legacyPosition = positionsByAccount[account];
+            reward = legacyPosition.accruedReward;
+            legacyPosition.accruedReward = 0;
+        } else {
+            for (uint256 i = 0; i < count; i++) {
+                MGXTypes.StakePosition storage position = positionsByAccountV2[account][i];
+                reward += position.accruedReward;
+                position.accruedReward = 0;
+            }
+            _syncLegacyPosition(account);
+        }
         require(reward > 0, "No reward");
 
-        position.accruedReward = 0;
         uint256 fee;
         // 20% fee applies only when rewards are claimed out.
         (reward, fee) = _applyRewardFee(reward);
@@ -374,18 +384,31 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
 
     function compoundFor(address account) external onlyCore nonReentrant returns (uint256 reward, uint256 autoCompoundedReward) {
         require(account != address(0), "Invalid account");
-        (autoCompoundedReward, ) = _accrueReward(account);
+        (autoCompoundedReward, ) = _accrueAllRewards(account);
 
-        MGXTypes.StakePosition storage position = positionsByAccount[account];
-        reward = position.accruedReward;
+        uint256 count = positionsByAccountV2[account].length;
+        if (count == 0) {
+            MGXTypes.StakePosition storage legacyPosition = positionsByAccount[account];
+            reward = legacyPosition.accruedReward;
+            legacyPosition.accruedReward = 0;
+        } else {
+            for (uint256 i = 0; i < count; i++) {
+                MGXTypes.StakePosition storage position = positionsByAccountV2[account][i];
+                reward += position.accruedReward;
+                position.accruedReward = 0;
+            }
+        }
         require(reward > 0, "No reward");
 
-        position.accruedReward = 0;
         uint256 fee;
         // 20% fee applies only when rewards are auto-compounded.
         (reward, fee) = _applyRewardFee(reward);
         rewardPool += fee;
-        position.amount += reward;
+        if (count == 0) {
+            positionsByAccount[account].amount += reward;
+        } else {
+            positionsByAccountV2[account][0].amount += reward;
+        }
         totalStaked += reward;
 
         address paymentAsset = stakingAssetByAccount[account];
@@ -394,6 +417,7 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
             stakeSettlementBalance[account] += settlementAmount;
         }
 
+        _syncLegacyPosition(account);
         emit Compounded(account, reward);
     }
 

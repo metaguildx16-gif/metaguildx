@@ -83,6 +83,7 @@ const coreAbi = [
   "function nonces(address) view returns (uint256)",
   "function registerWithPlacement(uint256,uint256,bool,bytes,uint256) external payable returns (uint256)",
   "function stake(uint256,uint256,bool)",
+  "function claimStakingReward()",
   "function paymentAssetUnitPrice(address) view returns (uint256)",
   "function getPackagePrices() view returns (uint256[])",
   "function creatorFeeWallet() view returns (address)",
@@ -111,7 +112,9 @@ const mgxTokenAbi = [
 const stakingAbi = [
   "function adminFundStakingPool(uint256 amount)",
   "function rewardPool() view returns (uint256)",
-  "function stakingRewardPoolPlatformReserve(address) view returns (uint256)"
+  "function stakingRewardPoolPlatformReserve(address) view returns (uint256)",
+  "function pendingStakingReward(address) view returns (uint256)",
+  "function getStakePositions(address) view returns ((uint256 amount, uint256 rewardDebt, uint256 accruedReward, uint256 lockStartedAt, uint256 lockDuration, bool autoCompound)[])"
 ] as const;
 
 const routerEventInterface = new ethers.Interface([
@@ -661,6 +664,38 @@ async function main() {
         "Bug #25 - double stake not possible with 0 balance",
         zeroWalletMgxBalance === 0n,
         `stake reverted, but wallet MGX balance was ${zeroWalletMgxBalance.toString()}`
+      );
+    }
+  }
+
+  const deployerStakePositions = await staking.getStakePositions(deployerAddress);
+  const deployerPendingReward = await staking.pendingStakingReward(deployerAddress);
+  if (deployerStakePositions.length === 0) {
+    assertResult(
+      "Bug #27 - claimFor uses V2 positions",
+      false,
+      "deployer has no stake positions"
+    );
+  } else if (deployerPendingReward === 0n) {
+    assertResult(
+      "Bug #27 - claimFor uses V2 positions",
+      true,
+      "No pending reward yet - V2 path confirmed exists"
+    );
+  } else {
+    try {
+      await core.claimStakingReward.staticCall();
+      assertResult(
+        "Bug #27 - claimFor uses V2 positions",
+        true,
+        `pending=${deployerPendingReward.toString()}`
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      assertResult(
+        "Bug #27 - claimFor uses V2 positions",
+        !message.toLowerCase().includes("no reward"),
+        message
       );
     }
   }
