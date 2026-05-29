@@ -1570,11 +1570,11 @@ function App() {
           logo: null
         }
       ];
+  const displayedTotalMgxAllocated = snapshot.mgxAllocated;
   const displayedMgxAllocated = isStakePending.current
     ? "0"
-    : parseDisplayNumber(snapshot.mgxAllocated) > 0 || !liveWalletStakeState
-      ? snapshot.mgxAllocated
-      : liveWalletStakeState.mgxAllocated;
+    : liveWalletStakeState?.mgxAllocated ?? snapshot.mgxAllocated;
+  const stakeableMgxAllocated = displayedMgxAllocated;
   const displayedPendingStakingReward =
     snapshot.walletAddress
       ? liveWalletStakeState?.pendingStakingReward ?? snapshot.pendingStakingReward
@@ -1651,7 +1651,7 @@ function App() {
     ) ??
     null;
   const hasEscrowBalance = parseDisplayNumber(escrowBalance) > 0;
-  const availableStakeAmount = parseDisplayNumber(displayedMgxAllocated);
+  const availableStakeAmount = parseDisplayNumber(stakeableMgxAllocated);
   const requestedStakeAmount = Number(stakeForm.amount || "0");
   const canSubmitStake = requestedStakeAmount > 0 && requestedStakeAmount <= availableStakeAmount;
   const hasWithdrawableStake = parseDisplayNumber(displayedPersonalStaked) > 0;
@@ -4204,7 +4204,17 @@ function App() {
                               }`,
                               gold: true,
                               icon: "🏆"
-                            }
+                            },
+                            ...(rebirthNodeDetails && parseDisplayNumber(rebirthNodeDetails.mgxAllocated) > 0
+                              ? [
+                                  {
+                                    label: "MGX Allocated",
+                                    value: `${rebirthNodeDetails.mgxAllocated} MGX`,
+                                    gold: true,
+                                    icon: "MGX"
+                                  }
+                                ]
+                              : [])
                           ].map((stat, index) => (
                             <div key={`rebirth-stat-${index}`} className="rebirth-stat-card">
                               <span className="rebirth-stat-icon" aria-hidden="true">{stat.icon}</span>
@@ -4771,7 +4781,7 @@ function App() {
                       <div className="stake-position-card wallet-staking-form-card">
                         <div className="stake-detail-row wallet-staking-available">
                           <span>Available MGX</span>
-                          <span className="green">{displayedMgxAllocated} MGX</span>
+                          <span className="green">{stakeableMgxAllocated} MGX</span>
                         </div>
                         <div className="transfer-number-card">
                           <span>AMOUNT</span>
@@ -4784,13 +4794,13 @@ function App() {
                             <button
                               type="button"
                               className="transfer-max-button"
-                              onClick={() => setStakeForm((current) => ({ ...current, amount: displayedMgxAllocated }))}
+                              onClick={() => setStakeForm((current) => ({ ...current, amount: stakeableMgxAllocated }))}
                             >
                               MAX
                             </button>
                             <div className="transfer-token-pill">MGX</div>
                           </div>
-                          <p>BALANCE: {displayedMgxAllocated} MGX</p>
+                          <p>BALANCE: {stakeableMgxAllocated} MGX</p>
                         </div>
                         <div className="stake-duration-inline premium-stake-duration-grid">
                           {lockPeriods.map((period) => (
@@ -4826,7 +4836,7 @@ function App() {
                               setStatus("Staking could not start. Enter an amount within your available MGX allocation.");
                               setActionFeedback({
                                 title: "Not enough available MGX",
-                                detail: `You can stake up to ${displayedMgxAllocated} MGX right now. Reduce the amount and try again.`
+                                detail: `You can stake up to ${stakeableMgxAllocated} MGX right now. Reduce the amount and try again.`
                               });
                               return;
                             }
@@ -5154,11 +5164,11 @@ function App() {
                   <div className="balance-row premium-balance-row">
                     <div className="token-icon mgx-icon">MGX</div>
                     <div className="token-info">
-                      <span className="token-name">MGX Allocated (Free)</span>
-                      <span className="token-sub">Available for staking</span>
+                      <span className="token-name">MGX Allocated (Total)</span>
+                      <span className="token-sub">Primary + rebirth allocations</span>
                     </div>
                     <div className="token-amount">
-                      <span className="amount-main">{displayedMgxAllocated}</span>
+                      <span className="amount-main">{displayedTotalMgxAllocated}</span>
                       <span className="amount-sub">MGX</span>
                     </div>
                   </div>
