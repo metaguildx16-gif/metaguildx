@@ -1753,7 +1753,12 @@ function App() {
   const outerUsdtBalanceDisplay = parseDisplayNumber(usdtWalletRow?.amount ?? "0").toFixed(2);
   const outerUsdtBalanceValue = parseDisplayNumber(usdtWalletRow?.amount ?? "0");
   const opBnbGasDisplay = parseDisplayNumber(nativeWalletRow?.amount ?? snapshot.externalWalletBalance).toFixed(4);
-  const mgxWalletBalanceDisplay = parseDisplayNumber(snapshot.mgxWalletBalance).toFixed(2);
+  const mgxAvailableDisplay = (() => {
+    const allocated = parseDisplayNumber(snapshot.mgxAllocated ?? "0");
+    const staked = parseDisplayNumber((snapshot as { mgxStaked?: string }).mgxStaked ?? snapshot.personalStaked ?? "0");
+    const available = Math.max(0, allocated - staked);
+    return available.toFixed(2);
+  })();
   const totalMgxAllocatedDisplay = parseDisplayNumber(displayedMgxAllocated).toFixed(2);
   const connectedWalletTotalDisplay = outerUsdtBalanceValue.toFixed(2);
   const frozenEscrowDisplay = parseDisplayNumber(escrowBalance).toFixed(2);
@@ -5209,10 +5214,10 @@ function App() {
                     <div className="token-icon mgx-icon">MGX</div>
                     <div className="token-info">
                       <span className="token-name">MGX</span>
-                      <span className="token-sub">Token balance</span>
+                      <span className="token-sub">Available MGX</span>
                     </div>
                     <div className="token-amount">
-                      <span className="amount-main">{mgxWalletBalanceDisplay}</span>
+                      <span className="amount-main">{mgxAvailableDisplay}</span>
                       <span className="amount-sub">MGX</span>
                     </div>
                   </div>
