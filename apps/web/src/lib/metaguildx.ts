@@ -3898,15 +3898,15 @@ export async function loadDashboardSnapshot(
     const connectedWalletValue =
       settlementToPlatformValue(externalWalletBalanceRaw, paymentUnitPrice);
     const totalPersonalStaked = sumStakePositionAmounts(stakePositionsRaw);
-    const availableMgxAllocation =
-      BigInt(userTokenAllocation) > totalPersonalStaked ? BigInt(userTokenAllocation) - totalPersonalStaked : 0n;
     const rebirthMgxAllocations = await Promise.all(
       rebirthIdsRaw.map((rebirthId: bigint) =>
         safeBigIntRead(() => contract.tokenAllocationsByUser(rebirthId))
       )
     );
-    const totalDisplayMgxAllocation =
-      availableMgxAllocation + rebirthMgxAllocations.reduce((total, amount) => total + amount, 0n);
+    const totalMgxAllocation =
+      BigInt(userTokenAllocation) + rebirthMgxAllocations.reduce((total, amount) => total + amount, 0n);
+    const availableMgxAllocation =
+      totalMgxAllocation > totalPersonalStaked ? totalMgxAllocation - totalPersonalStaked : 0n;
     const stakePositions = mapStakePositions(stakePositionsRaw);
     const connectedWalletAssets = await loadConnectedWalletAssets({
       walletAddress: normalizedWalletAddress,
@@ -4040,7 +4040,7 @@ export async function loadDashboardSnapshot(
       currentBoxDistributed: formatTokenAmount(currentBoxStatus.distributed, 18),
       currentBoxCap: formatTokenAmount(currentBoxStatus.cap, 18),
       currentBoxRemaining: formatTokenAmount(currentBoxStatus.remaining, 18),
-      mgxAllocated: formatTokenAmount(totalDisplayMgxAllocation, 18),
+      mgxAllocated: formatTokenAmount(availableMgxAllocation, 18),
       userActiveBoxId: Number(userActiveBoxId),
       pendingCashback: formatTokenAmount(pendingCashback),
       isSurrendered: Boolean(profile.surrendered),
