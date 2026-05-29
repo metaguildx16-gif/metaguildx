@@ -1759,6 +1759,12 @@ function App() {
     const available = Math.max(0, allocated - staked);
     return available.toFixed(2);
   })();
+  console.log("MGX DEBUG:", {
+    allocated: snapshot.mgxAllocated,
+    staked: (snapshot as { mgxStaked?: string }).mgxStaked,
+    personalStaked: snapshot.personalStaked,
+    result: mgxAvailableDisplay
+  });
   const totalMgxAllocatedDisplay = parseDisplayNumber(displayedMgxAllocated).toFixed(2);
   const connectedWalletTotalDisplay = outerUsdtBalanceValue.toFixed(2);
   const frozenEscrowDisplay = parseDisplayNumber(escrowBalance).toFixed(2);
