@@ -3474,6 +3474,10 @@ export async function loadLiveWalletStakeState(walletAddress?: string | null): P
     configuredCashbackAddress && configuredCashbackAddress !== "0x0000000000000000000000000000000000000000"
       ? new Contract(configuredCashbackAddress, cashbackPoolAbi, provider)
       : null;
+  const upgradeModule =
+    configuredUpgradeAddress && configuredUpgradeAddress !== "0x0000000000000000000000000000000000000000"
+      ? new Contract(configuredUpgradeAddress, metaGuildXUpgradeAbi, provider)
+      : null;
 
   const userId = Number(await contract.userIdByAddress(normalizedWalletAddress));
   if (userId <= 0) {
@@ -3492,7 +3496,7 @@ export async function loadLiveWalletStakeState(walletAddress?: string | null): P
     };
   }
 
-  const [userTokenAllocation, userActiveBoxId, pendingReward, stakePositionsRaw, totalStaked, escrowBalance, pendingCashback] =
+  const [userTokenAllocation, userActiveBoxId, pendingReward, stakePositionsRaw, totalStaked, escrowBalance, pendingCashback, rebirthIdsRaw] =
     await Promise.all([
       safeBigIntRead(() => contract.tokenAllocationsByUser(userId)),
       safeBigIntRead(() => contract.activeBoxByUser(userId)),
@@ -3508,10 +3512,18 @@ export async function loadLiveWalletStakeState(walletAddress?: string | null): P
             core: contract,
             userId
           })
-        : Promise.resolve(0n)
+        : Promise.resolve(0n),
+      upgradeModule ? upgradeModule.getRebirthIds(userId) : Promise.resolve([])
     ]);
   const totalPersonalStaked = sumStakePositionAmounts(stakePositionsRaw);
-  const availableMgx = BigInt(userTokenAllocation) > totalPersonalStaked ? BigInt(userTokenAllocation) - totalPersonalStaked : 0n;
+  const rebirthMgxAllocations = await Promise.all(
+    rebirthIdsRaw.map((rebirthId: bigint) =>
+      safeBigIntRead(() => contract.tokenAllocationsByUser(rebirthId))
+    )
+  );
+  const totalAllocation =
+    BigInt(userTokenAllocation) + rebirthMgxAllocations.reduce((total, amount) => total + amount, 0n);
+  const availableMgx = totalAllocation > totalPersonalStaked ? totalAllocation - totalPersonalStaked : 0n;
   const stakePositions = mapStakePositions(stakePositionsRaw);
 
   return {
