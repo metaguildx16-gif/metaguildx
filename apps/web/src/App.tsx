@@ -2871,41 +2871,143 @@ function App() {
           <div className="lp-hero-content">
             {referralSponsorId ? (
               <div style={{
-                marginBottom:"1.5rem",
-                background:"rgba(12,22,48,.85)",
-                border:"1px solid rgba(201,168,76,.3)",
-                borderRadius:14,
-                padding:"1.25rem 1.75rem",
-                maxWidth:420,
-                margin:"0 auto 1.5rem",
-                backdropFilter:"blur(12px)",
+                width:"100%",maxWidth:520,margin:"0 auto 2rem",
+                background:"rgba(8,15,36,.95)",
+                border:"1px solid rgba(201,168,76,.25)",
+                borderRadius:18,overflow:"hidden",
+                backdropFilter:"blur(16px)",
                 textAlign:"left"
               }}>
-                <div style={{fontSize:".65rem",color:"#C9A84C",textTransform:"uppercase",letterSpacing:".12em",marginBottom:".75rem",display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{width:6,height:6,background:"#2EC48F",borderRadius:"50%",display:"inline-block"}}></span>
-                  You were invited by
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:14}}>
-                  <div style={{width:44,height:44,borderRadius:"50%",background:"linear-gradient(135deg,rgba(201,168,76,.2),rgba(46,111,216,.1))",border:"1px solid rgba(201,168,76,.3)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1rem",color:"#C9A84C",flexShrink:0}}>
-                    #{referralSponsorId}
+                {/* Header */}
+                <div style={{
+                  padding:"1.5rem 1.75rem",
+                  borderBottom:"1px solid rgba(255,255,255,.06)",
+                  background:"linear-gradient(135deg,rgba(201,168,76,.08),rgba(46,111,216,.05))"
+                }}>
+                  <div style={{fontSize:".65rem",color:"#C9A84C",textTransform:"uppercase",
+                    letterSpacing:".12em",marginBottom:".875rem",display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{width:6,height:6,background:"#2EC48F",borderRadius:"50%",display:"inline-block",flexShrink:0}}></span>
+                    Registering for MetaGuildX
                   </div>
-                  <div>
-                    <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1rem",marginBottom:2}}>
-                      User #{referralSponsorId}
+                  <p style={{fontSize:".875rem",color:"#7A93C0",margin:"0 0 1.25rem",lineHeight:1.6}}>
+                    Registration by invite — you become part of the network of the user who invited you.
+                  </p>
+                  {/* Sponsor row */}
+                  <div style={{display:"flex",alignItems:"center",gap:14}}>
+                    <div style={{
+                      width:52,height:52,borderRadius:"50%",flexShrink:0,
+                      background:"linear-gradient(135deg,rgba(201,168,76,.25),rgba(46,111,216,.12))",
+                      border:"1.5px solid rgba(201,168,76,.35)",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"1.1rem",color:"#C9A84C"
+                    }}>#{referralSponsorId}</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:".68rem",color:"#3D5580",textTransform:"uppercase",
+                        letterSpacing:".1em",marginBottom:3}}>Your Upline</div>
+                      <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1rem",marginBottom:2}}>
+                        User #{referralSponsorId}
+                      </div>
+                      {referralSponsorProfile && (
+                        <div style={{fontSize:".78rem",color:"#7A93C0"}}>
+                          {`${referralSponsorProfile.account.slice(0,6)}...${referralSponsorProfile.account.slice(-4)}`}
+                        </div>
+                      )}
                     </div>
-                    <div style={{fontSize:".78rem",color:"#7A93C0"}}>
-                      {referralSponsorProfile ? (
-                        <>Pkg {referralSponsorProfile.packageLevel} · {referralSponsorProfile.directReferrals} referrals</>
-                      ) : "MetaGuildX Member"}
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:".6rem",padding:"3px 10px",
+                        background:"rgba(201,168,76,.1)",border:"1px solid rgba(201,168,76,.2)",
+                        borderRadius:5,color:"#C9A84C",marginBottom:6}}>Verified ✓</div>
                     </div>
                   </div>
-                  <div style={{marginLeft:"auto",textAlign:"right"}}>
-                    <div style={{fontSize:".7rem",color:"#3D5580",marginBottom:2}}>Partner #{referralSponsorId}</div>
-                    <div style={{fontSize:".72rem",padding:"3px 10px",background:"rgba(201,168,76,.1)",border:"1px solid rgba(201,168,76,.2)",borderRadius:5,color:"#C9A84C"}}>Verified ✓</div>
+                </div>
+
+                {/* Stats */}
+                {referralSponsorProfile && (
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:1,background:"rgba(255,255,255,.04)"}}>
+                    <div style={{padding:"1rem 1.5rem",background:"rgba(8,15,36,.95)"}}>
+                      <div style={{fontSize:".65rem",color:"#3D5580",textTransform:"uppercase",
+                        letterSpacing:".09em",marginBottom:4}}>Partners</div>
+                      <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1.2rem",color:"#EEF4FF"}}>
+                        {referralSponsorProfile.directReferrals}
+                      </div>
+                    </div>
+                    <div style={{padding:"1rem 1.5rem",background:"rgba(8,15,36,.95)"}}>
+                      <div style={{fontSize:".65rem",color:"#3D5580",textTransform:"uppercase",
+                        letterSpacing:".09em",marginBottom:4}}>Package</div>
+                      <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1.2rem",color:"#C9A84C"}}>
+                        Pkg {referralSponsorProfile.packageLevel}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* How to register */}
+                <div style={{padding:"1.5rem 1.75rem",borderTop:"1px solid rgba(255,255,255,.04)"}}>
+                  <div style={{fontSize:".72rem",color:"#EEF4FF",fontFamily:"Syne,sans-serif",
+                    fontWeight:600,marginBottom:1.25,letterSpacing:".02em"}}>
+                    How to register in MetaGuildX
+                  </div>
+                  <div style={{marginTop:"1rem",display:"flex",flexDirection:"column",gap:10}}>
+                    {[
+                      "Install a crypto wallet app (MetaMask recommended) on your smartphone or PC.",
+                      "Fund your wallet with USDT on opBNB network for registration.",
+                      "Click the Register button below and confirm in your wallet.",
+                      "Copy and share your referral link to grow your network."
+                    ].map((step,i) => (
+                      <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                        <div style={{
+                          width:24,height:24,borderRadius:"50%",flexShrink:0,
+                          background:"rgba(46,111,216,.15)",border:"1px solid rgba(46,111,216,.3)",
+                          display:"flex",alignItems:"center",justifyContent:"center",
+                          fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:".72rem",color:"#5B9EF8",
+                          marginTop:1
+                        }}>{i+1}</div>
+                        <div style={{fontSize:".815rem",color:"#7A93C0",lineHeight:1.6}}>{step}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-                <div style={{marginTop:"1rem",paddingTop:".875rem",borderTop:"1px solid rgba(255,255,255,.05)",fontSize:".78rem",color:"#7A93C0"}}>
-                  Register now and start earning with your sponsor's network.
+
+                {/* Terms + Register */}
+                <div style={{padding:"1.25rem 1.75rem 1.75rem",borderTop:"1px solid rgba(255,255,255,.04)"}}>
+                  <label style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10,cursor:"pointer"}}>
+                    <input
+                      type="checkbox"
+                      id="lp-terms-check"
+                      style={{marginTop:3,accentColor:"#C9A84C",width:15,height:15,flexShrink:0}}
+                    />
+                    <span style={{fontSize:".815rem",color:"#7A93C0",lineHeight:1.5}}>
+                      I agree to the{" "}
+                      <a href="#" style={{color:"#C9A84C",textDecoration:"underline"}}>Terms of Use</a>
+                      {" "}and confirm I understand the platform rules.
+                    </span>
+                  </label>
+                  <label style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:1.5,cursor:"pointer"}}>
+                    <input
+                      type="checkbox"
+                      id="lp-country-check"
+                      style={{marginTop:3,accentColor:"#C9A84C",width:15,height:15,flexShrink:0}}
+                    />
+                    <span style={{fontSize:".815rem",color:"#7A93C0",lineHeight:1.5}}>
+                      I am not a citizen of the USA, China or the UAE.
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    className="lp-btn-hero-gold"
+                    style={{width:"100%",marginTop:"1.25rem",textAlign:"center"}}
+                    onClick={() => {
+                      const t = document.getElementById("lp-terms-check") as HTMLInputElement;
+                      const c = document.getElementById("lp-country-check") as HTMLInputElement;
+                      if (!t?.checked || !c?.checked) {
+                        alert("Please agree to the terms before continuing.");
+                        return;
+                      }
+                      void handleConnectWallet();
+                    }}
+                  >
+                    Register with Sponsor #{referralSponsorId} →
+                  </button>
                 </div>
               </div>
             ) : null}

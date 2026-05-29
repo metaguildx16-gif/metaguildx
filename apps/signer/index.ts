@@ -49,7 +49,7 @@ const TICKETS_FILE = "/etc/metaguildx/tickets.json";
 const redisClient = new Redis({
   host: process.env.REDIS_HOST ?? "localhost",
   port: parseInt(process.env.REDIS_PORT ?? "6379", 10),
-  enableOfflineQueue: false
+  lazyConnect: true
 });
 
 redisClient.on("error", (err) => {
@@ -87,24 +87,45 @@ function saveTicketsToFile(tickets: SupportTicket[]): void {
   fs.writeFileSync(TICKETS_FILE, JSON.stringify(tickets, null, 2));
 }
 
-const limiter = rateLimit({
+const inMemoryGlobalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
-  message: "Too many requests",
-  store: new RedisStore({
-    prefix: "mgx:signer:global:",
-    sendCommand: sendRedisCommand
-  })
+  message: "Too many requests"
 });
 
-const ticketSubmissionLimiter = rateLimit({
+const inMemoryTicketLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 3,
-  message: "Too many ticket submissions",
-  store: new RedisStore({
-    prefix: "mgx:signer:tickets:",
-    sendCommand: sendRedisCommand
-  })
+  message: "Too many ticket submissions"
+});
+
+let globalLimiter = inMemoryGlobalLimiter;
+let ticketSubmissionLimiter = inMemoryTicketLimiter;
+
+redisClient.on("ready", () => {
+  globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    message: "Too many requests",
+    store: new RedisStore({
+      prefix: "mgx:signer:global:",
+      sendCommand: sendRedisCommand
+    })
+  });
+
+  ticketSubmissionLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 3,
+    message: "Too many ticket submissions",
+    store: new RedisStore({
+      prefix: "mgx:signer:tickets:",
+      sendCommand: sendRedisCommand
+    })
+  });
+});
+
+redisClient.connect().catch((err) => {
+  console.error("Redis connection failed:", err);
 });
 
 app.use((req, res, next) => {
@@ -125,7 +146,7 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "x-signer-token", "x-admin-token", "x-wallet-address"],
 }));
 app.use(express.json());
-app.use(limiter);
+app.use((req, res, next) => globalLimiter(req, res, next));
 app.use((req, res, next) => {
   if (req.path === "/health" || req.path === "/sign" || req.path.startsWith("/support/tickets")) {
     return next();
@@ -208,7 +229,7 @@ app.post("/sign-placement", async (req, res) => {
   }
 });
 
-app.post("/support/tickets", ticketSubmissionLimiter, (req, res) => {
+app.post("/support/tickets", (req, res, next) => ticketSubmissionLimiter(req, res, next), (req, res) => {
   try {
     const { userId, wallet, category, subject, description } = req.body;
     if (!wallet || !subject || !description) {
