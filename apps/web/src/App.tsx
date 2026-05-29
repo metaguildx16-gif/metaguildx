@@ -5103,8 +5103,8 @@ function App() {
                   </div>
                   <div className="wallet-action-buttons premium-action-grid">
                     <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("mgxboxes"); }}>
-                      <span className="premium-action-icon">??</span>
-                      <span className="premium-action-title">Inner ? Wallet</span>
+                      <span className="premium-action-icon">💎</span>
+                      <span className="premium-action-title">Inner Wallet</span>
                       <span className="premium-action-subtitle">Transfer earnings to wallet</span>
                     </button>
                     <button
@@ -5115,12 +5115,12 @@ function App() {
                         setWalletSubView("stakingclaim");
                       }}
                     >
-                      <span className="premium-action-icon">??</span>
-                      <span className="premium-action-title">Reward ? Wallet</span>
+                      <span className="premium-action-icon">🎁</span>
+                      <span className="premium-action-title">Reward Wallet</span>
                       <span className="premium-action-subtitle">Claim platform rewards</span>
                     </button>
                     <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("stake"); }}>
-                      <span className="premium-action-icon">??</span>
+                      <span className="premium-action-icon">🔒</span>
                       <span className="premium-action-title">Staking</span>
                       <span className="premium-action-subtitle">Stake MGX tokens</span>
                       {parseDisplayNumber(displayedPersonalStaked) > 0 ? (
@@ -5128,7 +5128,7 @@ function App() {
                       ) : null}
                     </button>
                     <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("cashback"); }}>
-                      <span className="premium-action-icon">??</span>
+                      <span className="premium-action-icon">💰</span>
                       <span className="premium-action-title">Cashback Pool</span>
                       <span className="premium-action-subtitle">View cashback status</span>
                     </button>
