@@ -1850,15 +1850,15 @@ function App() {
   const StakingSummary = () => (
     <div className="staking-summary-shell">
       <div className="staking-summary-hero-grid">
-        <StatCard title="Staked Amount" value={`${displayedPersonalStaked} MGX`} icon="?" accent="cyan" />
-        <StatCard title="Pending Reward" value={`${displayedPendingStakingReward} MGX`} icon="?" accent="gold" />
+        <StatCard title="Staked Amount" value={`${displayedPersonalStaked} MGX`} icon="🔒" accent="cyan" />
+        <StatCard title="Pending Reward" value={`${displayedPendingStakingReward} MGX`} icon="⭐" accent="gold" />
         <StatCard
           title="Daily Earnings"
           value={stakingDataLoading ? "Loading..." : `${calcDailyEarnings().toFixed(4)} MGX`}
-          icon="?"
+          icon="📈"
           accent="success"
         />
-        <StatCard title="Your Share" value={`${stakingSharePercent}%`} icon="?" accent="cyan" badge="LIVE" />
+        <StatCard title="Your Share" value={`${stakingSharePercent}%`} icon="🥧" accent="cyan" badge="LIVE" />
       </div>
 
       <div className="staking-countdown-card">
@@ -3873,7 +3873,7 @@ function App() {
                   <strong>{snapshot.leftBranchNodes} | {snapshot.rightBranchNodes}</strong>
                 </article>
                 <article className="summary-chip premium-network-card team-business">
-                  <span>?? Team Business</span>
+                  <span>📊 Team Business</span>
                   <strong>${teamBusinessDisplay}</strong>
                 </article>
               </div>
@@ -3918,7 +3918,7 @@ function App() {
                               onClick={handleCopyReferralLink}
                               disabled={!referralLink}
                             >
-                              <span aria-hidden="true">??</span>
+                              <span aria-hidden="true">✦</span>
                               <span>Copy</span>
                             </button>
                             <button
@@ -4274,7 +4274,7 @@ function App() {
                         onClick={handleCopyReferralLink}
                         disabled={!referralLink}
                       >
-                        <span aria-hidden="true">??</span>
+                        <span aria-hidden="true">✦</span>
                         <span>Copy</span>
                       </button>
                     </div>
@@ -4355,7 +4355,7 @@ function App() {
                         >
                           <strong>{`Level ${row.levelNumber}`}</strong>
                           <span className={`level-status-badge ${row.isUnlocked ? "active" : "locked"}`}>
-                            {row.isUnlocked ? "? Active" : "?? Locked"}
+                            {row.isUnlocked ? "✅ Active" : "🔒 Locked"}
                           </span>
                           <span className="level-status-rate">4%</span>
                         </article>
@@ -4550,7 +4550,7 @@ function App() {
                                 <div className="section-card-body">
                                   <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                                     <div className="flex items-center justify-between gap-3">
-                                      <span className="text-sm font-medium text-white">?? Auto-Upgrade Escrow</span>
+                                      <span className="text-sm font-medium text-white">🔐 Auto-Upgrade Escrow</span>
                                       <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
                                         {`xSlot ${rebirthXSlotStep} / 5`}
                                       </span>
@@ -5571,7 +5571,7 @@ function App() {
                         <div className="upgrade-milestone-head">
                           <div className="upgrade-milestone-title-wrap">
                             <span className="upgrade-milestone-icon" aria-hidden="true">
-                              {isCompleted ? "?" : isActive ? "?" : "??"}
+                              {isCompleted ? "✅" : isActive ? "⚡" : "🔒"}
                             </span>
                             <div>
                               <h4>{`Pkg ${milestone.fromPkg} → ${typeof milestone.toPkg === "number" ? `Pkg ${milestone.toPkg}` : milestone.toPkg}`}</h4>
@@ -5586,21 +5586,21 @@ function App() {
                             </div>
                           </div>
                           <span className={`upgrade-milestone-badge ${isCompleted ? "done" : ""} ${isActive ? "active" : ""} ${isLocked ? "locked" : ""}`}>
-                            {isCompleted ? "? DONE" : isActive ? "ACTIVE" : "?? LOCKED"}
+                            {isCompleted ? "✅ DONE" : isActive ? "⚡ Active" : "🔒 LOCKED"}
                           </span>
                         </div>
 
                         {isCompleted ? (
                           <div className="upgrade-milestone-complete">
                             <div className="upgrade-milestone-meta">
-                              <span className="upgrade-milestone-meta-label">?? Upgraded</span>
+                              <span className="upgrade-milestone-meta-label">✅ Upgraded</span>
                               <span className="upgrade-milestone-cost">{`Cost Paid: ${milestoneCostLabel}`}</span>
                             </div>
                             <div className="upgrade-milestone-progress" aria-hidden="true">
                               <span className="upgrade-milestone-progress-fill" style={{ width: "100%" }} />
                             </div>
                             <div className="upgrade-milestone-meta">
-                              <span className="upgrade-milestone-complete-copy">Milestone Complete! ??</span>
+                              <span className="upgrade-milestone-complete-copy">Milestone Complete! 🎉</span>
                               <span className="upgrade-milestone-percent">100%</span>
                             </div>
                           </div>
@@ -5648,7 +5648,7 @@ function App() {
                                 )
                               }
                             >
-                              ?? Upgrade Now
+                              ⬆ Upgrade Now
                             </button>
                           </>
                         ) : null}
