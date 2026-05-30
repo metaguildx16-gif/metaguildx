@@ -943,36 +943,12 @@ async function buildUnregisteredSnapshot(input: {
   } satisfies DashboardSnapshot;
 }
 
-function formatStakeDurationLabel(lockDurationSeconds: bigint) {
-  const lockDuration = Number(lockDurationSeconds);
+function formatStakeDurationLabel(lockDurationDaysRaw: bigint) {
+  const lockDuration = Number(lockDurationDaysRaw);
   if (!lockDuration) {
     return "No active stake";
   }
-  if (lockDuration === 30) {
-    return "30 Days";
-  }
-  if (lockDuration === 90) {
-    return "90 Days";
-  }
-  if (lockDuration === 180) {
-    return "180 Days";
-  }
-  if (lockDuration === 365) {
-    return "1 Year";
-  }
-  if (lockDuration === 730) {
-    return "2 Years";
-  }
-  if (lockDuration === 365 * 24 * 60 * 60) {
-    return "1 Year";
-  }
-  if (lockDuration === 730 * 24 * 60 * 60) {
-    return "2 Years";
-  }
-  if (lockDuration === 1095 * 24 * 60 * 60) {
-    return "1095 Days";
-  }
-  return `${lockDuration} sec lock`;
+  return `${lockDuration} days`;
 }
 
 function formatStakeStartDateLabel(lockStartedAtSeconds: bigint) {
@@ -1040,7 +1016,8 @@ function mapStakePositions(positions: ReadonlyArray<RawStakePosition>): StakePos
     .filter((position) => BigInt(position[0]) > 0n)
     .map((position, index) => {
       const startTime = Number(position[3]);
-      const lockDurationSeconds = Number(position[4]);
+      const lockDurationDays = Number(position[4]);
+      const lockDurationSeconds = lockDurationDays * 86400;
       const unlockTime = startTime + lockDurationSeconds;
       const elapsedSeconds = Math.max(nowSeconds - startTime, 0);
       const lockProgressPercent =

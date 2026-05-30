@@ -1657,14 +1657,16 @@ function App() {
   const hasWithdrawableStake = parseDisplayNumber(displayedPersonalStaked) > 0;
   const canUseIndexedStakingActions = displayedStakePositions.length <= 1;
   const primaryStakePosition = displayedStakePositions[0] ?? null;
+  const pendingStakingRewardValue = parseDisplayNumber(displayedPendingStakingReward);
   const rewardWindowReady = (() => {
     const rewardDebt = primaryStakePosition?.rewardDebt ?? 0n;
     if (!rewardDebt) return false;
-    const nextReward = Number(rewardDebt) + 86400;
-    return Math.floor(Date.now() / 1000) >= nextReward;
+    const now = Math.floor(Date.now() / 1000);
+    const elapsedDays = Math.floor((now - Number(rewardDebt)) / 86400);
+    return elapsedDays >= 1 && pendingStakingRewardValue > 0;
   })();
   const hasClaimableReward =
-    parseDisplayNumber(displayedPendingStakingReward) > 0
+    pendingStakingRewardValue > 0
     && rewardWindowReady;
   const hasStakingPosition = hasWithdrawableStake || hasClaimableReward;
   const isConnectedWalletLoading = isLoading && Boolean(snapshot.walletAddress);
@@ -2886,37 +2888,47 @@ function App() {
                 }}>
                   <div style={{fontSize:".65rem",color:"#C9A84C",textTransform:"uppercase",
                     letterSpacing:".12em",marginBottom:".875rem",display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{width:6,height:6,background:"#2EC48F",borderRadius:"50%",display:"inline-block",flexShrink:0}}></span>
+                    <span style={{width:6,height:6,background:"#2EC48F",borderRadius:"50%",
+                      display:"inline-block",flexShrink:0,animation:"lp-pulse 2s infinite"}}></span>
                     Registering for MetaGuildX
                   </div>
-                  <p style={{fontSize:".875rem",color:"#7A93C0",margin:"0 0 1.25rem",lineHeight:1.6}}>
-                    Registration by invite — you become part of the network of the user who invited you.
+                  <p style={{fontSize:".855rem",color:"#7A93C0",margin:"0 0 1.25rem",lineHeight:1.6}}>
+                    You were invited to join MetaGuildX. Register to become part of your sponsor's network.
                   </p>
-                  {/* Sponsor row */}
-                  <div style={{display:"flex",alignItems:"center",gap:14}}>
+                  <div style={{
+                    background:"rgba(201,168,76,.06)",
+                    border:"1px solid rgba(201,168,76,.2)",
+                    borderRadius:12,
+                    padding:"1rem 1.25rem",
+                    display:"flex",alignItems:"center",gap:14
+                  }}>
                     <div style={{
-                      width:52,height:52,borderRadius:"50%",flexShrink:0,
-                      background:"linear-gradient(135deg,rgba(201,168,76,.25),rgba(46,111,216,.12))",
-                      border:"1.5px solid rgba(201,168,76,.35)",
+                      width:56,height:56,borderRadius:"50%",flexShrink:0,
+                      background:"linear-gradient(135deg,rgba(201,168,76,.3),rgba(46,111,216,.15))",
+                      border:"2px solid rgba(201,168,76,.4)",
                       display:"flex",alignItems:"center",justifyContent:"center",
-                      fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"1.1rem",color:"#C9A84C"
+                      fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"1.2rem",color:"#C9A84C",
+                      boxShadow:"0 0 16px rgba(201,168,76,.2)"
                     }}>#{referralSponsorId}</div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:".68rem",color:"#3D5580",textTransform:"uppercase",
-                        letterSpacing:".1em",marginBottom:3}}>Your Upline</div>
-                      <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1rem",marginBottom:2}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:".65rem",color:"#3D5580",textTransform:"uppercase",
+                        letterSpacing:".1em",marginBottom:4}}>Your Upline / Sponsor</div>
+                      <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1.05rem",
+                        marginBottom:3,color:"#EEF4FF"}}>
                         User #{referralSponsorId}
                       </div>
-                      {referralSponsorProfile && (
-                        <div style={{fontSize:".78rem",color:"#7A93C0"}}>
-                          {`${referralSponsorProfile.account.slice(0,6)}...${referralSponsorProfile.account.slice(-4)}`}
-                        </div>
-                      )}
+                      <div style={{fontSize:".78rem",color:"#7A93C0",
+                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                        {referralSponsorProfile
+                          ? `${referralSponsorProfile.account.slice(0,6)}...${referralSponsorProfile.account.slice(-4)}`
+                          : "MetaGuildX Member"}
+                      </div>
                     </div>
-                    <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontSize:".6rem",padding:"3px 10px",
-                        background:"rgba(201,168,76,.1)",border:"1px solid rgba(201,168,76,.2)",
-                        borderRadius:5,color:"#C9A84C",marginBottom:6}}>Verified ✓</div>
+                    <div style={{flexShrink:0,textAlign:"center"}}>
+                      <div style={{fontSize:".6rem",color:"#3D5580",marginBottom:4}}>Partner</div>
+                      <div style={{fontSize:".7rem",padding:"4px 10px",
+                        background:"rgba(46,158,117,.1)",border:"1px solid rgba(46,158,117,.25)",
+                        borderRadius:5,color:"#2EC48F",fontWeight:600}}>✓ Verified</div>
                     </div>
                   </div>
                 </div>
@@ -5039,7 +5051,7 @@ function App() {
                                 type="button"
                                 className="btn-stake-action is-claim"
                                 title={canUseIndexedStakingActions ? undefined : "Indexed staking actions need Core contract wrappers before they can be sent from the dashboard."}
-                                disabled={isLoading || !snapshot.walletAddress || !canUseIndexedStakingActions || parseDisplayNumber(position.pendingReward) <= 0}
+                                disabled={isLoading || !snapshot.walletAddress || !canUseIndexedStakingActions || parseDisplayNumber(position.pendingReward) <= 0 || !rewardWindowReady}
                                 onClick={() =>
                                   runWalletAction(
                                     () => metaguildx.claimReward(position.pendingReward, rewardWindowReady),

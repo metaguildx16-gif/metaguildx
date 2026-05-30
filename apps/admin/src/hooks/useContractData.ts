@@ -1667,7 +1667,7 @@ export async function getStakingMonitorData(): Promise<StakingMonitorData> {
         userId: user.userId,
         wallet: user.wallet,
         staked: amount,
-        lockDurationDays: Math.round(Number(position.lockDuration) / 86400),
+        lockDurationDays: Number(position.lockDuration),
         pendingReward,
         startTime: Number(position.lockStartedAt),
         rewardDebt: Number(position.rewardDebt)

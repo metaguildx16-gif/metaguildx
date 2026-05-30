@@ -225,7 +225,7 @@ export function StakingMonitor() {
     };
   }, [data?.topStakers]);
 
-  const unlockTime = stakePosition ? stakePosition.lockStartedAt + stakePosition.lockDuration : 0n;
+  const unlockTime = stakePosition ? stakePosition.lockStartedAt + (stakePosition.lockDuration * 86400n) : 0n;
   const now = Math.floor(Date.now() / 1000);
   const isLocked = unlockTime > 0n ? BigInt(now) < unlockTime : false;
   const daysLeft = isLocked ? Math.max(0, Math.ceil((Number(unlockTime) - now) / 86400)) : 0;
