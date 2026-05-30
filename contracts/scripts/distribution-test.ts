@@ -114,7 +114,8 @@ const stakingAbi = [
   "function rewardPool() view returns (uint256)",
   "function stakingRewardPoolPlatformReserve(address) view returns (uint256)",
   "function pendingStakingReward(address) view returns (uint256)",
-  "function getStakePositions(address) view returns ((uint256 amount, uint256 rewardDebt, uint256 accruedReward, uint256 lockStartedAt, uint256 lockDuration, bool autoCompound)[])"
+  "function getStakePositions(address) view returns ((uint256 amount, uint256 rewardDebt, uint256 accruedReward, uint256 lockStartedAt, uint256 lockDuration, bool autoCompound)[])",
+  "function stakingAssetByAccount(address) view returns (address)"
 ] as const;
 
 const routerEventInterface = new ethers.Interface([
@@ -699,6 +700,13 @@ async function main() {
       );
     }
   }
+
+  const deployerStakingAsset = await staking.stakingAssetByAccount(deployerAddress);
+  assertResult(
+    "Bug #29 - stake uses address(0) paymentAsset",
+    String(deployerStakingAsset).toLowerCase() === ethers.ZeroAddress.toLowerCase(),
+    `stakingAssetByAccount=${deployerStakingAsset}; expected=${ethers.ZeroAddress}; usdt=${addresses.USDT}`
+  );
 
   console.log("\n=== Distribution Test Results ===");
   console.log(`${passed} passed, ${failed} failed`);

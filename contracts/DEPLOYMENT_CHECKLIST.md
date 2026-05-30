@@ -112,6 +112,7 @@ Verify: users can no longer stake unlimited times without spending MGX ✅
 
 27. claimFor()/compoundFor() used V1 legacy storage (positionsByAccount) instead of V2 (positionsByAccountV2) — staking rewards always reverted with 'No reward' ✅
 28. Reward cycle changed from 24h to 8h — 3 cycles/day, same daily APY (0.03%/day). rewardRate / 3 per cycle ✅
+29. Core.stake() passed USDT as paymentAsset to staking — rewards always reverted with 'Insufficient reward reserve'. Fixed to address(0) ✅
 
 ## Post-Deploy Fixes
 
@@ -126,6 +127,7 @@ Verify: users can no longer stake unlimited times without spending MGX ✅
 - Test 16: Bug #25 — double stake not possible with 0 MGX balance ✅
 - Test 17: Bug #27 — claimFor uses V2 positions ✅
 - Test 18: 8h reward cycle — elapsedCycles calculation correct ✅
+- Test 19: Bug #29 — stake uses address(0) paymentAsset ✅
 
 ## Payment Normalization (Critical)
 
@@ -159,6 +161,7 @@ This must verify at minimum:
 
 Note: `distribution-test.ts` now covers 17 checks (was 16)
 Note: `distribution-test.ts` now covers 18 checks (was 17)
+Note: `distribution-test.ts` now covers 19 checks (was 18)
 
 ## Fresh Deploy Order (Exact)
 

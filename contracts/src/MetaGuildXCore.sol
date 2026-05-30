@@ -654,7 +654,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         uint256 userId = userIdByAddress[msg.sender];
         if (userId == 0) revert UserNotRegistered();
         if (!activeUsers[userId]) revert UserNotActive();
-        IMGXStaking(stakingContract).stakeFor(msg.sender, amount, 0, duration, autoCompound, defaultPaymentAsset);
+        IMGXStaking(stakingContract).stakeFor(msg.sender, amount, 0, duration, autoCompound, address(0));
     }
 
     function claimStakingReward() external nonReentrant {
