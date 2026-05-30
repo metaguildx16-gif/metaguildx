@@ -1805,17 +1805,19 @@ function App() {
       return "Ready to claim";
     }
 
-    const nextReward = Number(rewardDebt) + 28800;
     const now = Math.floor(Date.now() / 1000);
-    const remaining = nextReward - now;
-    if (remaining <= 0) {
-      return "Ready to claim";
-    }
+    const elapsed = now - Number(rewardDebt);
+    const elapsedCycles = Math.floor(elapsed / 28800);
+    const nextCycleBoundary = Number(rewardDebt) + ((elapsedCycles + 1) * 28800);
+    const nextCycleRemaining = nextCycleBoundary - now;
 
-    const h = Math.floor(remaining / 3600);
-    const m = Math.floor((remaining % 3600) / 60);
-    const s = remaining % 60;
-    return `${h}h ${m}m ${s}s`;
+    const h = Math.floor(nextCycleRemaining / 3600);
+    const m = Math.floor((nextCycleRemaining % 3600) / 60);
+    const s = nextCycleRemaining % 60;
+    if (elapsedCycles >= 1) {
+      return `Ready to claim · Next cycle in ${h}h ${m}m ${s}s`;
+    }
+    return `Next reward in ${h}h ${m}m ${s}s`;
   };
   const StatCard = ({
     title,

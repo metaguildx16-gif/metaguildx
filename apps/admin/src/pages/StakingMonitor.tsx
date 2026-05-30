@@ -84,12 +84,13 @@ function getAdminCountdown(stakers: StakingMonitorData["topStakers"]): RewardCou
     if (!staker.rewardDebt || staker.rewardDebt <= 0) {
       return min;
     }
-    const nextReward = staker.rewardDebt + REWARD_INTERVAL;
-    if (nextReward <= now) {
+    const elapsed = now - staker.rewardDebt;
+    const elapsedCycles = Math.floor(elapsed / REWARD_INTERVAL);
+    const nextCycle = staker.rewardDebt + ((elapsedCycles + 1) * REWARD_INTERVAL);
+    if (elapsedCycles >= 1) {
       hasReadyPosition = true;
-      return min;
     }
-    return nextReward < min ? nextReward : min;
+    return nextCycle < min ? nextCycle : min;
   }, Number.POSITIVE_INFINITY);
 
   if (hasReadyPosition) {
