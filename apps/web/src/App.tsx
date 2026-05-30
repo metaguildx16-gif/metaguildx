@@ -1665,7 +1665,7 @@ function App() {
     const rewardDebt = primaryStakePosition?.rewardDebt ?? 0n;
     if (!rewardDebt) return false;
     const now = Math.floor(Date.now() / 1000);
-    const elapsedDays = Math.floor((now - Number(rewardDebt)) / 86400);
+    const elapsedDays = Math.floor((now - Number(rewardDebt)) / 28800);
     return elapsedDays >= 1 && pendingStakingRewardValue > 0;
   })();
   const hasClaimableReward =
@@ -1805,7 +1805,7 @@ function App() {
       return "Ready to claim";
     }
 
-    const nextReward = Number(rewardDebt) + 86400;
+    const nextReward = Number(rewardDebt) + 28800;
     const now = Math.floor(Date.now() / 1000);
     const remaining = nextReward - now;
     if (remaining <= 0) {
