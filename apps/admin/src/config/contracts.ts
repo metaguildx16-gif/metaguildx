@@ -2,14 +2,14 @@ const ENV_CORE_ADDRESS = import.meta.env.VITE_SYSTEM_PROXY_ADDRESS;
 const ENV_USDT_ADDRESS = import.meta.env.VITE_USDT_ADDRESS;
 
 export const CONTRACTS = {
-  MetaGuildXCore: ENV_CORE_ADDRESS || "0x5002B39533AD5EeA9E09912ECbD6f250eE621737",
-  MetaGuildXIncome: "0x10bf1152CD376c2d8FcF16a96538a00889f1cb7e",
-  MetaGuildXUpgrade: "0xf37c79481A0Bf101d97DBB08Af226C5ff3d8e555",
-  IncomeRouter: "0xD63618368B3187F558196BC7c36148Cf6038635f",
-  BinaryTree: "0x3973cF555953AD2109d0bFCa90a407a418A11494",
-  CashbackPool: "0x2FC5949DFa3ed553C9B9bcDf88ecd50e6e978932",
-  MGXStaking: "0xa24c3Be2fce7293490543B72d01c2f7D1059b289",
-  MGXToken: "0x1C1E7E7707bD452FF46BCEf2288Ee9f5E0A1F59d",
+  MetaGuildXCore: ENV_CORE_ADDRESS || "0xbF357543570E5f107513fa9955f646d2022bc78a",
+  MetaGuildXIncome: "0x40d908584E4Deec4a5e86FD65736B8EDb2495CaB",
+  MetaGuildXUpgrade: "0x9d2904c14666C2c65E5a694B949C64ed912AEb09",
+  IncomeRouter: "0x2790aB2965d4CE1DCB4ca43D6F667cEA4cd1D1DF",
+  BinaryTree: "0xD765E4c75eA37d84720E7B772e24085Eb21Cb714",
+  CashbackPool: "0xAE81a28C1cDf92230436f8529AE3aE7b70f88189",
+  MGXStaking: "0xe8A0Ae5ad1fd066Deb21c53A9652D89a778ec943",
+  MGXToken: "0x72206e4c4e51C7fe704bd1F6E8aB6b622ad5feD5",
   USDT: ENV_USDT_ADDRESS || "0xF4975eB104932bDBcA491A9Cb985439eA03863e0"
 } as const;
 
@@ -18,7 +18,7 @@ export const NETWORK = {
   name: "OPBNB Testnet",
   rpc: "https://opbnb-testnet-rpc.bnbchain.org",
   explorer: "https://opbnb-testnet.bscscan.com",
-  startBlock: 165197059
+  startBlock: 165389939
 } as const;
 
 export const ABIS = {
