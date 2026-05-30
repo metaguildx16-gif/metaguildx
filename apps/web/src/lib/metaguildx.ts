@@ -2571,6 +2571,21 @@ export async function stakeTokens(input: { amount: number; durationKey: StakeDur
 
     const lockDuration = stakeDurationDays[input.durationKey];
     const scaledAmount = parseUnits(input.amount.toString(), 18);
+    if (!configuredMgxTokenAddress) {
+      throw new Error("MGX token address not configured");
+    }
+    if (!configuredStakingAddress) {
+      throw new Error("Staking contract address not configured");
+    }
+
+    const mgxToken = new Contract(normalizeAddress(configuredMgxTokenAddress), erc20ApprovalAbi, core.runner);
+    const stakingAddress = normalizeAddress(configuredStakingAddress);
+    const currentAllowance = (await mgxToken.allowance(address, stakingAddress)) as bigint;
+    if (currentAllowance < scaledAmount) {
+      const approveTx = await mgxToken.approve(stakingAddress, scaledAmount);
+      await approveTx.wait();
+    }
+
     const tx = await core.stake(scaledAmount, lockDuration, input.autoCompound);
     await tx.wait();
   } catch (error) {
