@@ -67,7 +67,7 @@ function formatDaysRemaining(days: number): string {
   return `${Math.floor(days)} days`;
 }
 
-const REWARD_INTERVAL = 86400;
+const REWARD_INTERVAL = 28800;
 type RewardCountdownState = {
   readySeconds: number;
   nextWindowSeconds: number | null;
