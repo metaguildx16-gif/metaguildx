@@ -178,6 +178,9 @@ function App() {
   const [networkDashTab, setNetworkDashTab] = useState<"referrals" | "tree" | "incomelog">("referrals");
   const [rebirthTreePreview, setRebirthTreePreview] = useState<TreePreviewNode[]>([]);
   const [referralCopyStatus, setReferralCopyStatus] = useState("");
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState<boolean>(() => {
+    try { return localStorage.getItem("mgx_disclaimer_v1") === "true"; } catch { return false; }
+  });
   const [referralSponsorId, setReferralSponsorId] = useState<number | null>(null);
   const [referralSponsorProfile, setReferralSponsorProfile] = useState<{
     userId: number;
@@ -2564,6 +2567,167 @@ function App() {
 
   function renderLanding() {
     return (
+      <>
+      {!disclaimerAccepted && (
+        <div style={{
+          position:"fixed",inset:0,zIndex:9999,
+          background:"rgba(3,6,16,.97)",backdropFilter:"blur(20px)",
+          display:"flex",alignItems:"center",justifyContent:"center",
+          padding:"1rem",overflowY:"auto"
+        }}>
+          <div style={{
+            maxWidth:560,width:"100%",
+            background:"linear-gradient(145deg,rgba(12,22,48,.98),rgba(8,15,36,.99))",
+            border:"1px solid rgba(201,168,76,.25)",borderRadius:20,
+            overflow:"hidden",boxShadow:"0 32px 80px rgba(0,0,0,.6)"
+          }}>
+            {/* Header */}
+            <div style={{
+              padding:"2rem 2rem 1.5rem",
+              background:"linear-gradient(135deg,rgba(201,168,76,.08),rgba(46,111,216,.05))",
+              borderBottom:"1px solid rgba(255,255,255,.06)",textAlign:"center"
+            }}>
+              <img src={logoMark} alt="MGX" style={{
+                width:72,height:72,objectFit:"contain",marginBottom:"1rem",
+                filter:"drop-shadow(0 0 20px rgba(201,168,76,.5))"
+              }}/>
+              <div style={{
+                fontFamily:"Syne,sans-serif",fontSize:"1.3rem",fontWeight:800,
+                letterSpacing:"-.02em",marginBottom:".5rem"
+              }}>MetaGuildX Platform</div>
+              <div style={{fontSize:".8rem",color:"#7A93C0",lineHeight:1.5}}>
+                Please read and accept the following before continuing
+              </div>
+            </div>
+
+            {/* Content */}
+            <div style={{padding:"1.75rem 2rem",maxHeight:"55vh",overflowY:"auto"}}>
+
+              {/* What is MGX */}
+              <div style={{marginBottom:"1.5rem"}}>
+                <div style={{
+                  fontFamily:"Syne,sans-serif",fontSize:".8rem",fontWeight:700,
+                  color:"#C9A84C",textTransform:"uppercase",letterSpacing:".1em",marginBottom:".75rem",
+                  display:"flex",alignItems:"center",gap:8
+                }}>
+                  <span style={{width:14,height:1,background:"#C9A84C",display:"inline-block"}}></span>
+                  About MetaGuildX
+                </div>
+                <p style={{fontSize:".855rem",color:"#7A93C0",lineHeight:1.7,margin:0}}>
+                  MetaGuildX is a decentralized income distribution platform built on the opBNB blockchain.
+                  Participants register with USDT and earn income through direct referrals,
+                  level income across 10 levels, cashback pool distributions, and MGX token staking rewards.
+                  All transactions are executed by immutable smart contracts — no human intervention.
+                </p>
+              </div>
+
+              {/* Risk */}
+              <div style={{
+                marginBottom:"1.5rem",padding:"1rem 1.25rem",
+                background:"rgba(255,180,0,.05)",border:"1px solid rgba(255,180,0,.15)",borderRadius:10
+              }}>
+                <div style={{
+                  fontFamily:"Syne,sans-serif",fontSize:".78rem",fontWeight:700,
+                  color:"#F59E0B",textTransform:"uppercase",letterSpacing:".1em",marginBottom:".625rem"
+                }}>⚠ Risk Disclaimer</div>
+                <p style={{fontSize:".835rem",color:"rgba(245,158,11,.8)",lineHeight:1.7,margin:0}}>
+                  Participation involves financial risk. Earnings depend entirely on network activity
+                  and are not guaranteed. Past performance does not indicate future results.
+                  Never invest more than you can afford to lose. This is not financial advice.
+                </p>
+              </div>
+
+              {/* Terms list */}
+              <div style={{marginBottom:"1.5rem"}}>
+                <div style={{
+                  fontFamily:"Syne,sans-serif",fontSize:".78rem",fontWeight:700,
+                  color:"#C9A84C",textTransform:"uppercase",letterSpacing:".1em",marginBottom:".75rem",
+                  display:"flex",alignItems:"center",gap:8
+                }}>
+                  <span style={{width:14,height:1,background:"#C9A84C",display:"inline-block"}}></span>
+                  Terms & Conditions
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {[
+                    "I am at least 18 years of age and legally allowed to participate.",
+                    "I am not a citizen or resident of the USA, China, or UAE.",
+                    "I understand this platform is decentralized and runs on smart contracts.",
+                    "I accept full responsibility for my own participation and investment decisions.",
+                    "I understand that registration fees and earnings are processed on-chain and are non-refundable.",
+                    "I agree to use this platform in compliance with my local laws and regulations.",
+                  ].map((term,i) => (
+                    <div key={i} style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                      <div style={{
+                        width:20,height:20,borderRadius:5,flexShrink:0,marginTop:1,
+                        background:"rgba(46,111,216,.12)",border:"1px solid rgba(46,111,216,.25)",
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:".65rem",color:"#5B9EF8",fontWeight:700
+                      }}>{i+1}</div>
+                      <div style={{fontSize:".82rem",color:"#7A93C0",lineHeight:1.6}}>{term}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Smart contract note */}
+              <div style={{
+                padding:".875rem 1.25rem",
+                background:"rgba(46,111,216,.06)",border:"1px solid rgba(46,111,216,.15)",borderRadius:10
+              }}>
+                <div style={{fontSize:".8rem",color:"#5B9EF8",lineHeight:1.6}}>
+                  🔗 All operations are governed by audited smart contracts on opBNB.
+                  Contract addresses are publicly verifiable on-chain.
+                </div>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div style={{
+              padding:"1.5rem 2rem",
+              borderTop:"1px solid rgba(255,255,255,.06)",
+              background:"rgba(8,15,36,.5)"
+            }}>
+              <button
+                type="button"
+                style={{
+                  width:"100%",padding:"14px",borderRadius:10,
+                  background:"linear-gradient(135deg,#C9A84C,#E8C96A)",
+                  color:"#080604",fontWeight:700,border:"none",
+                  fontFamily:"Syne,sans-serif",fontSize:"1rem",
+                  cursor:"pointer",marginBottom:10,
+                  letterSpacing:".01em"
+                }}
+                onClick={() => {
+                  try { localStorage.setItem("mgx_disclaimer_v1","true"); } catch {}
+                  setDisclaimerAccepted(true);
+                }}
+              >
+                I Understand & Agree →
+              </button>
+              <button
+                type="button"
+                style={{
+                  width:"100%",padding:"11px",borderRadius:10,
+                  background:"transparent",
+                  color:"#3D5580",fontWeight:400,
+                  border:"1px solid rgba(255,255,255,.06)",
+                  fontFamily:"DM Sans,sans-serif",fontSize:".875rem",
+                  cursor:"pointer"
+                }}
+                onClick={() => { window.history.back(); }}
+              >
+                Decline & Go Back
+              </button>
+              <div style={{
+                textAlign:"center",marginTop:".875rem",
+                fontSize:".72rem",color:"#3D5580",lineHeight:1.5
+              }}>
+                Your acceptance is stored locally. You will not be shown this again on this device.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="landing-page" style={{
         fontFamily: '"DM Sans", sans-serif',
         background: '#030610',
@@ -3335,6 +3499,7 @@ function App() {
         )}
 
       </div>
+      </>
     );
   }
 
