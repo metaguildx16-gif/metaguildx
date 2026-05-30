@@ -68,40 +68,78 @@ function formatDaysRemaining(days: number): string {
 }
 
 const REWARD_INTERVAL = 86400;
+type RewardCountdownState = {
+  readySeconds: number;
+  nextWindowSeconds: number | null;
+} | null;
 
-function getAdminCountdown(stakers: StakingMonitorData["topStakers"]) {
+function getAdminCountdown(stakers: StakingMonitorData["topStakers"]): RewardCountdownState {
   if (!stakers.length) {
     return null;
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const earliestNext = stakers.reduce((min, staker) => {
+  let hasReadyPosition = false;
+  const nextUpcoming = stakers.reduce((min, staker) => {
     if (!staker.rewardDebt || staker.rewardDebt <= 0) {
       return min;
     }
     const nextReward = staker.rewardDebt + REWARD_INTERVAL;
+    if (nextReward <= now) {
+      hasReadyPosition = true;
+      return min;
+    }
     return nextReward < min ? nextReward : min;
   }, Number.POSITIVE_INFINITY);
 
-  if (!Number.isFinite(earliestNext)) {
+  if (hasReadyPosition) {
+    return {
+      readySeconds: 0,
+      nextWindowSeconds: Number.isFinite(nextUpcoming) ? Math.max(nextUpcoming - now, 0) : null
+    };
+  }
+
+  if (!Number.isFinite(nextUpcoming)) {
     return null;
   }
 
-  return Math.max(earliestNext - now, 0);
+  return {
+    readySeconds: Math.max(nextUpcoming - now, 0),
+    nextWindowSeconds: null
+  };
 }
 
-function formatRewardCountdown(seconds: number | null) {
-  if (seconds === null) {
-    return "No reward data";
-  }
-  if (seconds <= 0) {
-    return "Reward ready to claim!";
-  }
-
+function formatDuration(seconds: number) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
-  return `Next reward in ${h}h ${m}m ${s}s`;
+  return `${h}h ${m}m ${s}s`;
+}
+
+function formatRewardCountdown(countdown: RewardCountdownState) {
+  if (countdown === null) {
+    return (
+      <>
+        <span>No reward data</span>
+      </>
+    );
+  }
+  if (countdown.readySeconds <= 0) {
+    return (
+      <>
+        <span>Reward ready to claim!</span>
+        {countdown.nextWindowSeconds !== null ? (
+          <span className="block text-sm font-medium text-blue-300">Next window in {formatDuration(countdown.nextWindowSeconds)}</span>
+        ) : null}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span>Next reward in {formatDuration(countdown.readySeconds)}</span>
+    </>
+  );
 }
 
 function StatCard({
@@ -133,7 +171,7 @@ function StatRow({ label, value }: { label: string; value: ReactNode }) {
 export function StakingMonitor() {
   const [data, setData] = useState<StakingMonitorData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState<RewardCountdownState>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [stakePosition, setStakePosition] = useState<StakePositionState | null>(null);
   const [positionLoading, setPositionLoading] = useState(false);
