@@ -741,14 +741,15 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
             return position.accruedReward;
         }
 
-        uint256 elapsed = position.rewardDebt == 0 ? 1 days : block.timestamp - position.rewardDebt;
-        uint256 elapsedDays = elapsed / 1 days;
-        if (elapsedDays == 0) {
+        uint256 elapsed = position.rewardDebt == 0 ? 8 hours : block.timestamp - position.rewardDebt;
+        uint256 elapsedCycles = elapsed / 8 hours;
+        if (elapsedCycles == 0) {
             return position.accruedReward;
         }
 
-        uint256 dailyRelease = (totalStaked * rewardRate) / 10_000;
-        uint256 baseReward = ((position.amount * dailyRelease) / totalStaked) * elapsedDays;
+        uint256 cycleRewardRate = rewardRate / 3;
+        uint256 cycleRelease = (totalStaked * cycleRewardRate) / 10_000;
+        uint256 baseReward = ((position.amount * cycleRelease) / totalStaked) * elapsedCycles;
         uint256 reward = _applyDurationModifier(baseReward, position.lockDuration);
 
         return position.accruedReward + reward;
@@ -760,14 +761,15 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
             return position.accruedReward;
         }
 
-        uint256 elapsed = position.rewardDebt == 0 ? 1 days : block.timestamp - position.rewardDebt;
-        uint256 elapsedDays = elapsed / 1 days;
-        if (elapsedDays == 0) {
+        uint256 elapsed = position.rewardDebt == 0 ? 8 hours : block.timestamp - position.rewardDebt;
+        uint256 elapsedCycles = elapsed / 8 hours;
+        if (elapsedCycles == 0) {
             return position.accruedReward;
         }
 
-        uint256 dailyRelease = (totalStaked * rewardRate) / 10_000;
-        uint256 baseReward = ((position.amount * dailyRelease) / totalStaked) * elapsedDays;
+        uint256 cycleRewardRate = rewardRate / 3;
+        uint256 cycleRelease = (totalStaked * cycleRewardRate) / 10_000;
+        uint256 baseReward = ((position.amount * cycleRelease) / totalStaked) * elapsedCycles;
         uint256 reward = _applyDurationModifier(baseReward, position.lockDuration);
 
         return position.accruedReward + reward;

@@ -111,6 +111,7 @@ Rule: `stakeFor()` must transfer MGX from the user wallet before recording stake
 Verify: users can no longer stake unlimited times without spending MGX ✅
 
 27. claimFor()/compoundFor() used V1 legacy storage (positionsByAccount) instead of V2 (positionsByAccountV2) — staking rewards always reverted with 'No reward' ✅
+28. Reward cycle changed from 24h to 8h — 3 cycles/day, same daily APY (0.03%/day). rewardRate / 3 per cycle ✅
 
 ## Post-Deploy Fixes
 
@@ -124,6 +125,7 @@ Verify: users can no longer stake unlimited times without spending MGX ✅
 - Test 15: Bug #26 — stakeFor transfers MGX from user wallet ✅
 - Test 16: Bug #25 — double stake not possible with 0 MGX balance ✅
 - Test 17: Bug #27 — claimFor uses V2 positions ✅
+- Test 18: 8h reward cycle — elapsedCycles calculation correct ✅
 
 ## Payment Normalization (Critical)
 
@@ -156,6 +158,7 @@ This must verify at minimum:
 ## Pre-Deploy Mandatory Tests
 
 Note: `distribution-test.ts` now covers 17 checks (was 16)
+Note: `distribution-test.ts` now covers 18 checks (was 17)
 
 ## Fresh Deploy Order (Exact)
 
