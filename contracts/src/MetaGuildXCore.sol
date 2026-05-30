@@ -580,6 +580,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         activeBoxByUser[newId] = appliedBoxId;
         tokenAllocationsByUser[newId] += tokenAmount;
         totalTokenDistributed += tokenAmount;
+        _transferAllocatedMgx(wallet, tokenAmount);
 
         usersById[placementSponsorId].directReferrals += 1;
         usersById[placementSponsorId].totalTeamBusiness += packageAmount;
@@ -828,6 +829,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         activeBoxByUser[userId] = appliedBoxId;
         tokenAllocationsByUser[userId] += tokenAmount;
         totalTokenDistributed += tokenAmount;
+        _transferAllocatedMgx(profile.account, tokenAmount);
 
         uint256 sponsorId = profile.sponsorId;
         uint8 newPkg = profile.packageLevel;
@@ -923,6 +925,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         activeBoxByUser[userId] = appliedBoxId;
         tokenAllocationsByUser[userId] += tokenAmount;
         totalTokenDistributed += tokenAmount;
+        _transferAllocatedMgx(account, tokenAmount);
 
         if (sponsorId != 0) {
             usersById[sponsorId].directReferrals += 1;
@@ -1091,6 +1094,12 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
 
     function _safeTransferExact(address token, address to, uint256 amount, string memory errorMessage) internal {
         MetaGuildXPaymentLib.safeTransferExact(token, to, amount, errorMessage);
+    }
+
+    function _transferAllocatedMgx(address account, uint256 tokenAmount) internal {
+        if (tokenAmount > 0 && mgxTokenAddress != address(0)) {
+            _safeTransferExact(mgxTokenAddress, account, tokenAmount, "MGX_TRANSFER_FAILED");
+        }
     }
 
     function _verifyPlacementSignature(

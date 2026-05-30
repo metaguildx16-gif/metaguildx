@@ -197,6 +197,12 @@ async function main() {
   await (await staking.adminFundStakingPool(fundAmount)).wait();
   console.log("Staking pool funded: 10,235,000 MGX");
 
+  console.log("4c. Funding Core with MGX for allocations...");
+  const coreFundAmount = ethers.parseEther("10000000"); // 10M MGX
+  await (await token.approve(addresses.Core, coreFundAmount)).wait();
+  await (await token.transfer(addresses.Core, coreFundAmount)).wait();
+  console.log("Core funded with 10,000,000 MGX ✅");
+
   console.log("\n4b. Setting staking reward rate...");
   await (await staking.setRewardRate(DEFAULT_STAKING_REWARD_RATE)).wait();
   const rewardRate = await staking.rewardRate();
