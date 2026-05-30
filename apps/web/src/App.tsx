@@ -2600,9 +2600,9 @@ function App() {
             color:#080604;font-weight:600;border:none;font-family:"DM Sans",sans-serif;
             font-size:.875rem;cursor:pointer;transition:all .2s}
           .lp-btn-gold:hover{background:#E8C96A;transform:translateY(-1px)}
-          .lp-hero{position:relative;height:100vh;min-height:700px;
+          .lp-hero{position:relative;min-height:100vh;
             display:flex;flex-direction:column;align-items:center;justify-content:center;
-            text-align:center;overflow:hidden}
+            text-align:center;overflow:hidden;padding:5rem 1rem 3rem}
           .lp-hero-bg{position:absolute;inset:0;z-index:0;
             background:
               radial-gradient(ellipse 80% 60% at 50% 0%,rgba(30,95,191,.3) 0%,transparent 60%),
@@ -2625,7 +2625,7 @@ function App() {
           @keyframes lp-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
           .lp-logo-img{width:180px;height:180px;object-fit:contain;
             filter:drop-shadow(0 0 35px rgba(201,168,76,.55)) drop-shadow(0 0 70px rgba(46,111,216,.3))}
-          .lp-hero-content{position:relative;z-index:3}
+          .lp-hero-content{position:relative;z-index:3;width:100%;max-width:560px;padding:0 1rem}
           .lp-badge{display:inline-flex;align-items:center;gap:8px;padding:5px 16px;
             border:1px solid rgba(201,168,76,.25);border-radius:100px;
             font-size:.7rem;color:#C9A84C;letter-spacing:.12em;text-transform:uppercase;
@@ -2878,7 +2878,8 @@ function App() {
                 border:"1px solid rgba(201,168,76,.25)",
                 borderRadius:18,overflow:"hidden",
                 backdropFilter:"blur(16px)",
-                textAlign:"left"
+                textAlign:"left",
+                scrollMarginTop:"80px"
               }}>
                 {/* Header */}
                 <div style={{
@@ -3093,7 +3094,7 @@ function App() {
                 ["#C9A84C","Direct sponsor income","46%"],
                 ["#2EC48F","Level income (L1–L10)","40%"],
                 ["#5B8DEF","Cashback pool","4%"],
-                ["#3D5580","Creator wallet","10%"],
+                ["#3D5580","Royalty Pool","10%"],
               ].map(([c,n,p]) => (
                 <div key={n} className="lp-irow">
                   <div style={{display:"flex",alignItems:"center"}}>
