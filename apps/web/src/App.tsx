@@ -3859,18 +3859,18 @@ function App() {
           {dashboardView === "network" || dashboardView === "tree" ? (
             <section className="panel dashboard-view w-full max-w-full">
               <p className="section-label">Network</p>
-              <div className="summary-strip referrals-summary-strip premium-network-stats w-full max-w-full">
-                <article className="summary-chip premium-network-card">
-                  <span>Direct Referrals</span>
-                  <strong>{snapshot.directReferrals}</strong>
+              <div className="summary-strip referrals-summary-strip premium-network-stats w-full max-w-full" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+                <article className="summary-chip premium-network-card" style={{minWidth:0,overflow:"hidden"}}>
+                  <span style={{fontSize:".68rem",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:4}}>Direct Referrals</span>
+                  <strong style={{fontFamily:"Syne,sans-serif",fontSize:"1.2rem",fontWeight:700,color:"var(--text-primary)",display:"block"}}>{snapshot.directReferrals}</strong>
                 </article>
-                <article className="summary-chip premium-network-card">
-                  <span>Total Team</span>
-                  <strong>{totalTeamLabel}</strong>
+                <article className="summary-chip premium-network-card" style={{minWidth:0,overflow:"hidden"}}>
+                  <span style={{fontSize:".68rem",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:4}}>Total Team</span>
+                  <strong style={{fontFamily:"Syne,sans-serif",fontSize:"1.2rem",fontWeight:700,color:"var(--text-primary)",display:"block"}}>{totalTeamLabel}</strong>
                 </article>
-                <article className="summary-chip premium-network-card">
-                  <span>Left | Right</span>
-                  <strong>{snapshot.leftBranchNodes} | {snapshot.rightBranchNodes}</strong>
+                <article className="summary-chip premium-network-card" style={{minWidth:0,overflow:"hidden"}}>
+                  <span style={{fontSize:".68rem",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:4}}>Left | Right</span>
+                  <strong style={{fontFamily:"Syne,sans-serif",fontSize:"1.1rem",fontWeight:700,color:"var(--text-primary)",display:"block"}}>{snapshot.leftBranchNodes} | {snapshot.rightBranchNodes}</strong>
                 </article>
                 <article className="summary-chip premium-network-card team-business">
                   <span>📊 Team Business</span>
@@ -4923,6 +4923,38 @@ function App() {
 
                   <StakingSummary />
 
+                  <div className="wallet-staking-cards" style={{marginBottom:"1rem"}}>
+                    <article className="dashboard-card action-card wallet-staking-card wallet-staking-premium-card">
+                      <div className="section-header">
+                        <span className="section-badge purple">STAKING POSITION</span>
+                        <button type="button" className="btn-refresh-reward" onClick={handleRefreshRewards} disabled={isLoading || !snapshot.walletAddress}>
+                          Refresh
+                        </button>
+                      </div>
+                      {displayedStakePositions.length > 0 ? (
+                        <div className="stake-position-list compact wallet-staking-position-list">
+                          {displayedStakePositions.map((position) => (
+                            <article key={`rewards-position-${position.index}`} className="stake-position-item compact wallet-staking-position-card">
+                              <div className="stake-position-item-header">
+                                <strong>{`Position ${position.index + 1}`}</strong>
+                                <span>{position.lockDurationLabel}</span>
+                              </div>
+                              <div className="stake-position-inline">
+                                <span className="stake-position-inline-chip">{`Staked: ${position.amount} MGX`}</span>
+                                <span className="stake-position-inline-chip reward">{`Pending: ${position.pendingReward} MGX`}</span>
+                                <span className="stake-position-inline-chip">{`Started: ${position.startDateLabel}`}</span>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="no-stake-state wallet-staking-empty">
+                          <span>No staking positions yet</span>
+                        </div>
+                      )}
+                    </article>
+                  </div>
+
                   <div className="wallet-screen-button-stack">
                     <button
                       type="button"
@@ -4975,32 +5007,7 @@ function App() {
                     <article className="dashboard-card action-card wallet-staking-card wallet-staking-premium-card">
                       <div className="section-header">
                         <span className="section-badge purple">STAKING POSITION</span>
-                        <button type="button" className="btn-refresh-reward" onClick={handleRefreshRewards} disabled={isLoading || !snapshot.walletAddress}>
-                          Refresh
-                        </button>
                       </div>
-                      <StakingSummary />
-                      {displayedStakePositions.length > 0 ? (
-                        <div className="stake-position-list compact wallet-staking-position-list">
-                          {displayedStakePositions.map((position) => (
-                            <article key={`stake-view-position-${position.index}`} className="stake-position-item compact wallet-staking-position-card">
-                              <div className="stake-position-item-header">
-                                <strong>{`Position ${position.index + 1}`}</strong>
-                                <span>{position.lockDurationLabel}</span>
-                              </div>
-                              <div className="stake-position-inline">
-                                <span className="stake-position-inline-chip">{`Staked: ${position.amount} MGX`}</span>
-                                <span className="stake-position-inline-chip reward">{`Pending: ${position.pendingReward} MGX`}</span>
-                                <span className="stake-position-inline-chip">{`Started: ${position.startDateLabel}`}</span>
-                              </div>
-                            </article>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="no-stake-state wallet-staking-empty">
-                          <span>No staking positions yet</span>
-                        </div>
-                      )}
                       <div className="wallet-staking-action-grid">
                         <button
                           type="button"
@@ -5383,7 +5390,7 @@ function App() {
                     <span className="balance-label">Total Balance</span>
                     <span className={`balance-amount ${parseFloat(connectedWalletTotalDisplay) > 0 ? "is-positive" : ""}`}>${connectedWalletTotalDisplay}</span>
                   </div>
-                  <div className="wallet-action-buttons premium-action-grid">
+                  <div className="wallet-action-buttons premium-action-grid" style={{gridTemplateColumns:"repeat(2,1fr)",maxWidth:500,margin:"0 auto",gap:12}}>
                     <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("mgxboxes"); }}>
                       <span className="premium-action-icon">💎</span>
                       <span className="premium-action-title">Inner Wallet</span>
@@ -5501,13 +5508,11 @@ function App() {
                 </div>
 
                 <div className="wallet-section balance-section">
-                  <div className="section-header">
+                  <div className="section-header" style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1rem"}}>
                     <span className="section-badge blue">Recent Wallet Activity</span>
-                    {snapshot.connectedWalletHistoryCursor ? (
-                      <button type="button" className="btn-load-more" onClick={handleLoadMoreHistory} disabled={isConnectedWalletHistoryLoading}>
-                        {isConnectedWalletHistoryLoading ? "Loading..." : "Load More"}
-                      </button>
-                    ) : null}
+                    <button type="button" className="btn-refresh-reward" onClick={() => void handleLoadMoreHistory()} disabled={isConnectedWalletHistoryLoading}>
+                      {isConnectedWalletHistoryLoading ? "Loading..." : "↻ Refresh"}
+                    </button>
                   </div>
                   <div className="space-y-3">
                     {connectedWalletHistoryRows.length > 0 ? (
