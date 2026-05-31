@@ -1758,7 +1758,9 @@ function App() {
   const outerUsdtBalanceDisplay = parseDisplayNumber(usdtWalletRow?.amount ?? "0").toFixed(2);
   const outerUsdtBalanceValue = parseDisplayNumber(usdtWalletRow?.amount ?? "0");
   const opBnbGasDisplay = parseDisplayNumber(nativeWalletRow?.amount ?? snapshot.externalWalletBalance).toFixed(4);
-  const mgxAvailableDisplay = parseDisplayNumber(snapshot.mgxAllocated ?? "0").toFixed(2);
+  const mgxAvailableDisplay = isStakePending.current
+    ? "0.00"
+    : parseDisplayNumber(snapshot.mgxAllocated ?? "0").toFixed(2);
   const totalMgxAllocatedDisplay = parseDisplayNumber(displayedMgxAllocated).toFixed(2);
   const connectedWalletTotalDisplay = outerUsdtBalanceValue.toFixed(2);
   const frozenEscrowDisplay = parseDisplayNumber(escrowBalance).toFixed(2);
@@ -4071,7 +4073,7 @@ function App() {
               <div className="stats-grid premium-earnings-strip">
                 <article className="stat-card premium-earnings-stat"><p className="stat-card-label">Direct Income</p><p className="stat-card-value">${directIncomeDisplay}</p></article>
                 <article className="stat-card premium-earnings-stat"><p className="stat-card-label">Level Income</p><p className="stat-card-value">${levelIncomeDisplay}</p></article>
-                <article className="stat-card premium-earnings-stat" title="Display only � Network activity"><p className="stat-card-label">Crossline Income</p><p className="stat-card-value">${networkBonusDisplay}</p></article>
+                <article className="stat-card premium-earnings-stat" title="Display only — Network activity"><p className="stat-card-label">Crossline Income</p><p className="stat-card-value">${networkBonusDisplay}</p></article>
                 <article className="stat-card premium-earnings-total"><p className="stat-card-label">Total Earned</p><p className="stat-card-value">${totalReceivedDisplay}</p></article>
               </div>
 
@@ -4228,7 +4230,7 @@ function App() {
                         <ul className="metric-list compact progress-list">
                           {recentActivityRows.length > 0 ? recentActivityRows.slice(0, 5).map((item, index) => (
                             <li key={`recent-income-${item.blockNumber ?? "na"}-${item.primary}-${item.secondary}-${index}`}>
-                              <strong>{item.primary}</strong> � {item.timestampLabel ?? "Live"}<br />
+                              <strong>{item.primary}</strong> · {item.timestampLabel ?? "Live"}<br />
                               <span className="text-secondary">{item.secondary}</span>
                             </li>
                           )) : <li>No activity yet.</li>}
@@ -5005,9 +5007,6 @@ function App() {
 
                   <div className="wallet-staking-cards">
                     <article className="dashboard-card action-card wallet-staking-card wallet-staking-premium-card">
-                      <div className="section-header">
-                        <span className="section-badge purple">STAKING POSITION</span>
-                      </div>
                       <div className="wallet-staking-action-grid">
                         <button
                           type="button"
@@ -5144,10 +5143,22 @@ function App() {
                                 title: "? Stake confirmed",
                                 detail: "Position updated"
                               })
-                            ).finally(() => {
-                              isStakePending.current = false;
-                              setStakeForm((current) => ({ ...current }));
-                            });
+                            )
+                              .then(async () => {
+                                const walletAddress = snapshot.walletAddress;
+                                if (walletAddress) {
+                                  try {
+                                    const nextLiveState = await metaguildx.loadLiveWalletStakeState(walletAddress);
+                                    setLiveWalletStakeState(nextLiveState);
+                                  } catch {
+                                    // Keep the existing stake feedback; polling/manual refresh can retry live staking state.
+                                  }
+                                }
+                              })
+                              .finally(() => {
+                                isStakePending.current = false;
+                                setStakeForm((current) => ({ ...current }));
+                              });
                           }}
                         >
                           Stake Now
@@ -5658,7 +5669,7 @@ function App() {
                           </>
                         ) : null}
 
-                        {isActive && isMaxMilestone ? <div className="upgrade-max-state">You're at Maximum Package ???</div> : null}
+                        {isActive && isMaxMilestone ? <div className="upgrade-max-state">🏆 You're at Maximum Package Level!</div> : null}
                       </article>
                     );
                   })}
