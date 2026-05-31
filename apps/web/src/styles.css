@@ -148,11 +148,6 @@ textarea {
   position: relative;
 }
 
-.dashboard-page {
-  max-width: 480px;
-  margin: 0 auto;
-}
-
 .dashboard-topbar {
   display: flex;
   align-items: center;
@@ -181,10 +176,11 @@ textarea {
 .brand-mark,
 .mobile-logo-image,
 .topbar-logo {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(201,168,76,.3));
 }
 
 .logo-text,
@@ -980,9 +976,9 @@ textarea {
 .referral-user-pill {
   min-width: 44px;
   padding: 6px 12px;
-  background: #00d4ff;
-  border: 1px solid rgba(0, 212, 255, 0.24);
-  color: #ffffff;
+  background: rgba(46,111,216,.2);
+  border: 1px solid rgba(46,111,216,.35);
+  color: #EEF4FF;
   white-space: nowrap;
   overflow: visible;
 }
@@ -2555,6 +2551,8 @@ button:disabled {
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 0.25rem;
+  display: block;
+  white-space: nowrap;
 }
 
 .premium-action-subtitle {
@@ -4016,15 +4014,17 @@ button:disabled {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  color: #fff;
+  background: linear-gradient(135deg, #C9A84C, #E8C96A);
+  color: #080604;
+  font-weight: 600;
   border: 1px solid transparent;
   min-width: 112px;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 10px 24px rgba(201,168,76,.25);
 }
 
 .referral-copy-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: linear-gradient(135deg, #E8C96A, #C9A84C);
+  box-shadow: 0 12px 32px rgba(201,168,76,.35);
 }
 
 .referrals-table {
@@ -4093,7 +4093,7 @@ button:disabled {
 }
 
 .referral-income-positive {
-  color: #00ff88 !important;
+  color: #2EC48F !important;
 }
 
 .referral-income-zero {
@@ -4822,6 +4822,17 @@ button:disabled {
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-top: 1.25rem;
+}
+.overview-stat-grid > * {
+  background: rgba(12,22,48,.7);
+  border: 1px solid rgba(46,111,216,.15);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  backdrop-filter: blur(10px);
+  transition: border-color 0.3s;
+}
+.overview-stat-grid > *:hover {
+  border-color: rgba(201,168,76,.3);
 }
 @media (max-width: 768px) {
   .overview-stat-grid { grid-template-columns: repeat(2, 1fr); }
