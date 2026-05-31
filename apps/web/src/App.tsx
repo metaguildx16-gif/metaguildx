@@ -1133,7 +1133,7 @@ function App() {
       );
       if (referralSponsorId && !nextSnapshot.isRegistered) {
         setActionFeedback({
-          title: `Sponsor detected: ID ${referralSponsorId}`,
+          title: `👤 Sponsor detected: #${referralSponsorId}`,
           detail: "Wallet connected only. No USDT approval has happened yet. Review the dashboard, then tap Activate Now for Package 1."
         });
       }
@@ -5162,7 +5162,7 @@ function App() {
                               "Submitting stake...",
                               "Stake updated",
                               () => ({
-                                title: "? Stake confirmed",
+                                title: "✅ Stake confirmed",
                                 detail: "Position updated"
                               })
                             )
