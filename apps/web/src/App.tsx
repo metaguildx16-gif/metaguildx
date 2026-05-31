@@ -130,18 +130,6 @@ function hasValidWalletSession() {
   };
 }
 
-function toAlphaId(num: number): string {
-  if (!num || num <= 0) return "MGX-?";
-  let result = "";
-  let n = num;
-  while (n > 0) {
-    n--;
-    result = String.fromCharCode(65 + (n % 26)) + result;
-    n = Math.floor(n / 26);
-  }
-  return "MGX-" + result;
-}
-
 function App() {
   const loadingShellStyle = { background: "#0a0a1a", borderRadius: 16, width: "100%" };
   const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
@@ -2812,8 +2800,9 @@ function App() {
             margin-bottom:1.5rem;background:rgba(201,168,76,.06);backdrop-filter:blur(10px)}
           .lp-bdot{width:6px;height:6px;background:#2EC48F;border-radius:50%;animation:lp-pulse 2s infinite}
           @keyframes lp-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
-          .lp-h1{font-family:Syne,sans-serif;font-size:clamp(2.8rem,6.5vw,5rem);font-weight:800;
-            line-height:1.05;letter-spacing:-.04em;max-width:860px;margin:0 auto}
+          .lp-h1{font-family:Syne,sans-serif;font-size:clamp(2rem,8vw,5rem);font-weight:800;
+            line-height:1.08;letter-spacing:-.03em;max-width:860px;margin:0 auto;
+            word-break:break-word;overflow-wrap:break-word}
           .lp-h1-gold{background:linear-gradient(135deg,#C9A84C 0%,#E8C96A 100%);
             -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
           .lp-h1-cyan{background:linear-gradient(135deg,#00D4FF 0%,#2E6FD8 100%);
@@ -2991,13 +2980,14 @@ function App() {
           .lp-soc:hover{border-color:rgba(201,168,76,.35);color:#C9A84C}
           .lp-scroll-hint{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);
             z-index:3;display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.45}
+          @media(max-width:768px){.lp-scroll-hint{display:none}}
           .lp-scroll-hint span{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#7A93C0}
           .lp-scroll-line{width:1px;height:36px;
             background:linear-gradient(180deg,#7A93C0 0%,transparent 100%)}
           @media(max-width:768px){
-            .lp-nav{padding:.75rem 1rem}
+            .lp-nav{padding:.5rem .875rem}
             .lp-navlinks{display:none}
-            .lp-logo{font-size:.95rem;gap:6px;white-space:nowrap}
+            .lp-logo{font-size:.9rem;gap:6px;white-space:nowrap}
             .lp-logo img{width:28px;height:28px}
             .lp-nav .lp-btn-out{display:none}
             .lp-nav .lp-btn-gold{padding:7px 14px;font-size:.8rem;white-space:nowrap}
@@ -3009,7 +2999,7 @@ function App() {
             .lp-ft-top{flex-direction:column;gap:2rem}
             .lp-ft-links{grid-template-columns:1fr 1fr;gap:2rem}
             .lp-cta-box{padding:3rem 1.25rem}.lp-cta-outer{padding:0 1.25rem 4rem}
-            .lp-hero-logo-img{width:130px !important;height:130px !important}
+            .lp-hero-logo-img{width:120px !important;height:120px !important}
             .lp-h1{font-size:2.4rem !important}
             .lp-hero-content{padding:0 1rem}
             .lp-acts{flex-direction:column;align-items:center;gap:10px}
@@ -3048,7 +3038,7 @@ function App() {
             <div className="lp-ring lp-r3"></div>
           </div>
           <div className="lp-logo-wrap">
-            <img src={logoMark} alt="MetaGuildX" className="lp-logo-img" style={{width:180,height:180,objectFit:"contain",filter:"drop-shadow(0 0 35px rgba(201,168,76,.55)) drop-shadow(0 0 70px rgba(46,111,216,.3))"}} />
+            <img src={logoMark} alt="MetaGuildX" className="lp-logo-img" style={{width:180,height:180,objectFit:"contain",maxWidth:"min(180px,45vw)",filter:"drop-shadow(0 0 35px rgba(201,168,76,.55)) drop-shadow(0 0 70px rgba(46,111,216,.3))"}} />
           </div>
           <div className="lp-hero-content">
             {referralSponsorId ? (
@@ -3077,39 +3067,41 @@ function App() {
                     You were invited to join MetaGuildX. Register to become part of your sponsor's network.
                   </p>
                   <div style={{
+                    display:"flex",alignItems:"flex-start",gap:14,
                     background:"rgba(201,168,76,.06)",
                     border:"1px solid rgba(201,168,76,.2)",
-                    borderRadius:12,
-                    padding:"1rem 1.25rem",
-                    display:"flex",alignItems:"center",gap:14
+                    borderRadius:12,padding:"1rem 1.25rem",
+                    position:"relative"
                   }}>
                     <div style={{
-                      width:56,height:56,borderRadius:"50%",flexShrink:0,
+                      width:48,height:48,borderRadius:"50%",flexShrink:0,
                       background:"linear-gradient(135deg,rgba(201,168,76,.3),rgba(46,111,216,.15))",
                       border:"2px solid rgba(201,168,76,.4)",
                       display:"flex",alignItems:"center",justifyContent:"center",
-                      fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"1.2rem",color:"#C9A84C",
-                      boxShadow:"0 0 16px rgba(201,168,76,.2)"
-                    }}>{toAlphaId(referralSponsorId ?? 0)}</div>
+                      fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"1rem",color:"#C9A84C",
+                      overflow:"hidden",boxShadow:"0 0 16px rgba(201,168,76,.2)",
+                      minWidth:48
+                    }}>#{referralSponsorId}</div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:".65rem",color:"#3D5580",textTransform:"uppercase",
-                        letterSpacing:".1em",marginBottom:4}}>Your Upline / Sponsor</div>
-                      <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1.05rem",
+                        letterSpacing:".1em",marginBottom:3}}>Your Upline / Sponsor</div>
+                      <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1rem",
                         marginBottom:3,color:"#EEF4FF"}}>
-                        {toAlphaId(referralSponsorId ?? 0)}
+                        User #{referralSponsorId}
                       </div>
-                      <div style={{fontSize:".78rem",color:"#7A93C0",
-                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      <div style={{fontSize:".75rem",color:"#7A93C0",
+                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                        maxWidth:"180px"}}>
                         {referralSponsorProfile
                           ? `${referralSponsorProfile.account.slice(0,6)}...${referralSponsorProfile.account.slice(-4)}`
                           : "MetaGuildX Member"}
                       </div>
-                    </div>
-                    <div style={{flexShrink:0,textAlign:"center"}}>
-                      <div style={{fontSize:".6rem",color:"#3D5580",marginBottom:4}}>Partner</div>
-                      <div style={{fontSize:".7rem",padding:"4px 10px",
-                        background:"rgba(46,158,117,.1)",border:"1px solid rgba(46,158,117,.25)",
-                        borderRadius:5,color:"#2EC48F",fontWeight:600}}>✓ Verified</div>
+                      <div style={{
+                        marginTop:6,display:"inline-flex",alignItems:"center",gap:5,
+                        padding:"4px 10px",
+                        background:"rgba(46,196,143,.12)",border:"1px solid rgba(46,196,143,.25)",
+                        borderRadius:5,fontSize:".68rem",color:"#2EC48F",fontWeight:600
+                      }}>✓ Verified</div>
                     </div>
                   </div>
                 </div>
@@ -3591,7 +3583,7 @@ function App() {
             <div style={{display:"flex",flexDirection:"column",gap:2}}>
               <span style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:".9rem"}}>MetaGuildX</span>
               {snapshot.userId ? (
-                <span style={{fontSize:".7rem",color:"#C9A84C",fontWeight:600}}>{toAlphaId(snapshot.userId)}</span>
+                <span style={{fontSize:".7rem",color:"#C9A84C",fontWeight:600}}>{`User #${snapshot.userId}`}</span>
               ) : null}
             </div>
           </div>
@@ -3762,7 +3754,7 @@ function App() {
             <p className="section-label">Home</p>
             <div className="dashboard-hero-row">
               <div>
-                <h2>{snapshot.userId ? `Welcome back, ${toAlphaId(snapshot.userId)}` : "Welcome back"}</h2>
+                <h2>{snapshot.userId ? `Welcome back, User #${snapshot.userId}` : "Welcome back"}</h2>
                 <p>
                   {snapshot.packageLevel ? `Package ${snapshot.packageLevel}` : "Package pending"}{" · "}
                   {snapshot.isRegistered ? "Active member" : "Activation pending"}{" · Since "}{memberSinceLabel}
@@ -3861,8 +3853,8 @@ function App() {
                         </>
                       ) : (
                         <>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Left</span><span className={`income-amount ${directLeftNode ? "" : "text-amber"}`}>{directLeftNode ? toAlphaId(directLeftNode.userId) : "Empty slot"}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Right</span><span className={`income-amount ${directRightNode ? "" : "text-amber"}`}>{directRightNode ? toAlphaId(directRightNode.userId) : "Empty slot"}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Left</span><span className={`income-amount ${directLeftNode ? "" : "text-amber"}`}>{directLeftNode ? `User #${directLeftNode.userId}` : "Empty slot"}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Right</span><span className={`income-amount ${directRightNode ? "" : "text-amber"}`}>{directRightNode ? `User #${directRightNode.userId}` : "Empty slot"}</span></div>
                           <div className="income-row dashboard-tree-row"><span className="income-label">Level Left</span><span className="income-amount">{snapshot.levelTreeLeft ?? 0}</span></div>
                           <div className="income-row dashboard-tree-row"><span className="income-label">Level Right</span><span className="income-amount">{snapshot.levelTreeRight ?? 0}</span></div>
                           <div className="income-row dashboard-tree-row"><span className="income-label">Total Team</span><span className="income-amount">{totalTeamLabel}</span></div>
@@ -3999,7 +3991,7 @@ function App() {
                               {userReferralRows.length > 0 ? userReferralRows.map((node, index) => (
                                 <tr key={`network-referral-${node.userId}`} className="referrals-data-row">
                                   <td className="referrals-col-user">{index + 1}</td>
-                                  <td className="referrals-col-user referral-cell-strong"><span className="referral-user-pill">{toAlphaId(node.userId)}</span></td>
+                                  <td className="referrals-col-user referral-cell-strong"><span className="referral-user-pill">{`#${node.userId}`}</span></td>
                                   <td className="referrals-col-package"><span className="referral-pkg-pill">{`Pkg ${node.packageLevel}`}</span></td>
                                   <td className="referrals-col-joined"><span className="referral-joined-muted">{node.joinedLabel}</span></td>
                                   <td className={`referrals-col-income ${parseDisplayNumber(node.income) > 0 ? "referral-income-positive" : "referral-income-zero"}`}>${parseDisplayNumber(node.income).toFixed(2)}</td>
@@ -4327,7 +4319,7 @@ function App() {
                       <tbody className="divide-y divide-gray-800/70">
                         {userReferralRows.length > 0 ? userReferralRows.map((node) => (
                           <tr key={`referral-${node.userId}`} className="referrals-data-row">
-                            <td className="referrals-col-user referral-cell-strong">{toAlphaId(node.userId)}</td>
+                            <td className="referrals-col-user referral-cell-strong">{`#${node.userId}`}</td>
                             <td className="referrals-col-wallet referrals-wallet-col referral-cell-wallet">{node.wallet}</td>
                             <td className="referrals-col-package">Pkg {node.packageLevel}</td>
                             <td className="referrals-col-joined">{node.joinedLabel}</td>
