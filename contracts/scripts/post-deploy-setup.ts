@@ -126,6 +126,11 @@ async function main() {
   }
   console.log("Payment asset and wiring verified");
 
+  console.log("1b. Funding Core with MGX for allocations...");
+  const coreFundAmount = ethers.parseEther("10000000");
+  await (await token.transfer(addresses.Core, coreFundAmount)).wait();
+  console.log("Core funded: 10,000,000 MGX ✅");
+
   console.log("\n2. Preparing paid root registration...");
   const placementSignerKey = process.env.PLACEMENT_SIGNER_PRIVATE_KEY;
   if (!placementSignerKey) {
@@ -196,12 +201,6 @@ async function main() {
   await (await token.approve(addresses.MGXStaking, fundAmount)).wait();
   await (await staking.adminFundStakingPool(fundAmount)).wait();
   console.log("Staking pool funded: 10,235,000 MGX");
-
-  console.log("4c. Funding Core with MGX for allocations...");
-  const coreFundAmount = ethers.parseEther("10000000"); // 10M MGX
-  await (await token.approve(addresses.Core, coreFundAmount)).wait();
-  await (await token.transfer(addresses.Core, coreFundAmount)).wait();
-  console.log("Core funded with 10,000,000 MGX ✅");
 
   console.log("\n4b. Setting staking reward rate...");
   await (await staking.setRewardRate(DEFAULT_STAKING_REWARD_RATE)).wait();
