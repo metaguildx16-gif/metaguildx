@@ -179,7 +179,12 @@ function App() {
   const [rebirthTreePreview, setRebirthTreePreview] = useState<TreePreviewNode[]>([]);
   const [referralCopyStatus, setReferralCopyStatus] = useState("");
   const [disclaimerAccepted, setDisclaimerAccepted] = useState<boolean>(() => {
-    try { return localStorage.getItem("mgx_disclaimer_v1") === "true"; } catch { return false; }
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const hasRef = params.has("ref");
+      if (hasRef) return false;
+      return localStorage.getItem("mgx_disclaimer_v1") === "true";
+    } catch { return false; }
   });
   const [referralSponsorId, setReferralSponsorId] = useState<number | null>(null);
   const [referralSponsorProfile, setReferralSponsorProfile] = useState<{
@@ -2572,7 +2577,7 @@ function App() {
   function renderLanding() {
     return (
       <>
-      {!disclaimerAccepted && (
+      {(!disclaimerAccepted || (referralSponsorId !== null && !disclaimerAccepted)) && (
         <div style={{
           position:"fixed",inset:0,zIndex:9999,
           background:"rgba(3,6,16,.97)",backdropFilter:"blur(20px)",
