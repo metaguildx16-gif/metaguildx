@@ -130,6 +130,18 @@ function hasValidWalletSession() {
   };
 }
 
+function toAlphaId(num: number): string {
+  if (!num || num <= 0) return "MGX-?";
+  let result = "";
+  let n = num;
+  while (n > 0) {
+    n--;
+    result = String.fromCharCode(65 + (n % 26)) + result;
+    n = Math.floor(n / 26);
+  }
+  return "MGX-" + result;
+}
+
 function App() {
   const loadingShellStyle = { background: "#0a0a1a", borderRadius: 16, width: "100%" };
   const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
@@ -3078,13 +3090,13 @@ function App() {
                       display:"flex",alignItems:"center",justifyContent:"center",
                       fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:"1.2rem",color:"#C9A84C",
                       boxShadow:"0 0 16px rgba(201,168,76,.2)"
-                    }}>#{referralSponsorId}</div>
+                    }}>{toAlphaId(referralSponsorId ?? 0)}</div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:".65rem",color:"#3D5580",textTransform:"uppercase",
                         letterSpacing:".1em",marginBottom:4}}>Your Upline / Sponsor</div>
                       <div style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1.05rem",
                         marginBottom:3,color:"#EEF4FF"}}>
-                        User #{referralSponsorId}
+                        {toAlphaId(referralSponsorId ?? 0)}
                       </div>
                       <div style={{fontSize:".78rem",color:"#7A93C0",
                         overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
@@ -3576,16 +3588,29 @@ function App() {
         <div className="dashboard-topbar mobile-topbar">
           <div className="mobile-logo">
             <img src={logoMark} alt="MGX" className="mobile-logo-image" />
-            <span>MetaGuildX</span>
+            <div style={{display:"flex",flexDirection:"column",gap:2}}>
+              <span style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:".9rem"}}>MetaGuildX</span>
+              {snapshot.userId ? (
+                <span style={{fontSize:".7rem",color:"#C9A84C",fontWeight:600}}>{toAlphaId(snapshot.userId)}</span>
+              ) : null}
+            </div>
           </div>
-          <button
-            type="button"
-            className="hamburger-btn"
-            onClick={() => setMobileNavOpen((current) => !current)}
-            aria-label="Toggle menu"
-          >
-            {mobileNavOpen ? "X" : "Menu"}
-          </button>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {snapshot.walletAddress ? (
+              <span style={{fontSize:".7rem",color:"var(--text-muted)",fontFamily:"monospace"}}>
+                {`${snapshot.walletAddress.slice(0,6)}...${snapshot.walletAddress.slice(-4)}`}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="hamburger-btn"
+              onClick={() => setMobileNavOpen((current) => !current)}
+              aria-label="Toggle menu"
+              style={{padding:"6px 12px",borderRadius:8,background:"rgba(46,111,216,.15)",border:"1px solid rgba(46,111,216,.25)",color:"var(--text-primary)",fontSize:".8rem",cursor:"pointer"}}
+            >
+              {mobileNavOpen ? "✕" : "☰"}
+            </button>
+          </div>
         </div>
 
         <div
@@ -3737,7 +3762,7 @@ function App() {
             <p className="section-label">Home</p>
             <div className="dashboard-hero-row">
               <div>
-                <h2>{snapshot.userId ? `Welcome back, User #${snapshot.userId}` : "Welcome back"}</h2>
+                <h2>{snapshot.userId ? `Welcome back, ${toAlphaId(snapshot.userId)}` : "Welcome back"}</h2>
                 <p>
                   {snapshot.packageLevel ? `Package ${snapshot.packageLevel}` : "Package pending"}{" · "}
                   {snapshot.isRegistered ? "Active member" : "Activation pending"}{" · Since "}{memberSinceLabel}
@@ -3836,8 +3861,8 @@ function App() {
                         </>
                       ) : (
                         <>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Left</span><span className={`income-amount ${directLeftNode ? "" : "text-amber"}`}>{directLeftNode ? `User #${directLeftNode.userId}` : "Empty slot"}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Right</span><span className={`income-amount ${directRightNode ? "" : "text-amber"}`}>{directRightNode ? `User #${directRightNode.userId}` : "Empty slot"}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Left</span><span className={`income-amount ${directLeftNode ? "" : "text-amber"}`}>{directLeftNode ? toAlphaId(directLeftNode.userId) : "Empty slot"}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Right</span><span className={`income-amount ${directRightNode ? "" : "text-amber"}`}>{directRightNode ? toAlphaId(directRightNode.userId) : "Empty slot"}</span></div>
                           <div className="income-row dashboard-tree-row"><span className="income-label">Level Left</span><span className="income-amount">{snapshot.levelTreeLeft ?? 0}</span></div>
                           <div className="income-row dashboard-tree-row"><span className="income-label">Level Right</span><span className="income-amount">{snapshot.levelTreeRight ?? 0}</span></div>
                           <div className="income-row dashboard-tree-row"><span className="income-label">Total Team</span><span className="income-amount">{totalTeamLabel}</span></div>
@@ -3974,7 +3999,7 @@ function App() {
                               {userReferralRows.length > 0 ? userReferralRows.map((node, index) => (
                                 <tr key={`network-referral-${node.userId}`} className="referrals-data-row">
                                   <td className="referrals-col-user">{index + 1}</td>
-                                  <td className="referrals-col-user referral-cell-strong"><span className="referral-user-pill">#{node.userId}</span></td>
+                                  <td className="referrals-col-user referral-cell-strong"><span className="referral-user-pill">{toAlphaId(node.userId)}</span></td>
                                   <td className="referrals-col-package"><span className="referral-pkg-pill">{`Pkg ${node.packageLevel}`}</span></td>
                                   <td className="referrals-col-joined"><span className="referral-joined-muted">{node.joinedLabel}</span></td>
                                   <td className={`referrals-col-income ${parseDisplayNumber(node.income) > 0 ? "referral-income-positive" : "referral-income-zero"}`}>${parseDisplayNumber(node.income).toFixed(2)}</td>
@@ -4302,7 +4327,7 @@ function App() {
                       <tbody className="divide-y divide-gray-800/70">
                         {userReferralRows.length > 0 ? userReferralRows.map((node) => (
                           <tr key={`referral-${node.userId}`} className="referrals-data-row">
-                            <td className="referrals-col-user referral-cell-strong">#{node.userId}</td>
+                            <td className="referrals-col-user referral-cell-strong">{toAlphaId(node.userId)}</td>
                             <td className="referrals-col-wallet referrals-wallet-col referral-cell-wallet">{node.wallet}</td>
                             <td className="referrals-col-package">Pkg {node.packageLevel}</td>
                             <td className="referrals-col-joined">{node.joinedLabel}</td>
