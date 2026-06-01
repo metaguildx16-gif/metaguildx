@@ -3792,7 +3792,7 @@ function App() {
                   <span>{actionFeedback.detail}</span>
                 </div>
                 <button type="button" className="toast-dismiss" onClick={() => setActionFeedback(null)} aria-label="Dismiss notification">
-                  ?
+                  ✕
                 </button>
               </div>
             ) : null}

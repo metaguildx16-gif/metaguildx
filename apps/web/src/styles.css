@@ -1737,12 +1737,21 @@ button:disabled {
 }
 
 .toast-dismiss {
-  min-height: 44px;
-  min-width: 44px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
   background: transparent;
-  color: inherit;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.toast-dismiss:hover {
+  color: var(--text-primary);
+  background: rgba(255,255,255,.08);
 }
 
 .sidebar-overlay,
