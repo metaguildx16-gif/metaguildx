@@ -88,6 +88,7 @@ const coreAbi = [
   "function getPackagePrices() view returns (uint256[])",
   "function creatorFeeWallet() view returns (address)",
   "function placementSigner() view returns (address)",
+  "function getUserSponsorId(uint256 userId) view returns (uint256)",
   "event UserRegistered(uint256 indexed userId, uint256 indexed sponsorId, address indexed account, uint8 packageLevel, uint256 amount, uint256 placedUnderId, bool placedLeft)"
 ] as const;
 
@@ -471,10 +472,12 @@ async function main() {
   const startingNextUserId = await core.nextUserId();
   const testUserAId = startingNextUserId;
   const testUserBId = startingNextUserId + 1n;
+  const testUserCId = startingNextUserId + 2n;
 
   console.log("Starting nextUserId:", startingNextUserId.toString());
   console.log("Test User A ID:", testUserAId.toString());
   console.log("Test User B ID:", testUserBId.toString());
+  console.log("Test User C ID:", testUserCId.toString());
 
   const test1 = await registerTestUser(
     testUserAId,
@@ -591,6 +594,30 @@ async function main() {
       "Cashback + creator + other wallet transfers match Core outflow",
       test2.creatorTransferredSettlement + test2.cashbackTransferredSettlement <= test2.totalTransferredOutOfCore,
       `creator=${formatSettlement(test2.creatorTransferredSettlement, usdtDecimals)} cashback=${formatSettlement(test2.cashbackTransferredSettlement, usdtDecimals)} outflow=${formatSettlement(test2.totalTransferredOutOfCore, usdtDecimals)}`
+    );
+  }
+
+  const test3 = await registerTestUser(
+    testUserCId,
+    testUserAId,
+    "TEST 3 — Test User C Registration under Test User A",
+    addresses,
+    deployer,
+    core,
+    binaryTree,
+    usdt,
+    signerWallet,
+    settlementAmount
+  );
+
+  if (test3) {
+    const testUserASponsorId = BigInt(await core.getUserSponsorId(testUserAId));
+    const level2Event = test3.levelEvents.find((event) => event.level === 2n);
+
+    assertResult(
+      "Genealogy Tree — level income follows sponsor chain",
+      level2Event?.toUserId === testUserASponsorId,
+      `L2 recipient=${level2Event?.toUserId?.toString() ?? "none"} expected sponsor=${testUserASponsorId.toString()}`
     );
   }
 

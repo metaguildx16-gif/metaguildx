@@ -302,6 +302,24 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
             if (level == 1) {
                 candidateId = sponsorId;
             } else {
+                uint256 genealogyCandidate =
+                    _findEligibleGenealogyUpline(core, sponsorId, juniorPkgLevel, level, paidIds, paidCount);
+                if (genealogyCandidate != 0) {
+                    uint256 genealogyPayout = baseLevelAmount;
+                    _payoutUserIncome(
+                        core, fromUserId, genealogyCandidate, genealogyPayout, "level", paymentAsset, juniorPkgLevel
+                    );
+                    distributed += genealogyPayout;
+                    emit LevelIncomeRecorded(fromUserId, genealogyCandidate, level, genealogyPayout, juniorPkgLevel);
+
+                    if (paidCount < 10) {
+                        paidIds[paidCount++] = genealogyCandidate;
+                    }
+
+                    level++;
+                    continue;
+                }
+
                 uint8 safety = 20;
                 while (placementCursor != 0 && safety > 0) {
                     bool alreadyPaid = false;
@@ -499,6 +517,47 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
 
     function _countJuniorsWithPackage(IIncomeSystemCore core, uint256 userId, uint8 packageLevel) internal view returns (uint256) {
         return core.referralCountByPkg(userId, packageLevel);
+    }
+
+    function _findEligibleGenealogyUpline(
+        IIncomeSystemCore core,
+        uint256 start,
+        uint8 juniorPkgLevel,
+        uint8 level,
+        uint256[10] memory paidIds,
+        uint8 paidCount
+    ) internal view returns (uint256) {
+        uint256 current = start;
+
+        for (uint8 i = 0; i < MAX_LEVELS; i++) {
+            if (current == 0) {
+                break;
+            }
+
+            if (core.isLevelEligibleUser(current)) {
+                bool alreadyPaid = false;
+                for (uint8 p = 0; p < paidCount; p++) {
+                    if (paidIds[p] == current) {
+                        alreadyPaid = true;
+                        break;
+                    }
+                }
+
+                if (!alreadyPaid) {
+                    uint8 uplinePkgLevel = _getUserPackageLevel(core, current);
+                    if (uplinePkgLevel >= juniorPkgLevel) {
+                        uint8 unlockedLevels = _getUnlockedLevels(core, current, juniorPkgLevel);
+                        if (unlockedLevels >= level) {
+                            return current;
+                        }
+                    }
+                }
+            }
+
+            current = core.getUserSponsorId(current);
+        }
+
+        return 0;
     }
 
     function _findEligibleLevelUpline(

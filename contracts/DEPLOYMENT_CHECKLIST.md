@@ -114,6 +114,8 @@ Verify: users can no longer stake unlimited times without spending MGX ✅
 28. Reward cycle changed from 24h to 8h — 3 cycles/day, same daily APY (0.03%/day). rewardRate / 3 per cycle ✅
 29. Core.stake() passed USDT as paymentAsset to staking — rewards always reverted with 'Insufficient reward reserve'. Fixed to address(0) ✅
 
+30. Genealogy Tree pass added to level income distribution — levels 2-10 first check sponsor genealogy chain before placement/level tree. paidIds shared (no double payment) ✅
+
 ## Post-Deploy Fixes
 
 1. Bug #24 — Staking claim reliability fixes (polling mutex, RPC fallback, error messages) ✅
@@ -128,6 +130,7 @@ Verify: users can no longer stake unlimited times without spending MGX ✅
 - Test 17: Bug #27 — claimFor uses V2 positions ✅
 - Test 18: 8h reward cycle — elapsedCycles calculation correct ✅
 - Test 19: Bug #29 — stake uses address(0) paymentAsset ✅
+- Test 20: Genealogy Tree — level income follows sponsor chain ✅
 
 ## Payment Normalization (Critical)
 
@@ -162,6 +165,7 @@ This must verify at minimum:
 Note: `distribution-test.ts` now covers 17 checks (was 16)
 Note: `distribution-test.ts` now covers 18 checks (was 17)
 Note: `distribution-test.ts` now covers 19 checks (was 18)
+Note: `distribution-test.ts` now covers 20 checks (was 19)
 
 ## Fresh Deploy Order (Exact)
 
