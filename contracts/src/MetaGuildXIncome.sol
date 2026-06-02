@@ -141,6 +141,11 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
 
         if (isEscrowDirect) {
             uint256 escrowXSlot = effectivePackagePrice == 0 ? 0 : totalBefore / effectivePackagePrice;
+            uint256 currentUserPkgLevel = core.getUserPackageLevel(userId);
+            if (currentUserPkgLevel > pkgLevel) {
+                _payoutDirectToWallet(core, userId, amount, paymentAsset, escrowXSlot);
+                return;
+            }
             escrowBalances[userId][pkgLevel] += amount;
             emit EscrowCredited(userId, amount, escrowXSlot);
             _runPostRoutingUpgradeCheck(core, userId, pkgLevel, effectivePackagePrice, paymentAsset);
@@ -203,8 +208,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
 
         if (xSlot == 1 || xSlot == 2) {
             uint256 currentUserPackageLevel = core.getUserPackageLevel(userId);
-            bool isManualUpgrade = IMetaGuildXIncomeCore(coreContract).manuallyUpgraded(userId);
-            if (currentUserPackageLevel > pkgLevel && isManualUpgrade) {
+            if (currentUserPackageLevel > pkgLevel) {
                 _payoutDirectToWallet(core, userId, amount, paymentAsset, xSlot);
                 return;
             }

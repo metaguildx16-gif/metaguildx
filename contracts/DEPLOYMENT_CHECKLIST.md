@@ -116,6 +116,11 @@ Verify: users can no longer stake unlimited times without spending MGX ✅
 
 30. Genealogy Tree pass added to level income distribution — levels 2-10 first check sponsor genealogy chain before placement/level tree. paidIds shared (no double payment) ✅
 
+#32: MetaGuildXIncome xSlot 1/2 routing — isManualUpgrade check removed.
+     Rebirth/auto-upgraded users now receive lower-pkg income directly
+     to wallet instead of getting stuck in escrow. Defensive fix added
+     to escrow_direct branch. Test #21 added to distribution-test.ts ✅
+
 ## Post-Deploy Fixes
 
 1. Bug #24 — Staking claim reliability fixes (polling mutex, RPC fallback, error messages) ✅
@@ -165,7 +170,7 @@ This must verify at minimum:
 Note: `distribution-test.ts` now covers 17 checks (was 16)
 Note: `distribution-test.ts` now covers 18 checks (was 17)
 Note: `distribution-test.ts` now covers 19 checks (was 18)
-Note: `distribution-test.ts` now covers 20 checks (was 19)
+Note: `distribution-test.ts` now covers 27 checks (was 20)
 
 ## Fresh Deploy Order (Exact)
 

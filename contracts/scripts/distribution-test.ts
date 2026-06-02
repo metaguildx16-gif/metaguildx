@@ -51,12 +51,26 @@ type ParsedPaymentWithdrawn = {
   settlementAmount: bigint;
 };
 
+type ParsedIncomeDirectPayout = {
+  userId: bigint;
+  amount: bigint;
+  xSlot: bigint;
+};
+
+type ParsedIncomeEscrowCredited = {
+  userId: bigint;
+  amount: bigint;
+  xSlot: bigint;
+};
+
 type RegistrationAnalysis = {
   userId: bigint;
   wallet?: ethers.Wallet;
   directEvents: ParsedDirectIncome[];
   levelEvents: ParsedLevelIncome[];
   spilloverEvents: ParsedSpilloverIncome[];
+  incomeDirectPayoutEvents: ParsedIncomeDirectPayout[];
+  incomeEscrowCreditedEvents: ParsedIncomeEscrowCredited[];
   paymentCollectedEvents: ParsedPaymentCollected[];
   paymentWithdrawnEvents: ParsedPaymentWithdrawn[];
   creatorWithdrawnSettlement: bigint;
@@ -89,6 +103,9 @@ const coreAbi = [
   "function creatorFeeWallet() view returns (address)",
   "function placementSigner() view returns (address)",
   "function getUserSponsorId(uint256 userId) view returns (uint256)",
+  "function getUserPackageLevel(uint256 userId) view returns (uint256)",
+  "function getUserOriginalPackageLevel(uint256 userId) view returns (uint8)",
+  "function manuallyUpgraded(uint256 userId) view returns (bool)",
   "event UserRegistered(uint256 indexed userId, uint256 indexed sponsorId, address indexed account, uint8 packageLevel, uint256 amount, uint256 placedUnderId, bool placedLeft)"
 ] as const;
 
@@ -119,6 +136,15 @@ const stakingAbi = [
   "function stakingAssetByAccount(address) view returns (address)"
 ] as const;
 
+const incomeAbi = [
+  "function escrowBalances(uint256 userId, uint256 pkgLevel) view returns (uint256)",
+  "function totalEarnings(uint256 userId, uint256 pkgLevel) view returns (uint256)"
+] as const;
+
+const upgradeAbi = [
+  "function getRebirthIds(uint256 userId) view returns (uint256[])"
+] as const;
+
 const routerEventInterface = new ethers.Interface([
   "event DirectIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint256 amount, uint8 cyclePkgLevel)",
   "event LevelIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint8 level, uint256 amount, uint8 cyclePkgLevel)",
@@ -133,6 +159,11 @@ const coreEventInterface = new ethers.Interface([
 
 const erc20EventInterface = new ethers.Interface([
   "event Transfer(address indexed from, address indexed to, uint256 value)"
+]);
+
+const incomeEventInterface = new ethers.Interface([
+  "event DirectPayout(uint256 indexed userId, uint256 amount, uint256 xSlot)",
+  "event EscrowCredited(uint256 indexed userId, uint256 amount, uint256 xSlot)"
 ]);
 
 function loadAddresses(): DeployedAddresses {
@@ -228,6 +259,8 @@ function analyzeRegistrationReceipt(
   const directEvents: ParsedDirectIncome[] = [];
   const levelEvents: ParsedLevelIncome[] = [];
   const spilloverEvents: ParsedSpilloverIncome[] = [];
+  const incomeDirectPayoutEvents: ParsedIncomeDirectPayout[] = [];
+  const incomeEscrowCreditedEvents: ParsedIncomeEscrowCredited[] = [];
   const paymentCollectedEvents: ParsedPaymentCollected[] = [];
   const paymentWithdrawnEvents: ParsedPaymentWithdrawn[] = [];
   const coreTransfers = new Map<string, bigint>();
@@ -300,6 +333,29 @@ function analyzeRegistrationReceipt(
       // ignore unrelated logs
     }
 
+    try {
+      const parsedIncome = incomeEventInterface.parseLog(log);
+      if (!parsedIncome) {
+        throw new Error("not an income log");
+      }
+
+      if (parsedIncome.name === "DirectPayout") {
+        incomeDirectPayoutEvents.push({
+          userId: BigInt(parsedIncome.args.userId),
+          amount: BigInt(parsedIncome.args.amount),
+          xSlot: BigInt(parsedIncome.args.xSlot)
+        });
+      } else if (parsedIncome.name === "EscrowCredited") {
+        incomeEscrowCreditedEvents.push({
+          userId: BigInt(parsedIncome.args.userId),
+          amount: BigInt(parsedIncome.args.amount),
+          xSlot: BigInt(parsedIncome.args.xSlot)
+        });
+      }
+    } catch {
+      // ignore unrelated logs
+    }
+
     if (log.address.toLowerCase() !== addresses.USDT.toLowerCase()) {
       continue;
     }
@@ -337,6 +393,8 @@ function analyzeRegistrationReceipt(
     directEvents,
     levelEvents,
     spilloverEvents,
+    incomeDirectPayoutEvents,
+    incomeEscrowCreditedEvents,
     paymentCollectedEvents,
     paymentWithdrawnEvents,
     creatorWithdrawnSettlement,
@@ -473,11 +531,13 @@ async function main() {
   const testUserAId = startingNextUserId;
   const testUserBId = startingNextUserId + 1n;
   const testUserCId = startingNextUserId + 2n;
+  const testUserDId = startingNextUserId + 3n;
 
   console.log("Starting nextUserId:", startingNextUserId.toString());
   console.log("Test User A ID:", testUserAId.toString());
   console.log("Test User B ID:", testUserBId.toString());
   console.log("Test User C ID:", testUserCId.toString());
+  console.log("Test User D ID:", testUserDId.toString());
 
   const test1 = await registerTestUser(
     testUserAId,
@@ -623,6 +683,8 @@ async function main() {
 
   const staking = await ethers.getContractAt(stakingAbi, addresses.MGXStaking, deployer);
   const mgxToken = await ethers.getContractAt(mgxTokenAbi, addresses.MGXToken, deployer);
+  const income = await ethers.getContractAt(incomeAbi, addresses.Income, deployer);
+  const upgrade = await ethers.getContractAt(upgradeAbi, addresses.Upgrade, deployer);
   const stakingFundAmount = ethers.parseEther("1");
 
   const platformReserveBefore = await staking.stakingRewardPoolPlatformReserve(addresses.MGXToken);
@@ -740,6 +802,72 @@ async function main() {
     String(deployerStakingAsset).toLowerCase() === ethers.ZeroAddress.toLowerCase(),
     `stakingAssetByAccount=${deployerStakingAsset}; expected=${ethers.ZeroAddress}; usdt=${addresses.USDT}`
   );
+
+  const bug32UserId = 3n;
+  const bug32PkgLevel = 1n;
+  const bug32EscrowBefore = await income.escrowBalances(bug32UserId, bug32PkgLevel);
+  const bug32TotalEarningsBefore = await income.totalEarnings(bug32UserId, bug32PkgLevel);
+  const bug32RebirthIds = await upgrade.getRebirthIds(bug32UserId);
+  const bug32CurrentPkg = BigInt(await core.getUserPackageLevel(bug32UserId));
+  const bug32OriginalPkg = BigInt(await core.getUserOriginalPackageLevel(bug32UserId));
+  const bug32ManualUpgrade = await core.manuallyUpgraded(bug32UserId);
+
+  assertResult(
+    "Bug #32 precheck - User 3 has rebirth",
+    bug32RebirthIds.length > 0,
+    `rebirthIds length=${bug32RebirthIds.length}`
+  );
+  assertResult(
+    "Bug #32 precheck - User 3 is higher than Pkg1",
+    bug32CurrentPkg > bug32PkgLevel,
+    `currentPkg=${bug32CurrentPkg.toString()} expected > ${bug32PkgLevel.toString()}`
+  );
+  assertResult(
+    "Bug #32 precheck - User 3 original package is Pkg1",
+    bug32OriginalPkg === bug32PkgLevel,
+    `originalPkg=${bug32OriginalPkg.toString()} expected ${bug32PkgLevel.toString()}`
+  );
+  assertResult(
+    "Bug #32 precheck - User 3 was auto-upgraded",
+    bug32ManualUpgrade === false,
+    `manuallyUpgraded=${String(bug32ManualUpgrade)}`
+  );
+
+  const test4 = await registerTestUser(
+    testUserDId,
+    bug32UserId,
+    "TEST 21 — Bug #32: Rebirth user Pkg1 xSlot1 income goes to wallet not escrow",
+    addresses,
+    deployer,
+    core,
+    binaryTree,
+    usdt,
+    signerWallet,
+    settlementAmount
+  );
+
+  if (test4) {
+    const bug32EscrowAfter = await income.escrowBalances(bug32UserId, bug32PkgLevel);
+    const bug32TotalEarningsAfter = await income.totalEarnings(bug32UserId, bug32PkgLevel);
+    const bug32DirectPayout = test4.incomeDirectPayoutEvents.find((event) => event.userId === bug32UserId);
+    const bug32EscrowCredited = test4.incomeEscrowCreditedEvents.find((event) => event.userId === bug32UserId);
+
+    assertResult(
+      "TEST 21 — Bug #32: Rebirth user Pkg1 xSlot1 income goes to wallet not escrow",
+      bug32EscrowAfter === bug32EscrowBefore && bug32DirectPayout !== undefined,
+      `escrowBefore=${bug32EscrowBefore.toString()} escrowAfter=${bug32EscrowAfter.toString()} directPayout=${bug32DirectPayout?.amount?.toString() ?? "none"} escrowCredited=${bug32EscrowCredited?.amount?.toString() ?? "none"} totalBefore=${bug32TotalEarningsBefore.toString()} totalAfter=${bug32TotalEarningsAfter.toString()}`
+    );
+    assertResult(
+      "Bug #32 - EscrowCredited for User 3 did not increase",
+      bug32EscrowAfter === bug32EscrowBefore && bug32EscrowCredited === undefined,
+      `escrowBefore=${bug32EscrowBefore.toString()} escrowAfter=${bug32EscrowAfter.toString()} escrowCredited=${bug32EscrowCredited?.amount?.toString() ?? "none"}`
+    );
+    assertResult(
+      "Bug #32 - DirectPayout for User 3 happened instead",
+      bug32DirectPayout !== undefined,
+      `directPayout=${bug32DirectPayout?.amount?.toString() ?? "none"} xSlot=${bug32DirectPayout?.xSlot?.toString() ?? "none"}`
+    );
+  }
 
   console.log("\n=== Distribution Test Results ===");
   console.log(`${passed} passed, ${failed} failed`);
