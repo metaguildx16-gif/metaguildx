@@ -146,6 +146,8 @@ textarea {
   color: var(--text-primary);
   font-family: "DM Sans", "Inter", system-ui, sans-serif;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .dashboard-topbar {
@@ -473,6 +475,8 @@ textarea {
   flex: 1;
   padding: 16px;
   min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -578,7 +582,7 @@ textarea {
 }
 
 .stat-card .stat-label {
-  font-size: 0.68rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -587,7 +591,7 @@ textarea {
 
 .stat-card .stat-value {
   font-family: "Syne", sans-serif;
-  font-size: 1.2rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -2252,7 +2256,7 @@ button:disabled {
 
 @media (max-width: 768px) {
   body {
-    font-size: 13px;
+    font-size: 15px;
   }
 
   .dashboard-page {
@@ -2294,7 +2298,7 @@ button:disabled {
   .dashboard-nav-grid button {
     min-height: 48px;
     padding: 8px 4px;
-    font-size: 12px;
+    font-size: 13px;
     border-radius: 16px;
   }
 
@@ -4969,8 +4973,9 @@ button:disabled {
 .dashboard-shell {
   display: flex;
   flex-direction: row;
-  min-height: 100vh;
+  flex: 1;
   width: 100%;
+  min-height: 100vh;
 }
 
 .dashboard-sidebar {
@@ -5032,12 +5037,12 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  padding: 11px 16px;
   border-radius: 10px;
   border: none;
   background: transparent;
   color: #8899BB;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -5075,6 +5080,7 @@ button:disabled {
   flex-direction: column;
   min-width: 0;
   overflow-x: hidden;
+  width: 0;
 }
 
 /* Hide old top nav on desktop */
