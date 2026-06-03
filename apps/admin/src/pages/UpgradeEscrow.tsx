@@ -17,10 +17,22 @@ type UpgradeEscrowRow = {
   status: "Ready to upgrade" | `In progress ${number}%` | "No escrow";
 };
 
+type StrandedEscrowRow = {
+  userId: number;
+  wallet: string;
+  currentPkg: number;
+  strandedPkg: number;
+  amountRaw: bigint;
+  amount: number;
+};
+
 type UpgradeEscrowData = {
   rows: UpgradeEscrowRow[];
+  strandedRows: StrandedEscrowRow[];
   totalFrozenRaw: bigint;
+  totalStrandedRaw: bigint;
   usersWithFrozenEscrow: number;
+  usersWithStrandedEscrow: number;
   usersNearUpgrade: number;
 };
 
@@ -37,7 +49,7 @@ function formatUsdt(value: number) {
   return `${value.toFixed(2)} USDT`;
 }
 
-function withTimeout<T>(promise: Promise<T>, ms = 15_000) {
+function withTimeout<T>(promise: Promise<T>, ms = 60_000) {
   return Promise.race<T>([
     promise,
     new Promise<T>((_, reject) => {
@@ -88,8 +100,16 @@ async function loadUpgradeEscrowData(): Promise<UpgradeEscrowData> {
 
       const nextUserId = Number(await core.nextUserId());
       let totalFrozenRaw = 0n;
+      let totalStrandedRaw = 0n;
       let usersWithFrozenEscrow = 0;
+      const strandedUserIds = new Set<number>();
       let usersNearUpgrade = 0;
+      const strandedRows: StrandedEscrowRow[] = [];
+      console.log("[UpgradeEscrow] scan start", {
+        core: CONTRACTS.MetaGuildXCore,
+        income: CONTRACTS.MetaGuildXIncome,
+        nextUserId
+      });
 
       const userIds = Array.from({ length: Math.max(nextUserId - 1, 0) }, (_, index) => index + 1);
       const rows = await mapInBatches(userIds, 12, async (userId) => {
@@ -110,6 +130,27 @@ async function loadUpgradeEscrowData(): Promise<UpgradeEscrowData> {
           usersWithFrozenEscrow += 1;
           if (progress >= 80) {
             usersNearUpgrade += 1;
+          }
+        }
+
+        for (let pkg = 1; pkg < packageLevel; pkg += 1) {
+          const amountRaw = await getUpgradeEscrowOnly(income, userId, pkg);
+          if (amountRaw > 0n) {
+            totalStrandedRaw += amountRaw;
+            strandedUserIds.add(userId);
+            const strandedRow = {
+              userId,
+              wallet: String(profile.account),
+              currentPkg: packageLevel,
+              strandedPkg: pkg,
+              amountRaw,
+              amount: Number(amountRaw) / 10
+            } satisfies StrandedEscrowRow;
+            console.log("[UpgradeEscrow] stranded found", {
+              ...strandedRow,
+              amountRaw: amountRaw.toString()
+            });
+            strandedRows.push(strandedRow);
           }
         }
 
@@ -134,11 +175,16 @@ async function loadUpgradeEscrowData(): Promise<UpgradeEscrowData> {
         }
         return b.progress - a.progress || b.frozenAmount - a.frozenAmount || a.userId - b.userId;
       });
+      strandedRows.sort((a, b) => b.amount - a.amount || a.userId - b.userId || a.strandedPkg - b.strandedPkg);
+      console.log("[UpgradeEscrow] stranded scan complete", strandedRows);
 
       return {
         rows,
+        strandedRows,
         totalFrozenRaw,
+        totalStrandedRaw,
         usersWithFrozenEscrow,
+        usersWithStrandedEscrow: strandedUserIds.size,
         usersNearUpgrade
       };
     })()
@@ -151,6 +197,7 @@ export function UpgradeEscrowPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [releasingUserId, setReleasingUserId] = useState<number | null>(null);
+  const [releasingStrandedUserId, setReleasingStrandedUserId] = useState<number | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const { isOwner } = useOwner(walletAddress);
 
@@ -247,8 +294,53 @@ export function UpgradeEscrowPage() {
     setReleasingUserId(null);
   };
 
+  const handleReleaseStrandedEscrow = async (row: StrandedEscrowRow) => {
+    if (!isOwner) {
+      addToast("Unauthorized: owner wallet required", "error");
+      return;
+    }
+    if (row.amountRaw <= 0n) {
+      addToast("No stranded escrow to release", "warning");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Release ${formatUsdt(row.amount)} stranded Pkg ${row.strandedPkg} escrow for User #${row.userId}?`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    const ethereum = getEthereum();
+    if (!ethereum) {
+      addToast("MetaMask not found", "error");
+      return;
+    }
+
+    setReleasingStrandedUserId(row.userId);
+    addToast("Confirm stranded escrow release in MetaMask...", "info");
+    const provider = new BrowserProvider(ethereum);
+    const signer = await provider.getSigner();
+    const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, signer);
+
+    await sendTransaction(
+      () => core.adminReleaseStrandedEscrow(row.userId),
+      (message) => {
+        addToast(message, "success");
+        void refresh();
+      },
+      (message) => addToast(message, "error"),
+      `Stranded escrow released for User #${row.userId}`
+    );
+    setReleasingStrandedUserId(null);
+  };
+
   const totalFrozenDisplay = useMemo(
     () => formatUsdt(Number(data?.totalFrozenRaw ?? 0n) / 10),
+    [data]
+  );
+  const totalStrandedDisplay = useMemo(
+    () => formatUsdt(Number(data?.totalStrandedRaw ?? 0n) / 10),
     [data]
   );
 
@@ -275,7 +367,7 @@ export function UpgradeEscrowPage() {
     <div className="space-y-6">
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <article className="rounded-3xl border border-gray-800 bg-gray-900/90 p-6">
           <p className="text-sm text-gray-400">Users with Frozen Escrow</p>
           <h2 className="mt-4 text-3xl font-bold text-white">
@@ -287,6 +379,15 @@ export function UpgradeEscrowPage() {
           <h2 className="mt-4 text-3xl font-bold text-cyan-300">
             {loading ? "Loading..." : totalFrozenDisplay}
           </h2>
+        </article>
+        <article className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6">
+          <p className="text-sm text-gray-400">Stranded Escrow</p>
+          <h2 className="mt-4 text-3xl font-bold text-amber-300">
+            {loading ? "Loading..." : totalStrandedDisplay}
+          </h2>
+          <p className="mt-2 text-xs text-gray-500">
+            {loading ? "" : `${data?.usersWithStrandedEscrow ?? 0} users`}
+          </p>
         </article>
         <article className="rounded-3xl border border-gray-800 bg-gray-900/90 p-6">
           <p className="text-sm text-gray-400">Users Near Upgrade (&gt;80%)</p>
@@ -379,6 +480,67 @@ export function UpgradeEscrowPage() {
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
                     No upgrade escrow rows found
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-amber-500/20 bg-amber-500/5 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold text-white">Stranded Escrow</h2>
+            <p className="mt-2 text-sm text-gray-300">
+              Lower-package escrow from users whose current package has already advanced.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-gray-950 transition hover:bg-amber-400"
+          >
+            Refresh Scan
+          </button>
+        </div>
+
+        <div className="mt-6 overflow-hidden rounded-3xl border border-gray-800">
+          <table className="min-w-full divide-y divide-gray-800 text-left text-sm">
+            <thead className="bg-gray-950/70 text-gray-400">
+              <tr>
+                <th className="px-4 py-3 font-medium">User ID</th>
+                <th className="px-4 py-3 font-medium">Wallet</th>
+                <th className="px-4 py-3 font-medium">Current Pkg</th>
+                <th className="px-4 py-3 font-medium">Stranded Pkg</th>
+                <th className="px-4 py-3 font-medium">Amount (USDT)</th>
+                <th className="px-4 py-3 font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800 bg-gray-900/70">
+              {(data?.strandedRows ?? []).map((row) => (
+                <tr key={`${row.userId}-${row.strandedPkg}`} className="hover:bg-gray-800/60">
+                  <td className="px-4 py-4 text-white">#{row.userId}</td>
+                  <td className="px-4 py-4 text-gray-300">{shortAddress(row.wallet)}</td>
+                  <td className="px-4 py-4 text-gray-300">Pkg {row.currentPkg}</td>
+                  <td className="px-4 py-4 text-amber-300">Pkg {row.strandedPkg}</td>
+                  <td className="px-4 py-4 font-semibold text-white">{formatUsdt(row.amount)}</td>
+                  <td className="px-4 py-4">
+                    <button
+                      type="button"
+                      onClick={() => void handleReleaseStrandedEscrow(row)}
+                      disabled={!isOwner || releasingStrandedUserId === row.userId}
+                      className="rounded-full bg-emerald-500 px-3 py-2 text-xs font-semibold text-gray-950 disabled:opacity-50"
+                    >
+                      {releasingStrandedUserId === row.userId ? "Releasing..." : "Release"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {!loading && (data?.strandedRows.length ?? 0) === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                    No stranded escrow found
                   </td>
                 </tr>
               ) : null}

@@ -120,6 +120,11 @@ async function getStrandedEscrowRows(): Promise<StrandedEscrowRow[]> {
   const income = new Contract(CONTRACTS.MetaGuildXIncome, ABIS.MetaGuildXIncome, provider);
   const nextUserId = Number(await core.nextUserId());
   const rows: StrandedEscrowRow[] = [];
+  console.log("[StrandedEscrow] scan start", {
+    core: CONTRACTS.MetaGuildXCore,
+    income: CONTRACTS.MetaGuildXIncome,
+    nextUserId
+  });
 
   for (let userId = 1; userId < nextUserId; userId += 1) {
     let currentPkg = 0;
@@ -145,6 +150,13 @@ async function getStrandedEscrowRows(): Promise<StrandedEscrowRow[]> {
       try {
         const amountRaw = BigInt(await income.escrowBalances(userId, pkg));
         if (amountRaw > 0n) {
+          console.log("[StrandedEscrow] found", {
+            userId,
+            wallet,
+            currentPkg,
+            strandedPkg: pkg,
+            amountRaw: amountRaw.toString()
+          });
           rows.push({
             userId,
             wallet,
@@ -160,6 +172,7 @@ async function getStrandedEscrowRows(): Promise<StrandedEscrowRow[]> {
     }
   }
 
+  console.log("[StrandedEscrow] scan complete", rows);
   return rows.sort((a, b) => b.amount - a.amount || a.userId - b.userId || a.strandedPkg - b.strandedPkg);
 }
 
@@ -195,7 +208,9 @@ export function UpgradeMonitor() {
     setStrandedLoading(true);
     setStrandedError("");
     try {
-      setStrandedRows(await getStrandedEscrowRows());
+      const rows = await getStrandedEscrowRows();
+      console.log("[StrandedEscrow] state update", rows.length, rows);
+      setStrandedRows(rows);
     } catch (error) {
       setStrandedError(error instanceof Error ? error.message : "Failed to load stranded escrow");
     } finally {
@@ -257,6 +272,7 @@ export function UpgradeMonitor() {
       }
 
       if (strandedResult.status === "fulfilled") {
+        console.log("[StrandedEscrow] initial load", strandedResult.value.length, strandedResult.value);
         setStrandedRows(strandedResult.value);
       } else {
         console.error("getStrandedEscrowRows failed:", strandedResult.reason);
