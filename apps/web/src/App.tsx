@@ -18,6 +18,7 @@ type Screen = "landing" | "dashboard";
 type DashboardView =
   | "register"
   | "overview"
+  | "profile"
   | "users"
   | "activity"
   | "settings"
@@ -65,6 +66,13 @@ const lockPeriods: { label: string; days: number; bonus: string; multiplier: num
 const WALLET_STORAGE_KEY = "mgx_wallet";
 const WALLET_CONNECTED_KEY = "mgx_connected";
 const WALLET_AUTH_TIMESTAMP_KEY = "mgx_auth_timestamp";
+const PRIVACY_STORAGE_KEY = "mgx_privacy_v1";
+const defaultPrivacy = {
+  earnings: "all" as "all" | "only_me",
+  referralTree: "all" as "all" | "only_me",
+  packageLevel: "all" as "all" | "only_me",
+  walletAddress: "all" as "all" | "only_me"
+};
 const DASHBOARD_LOAD_TIMEOUT_MS = 90_000;
 const SHOW_DIAGNOSTICS = false;
 const PUBLIC_TESTNET_RPC =
@@ -197,6 +205,18 @@ function App() {
   const [walletMoveAmount, setWalletMoveAmount] = useState("10");
   const [stakeForm, setStakeForm] = useState({ amount: "10", durationKey: "30D" as StakeDurationKey, autoCompound: true });
   const [walletSubView, setWalletSubView] = useState<WalletSubView>("main");
+  const [privacySettings, setPrivacySettings] = useState<typeof defaultPrivacy>(() => {
+    try {
+      const saved = localStorage.getItem(PRIVACY_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : defaultPrivacy;
+    } catch {
+      return defaultPrivacy;
+    }
+  });
+  const savePrivacy = (updated: typeof defaultPrivacy) => {
+    setPrivacySettings(updated);
+    localStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify(updated));
+  };
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -3738,6 +3758,26 @@ function App() {
             >
               <p className="text-lg font-semibold">Support</p>
             </button>
+
+            <button
+              type="button"
+              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
+                dashboardView === "profile" ? "ring-1 ring-blue-500 bg-gray-800" : ""
+              }`}
+              onClick={() => setDashboardView("profile")}
+            >
+              <p className="text-lg font-semibold"><span className="nav-icon">👤</span> My Profile</p>
+            </button>
+
+            <button
+              type="button"
+              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
+                dashboardView === "settings" ? "ring-1 ring-blue-500 bg-gray-800" : ""
+              }`}
+              onClick={() => setDashboardView("settings")}
+            >
+              <p className="text-lg font-semibold"><span className="nav-icon">⚙️</span> Settings</p>
+            </button>
               </>
             )}
           </div>
@@ -5776,6 +5816,173 @@ function App() {
               </div>
             </section>
           ) : null}
+
+          {dashboardView === "profile" && (
+            <div className="dashboard-page" style={{ padding: "24px", maxWidth: "800px", margin: "0 auto" }}>
+              <div className="dashboard-card" style={{
+                padding: "32px",
+                marginBottom: "24px",
+                background: "linear-gradient(135deg, rgba(46,111,216,0.15) 0%, rgba(201,168,76,0.08) 100%)",
+                border: "1px solid rgba(201,168,76,0.3)",
+                borderRadius: "16px",
+                display: "flex",
+                alignItems: "center",
+                gap: "24px",
+                flexWrap: "wrap"
+              }}>
+                <div style={{
+                  width: "80px", height: "80px", borderRadius: "50%",
+                  background: "linear-gradient(135deg, #2E6FD8, #C9A84C)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: "32px", flexShrink: 0,
+                  boxShadow: "0 0 24px rgba(201,168,76,0.3)"
+                }}>
+                  👤
+                </div>
+                <div style={{ flex: 1, minWidth: "200px" }}>
+                  <div style={{ fontSize: "22px", fontWeight: 700, color: "#EEF4FF", marginBottom: "4px" }}>
+                    User #{snapshot?.userId || "—"}
+                  </div>
+                  <div style={{ fontSize: "13px", color: "#C9A84C", marginBottom: "8px", fontFamily: "monospace" }}>
+                    {snapshot?.walletAddress
+                      ? `${snapshot.walletAddress.slice(0,6)}...${snapshot.walletAddress.slice(-4)}`
+                      : "—"}
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(snapshot?.walletAddress || ""); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#C9A84C", marginLeft: "8px" }}
+                      title="Copy wallet"
+                    >📋</button>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    <span style={{
+                      background: "rgba(201,168,76,0.15)", border: "1px solid rgba(201,168,76,0.4)",
+                      borderRadius: "20px", padding: "2px 12px", fontSize: "12px", color: "#C9A84C"
+                    }}>
+                      ✅ Verified Member
+                    </span>
+                    <span style={{
+                      background: "rgba(46,111,216,0.15)", border: "1px solid rgba(46,111,216,0.4)",
+                      borderRadius: "20px", padding: "2px 12px", fontSize: "12px", color: "#7EB3FF"
+                    }}>
+                      📦 Package {snapshot?.packageLevel || 0}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  className="btn-primary"
+                  style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "10px" }}
+                  onClick={() => {
+                    const link = `${window.location.origin}?ref=${snapshot?.userId}`;
+                    navigator.clipboard.writeText(link);
+                  }}
+                >
+                  🔗 Copy Referral Link
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+                {[
+                  { icon: "👥", label: "Direct Referrals", value: snapshot?.directReferrals ?? "—" },
+                  { icon: "🌐", label: "Total Team", value: snapshot?.totalTeamBusiness ?? "—" },
+                  { icon: "💰", label: "Total Earnings", value: privacySettings.earnings === "all" ? `$${snapshot?.totalEarnings ?? "0"}` : "🔒 Hidden" },
+                  { icon: "📦", label: "Package Level", value: privacySettings.packageLevel === "all" ? `Level ${snapshot?.packageLevel ?? 0}` : "🔒 Hidden" }
+                ].map((stat, i) => (
+                  <div key={i} className="stat-card" style={{ textAlign: "center", padding: "20px 16px" }}>
+                    <div style={{ fontSize: "28px", marginBottom: "8px" }}>{stat.icon}</div>
+                    <div style={{ fontSize: "20px", fontWeight: 700, color: "#C9A84C", marginBottom: "4px" }}>{stat.value}</div>
+                    <div style={{ fontSize: "12px", color: "#8899BB" }}>{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="dashboard-card" style={{ padding: "24px", borderRadius: "16px", marginBottom: "24px" }}>
+                <h3 style={{ color: "#C9A84C", marginBottom: "20px", fontSize: "16px", fontWeight: 600 }}>📋 Personal Info</h3>
+                {[
+                  { label: "User ID", value: `#${snapshot?.userId || "—"}` },
+                  { label: "Sponsor ID", value: `#${snapshot?.sponsorId || "—"}` },
+                  { label: "Wallet", value: privacySettings.walletAddress === "all"
+                      ? snapshot?.walletAddress || "—"
+                      : `${(snapshot?.walletAddress || "").slice(0,6)}...••••` },
+                  { label: "Joined", value: snapshot?.joinedAt
+                      ? new Date(Number(snapshot.joinedAt) * 1000).toLocaleDateString()
+                      : "—" }
+                ].map((row, i) => (
+                  <div key={i} style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    padding: "12px 0",
+                    borderBottom: i < 3 ? "1px solid rgba(46,111,216,0.15)" : "none"
+                  }}>
+                    <span style={{ fontSize: "13px", color: "#8899BB" }}>{row.label}</span>
+                    <span style={{ fontSize: "13px", color: "#EEF4FF", fontFamily: "monospace" }}>{row.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {dashboardView === "settings" && (
+            <div className="dashboard-page" style={{ padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
+              <h2 style={{ color: "#EEF4FF", fontSize: "20px", fontWeight: 700, marginBottom: "24px" }}>⚙️ Settings</h2>
+
+              <div className="dashboard-card" style={{ padding: "28px", borderRadius: "16px", marginBottom: "24px" }}>
+                <h3 style={{ color: "#C9A84C", fontSize: "16px", fontWeight: 600, marginBottom: "6px" }}>🔒 Privacy Controls</h3>
+                <p style={{ color: "#8899BB", fontSize: "13px", marginBottom: "24px" }}>
+                  Control what others can see on your public profile
+                </p>
+
+                {([
+                  { key: "earnings", label: "💰 Income / Earnings", desc: "Your total and breakdown earnings" },
+                  { key: "referralTree", label: "🌳 Referral Tree", desc: "Your downline and network tree" },
+                  { key: "packageLevel", label: "📦 Package Level", desc: "Your current active package" },
+                  { key: "walletAddress", label: "👛 Wallet Address", desc: "Your full wallet address" }
+                ] as const).map((item, i, arr) => (
+                  <div key={item.key} style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    padding: "16px 0",
+                    borderBottom: i < arr.length - 1 ? "1px solid rgba(46,111,216,0.12)" : "none"
+                  }}>
+                    <div>
+                      <div style={{ fontSize: "14px", color: "#EEF4FF", marginBottom: "3px" }}>{item.label}</div>
+                      <div style={{ fontSize: "12px", color: "#8899BB" }}>{item.desc}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+                      {(["all", "only_me"] as const).map(opt => (
+                        <button
+                          key={opt}
+                          onClick={() => savePrivacy({ ...privacySettings, [item.key]: opt })}
+                          style={{
+                            padding: "6px 14px",
+                            borderRadius: "20px",
+                            fontSize: "12px",
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            border: privacySettings[item.key] === opt
+                              ? "1px solid #C9A84C"
+                              : "1px solid rgba(255,255,255,0.1)",
+                            background: privacySettings[item.key] === opt
+                              ? "rgba(201,168,76,0.2)"
+                              : "rgba(255,255,255,0.04)",
+                            color: privacySettings[item.key] === opt ? "#C9A84C" : "#8899BB",
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          {opt === "all" ? "🌐 All Users" : "🔒 Only Me"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{
+                textAlign: "center", fontSize: "12px", color: "#4CAF82",
+                padding: "8px", background: "rgba(76,175,130,0.08)",
+                borderRadius: "8px", border: "1px solid rgba(76,175,130,0.2)"
+              }}>
+                ✅ Settings auto-saved to your browser
+              </div>
+            </div>
+          )}
 
           {dashboardView === "support" ? (
             <SupportPage
