@@ -2199,6 +2199,8 @@ async function signPlacementInstruction(input: {
   contract: Contract;
   account: string;
   sponsorId: number;
+  placementParentId: number;
+  isLeft: boolean;
   nonce: number;
   }) {
     const network = await input.provider.getNetwork();
@@ -2208,6 +2210,8 @@ async function signPlacementInstruction(input: {
       contractAddress,
       account: input.account,
       sponsorId: input.sponsorId,
+      placementParentId: input.placementParentId,
+      isLeft: input.isLeft,
       nonce: input.nonce
     };
   const configuredSignerUrl = readTrimmedEnv("VITE_PLACEMENT_SIGNER_URL");
@@ -2216,12 +2220,14 @@ async function signPlacementInstruction(input: {
   }
   const signerUrl = configuredSignerUrl;
   const digest = solidityPackedKeccak256(
-    ["uint256", "address", "address", "uint256", "uint256"],
+    ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256"],
     [
       network.chainId,
       contractAddress,
         input.account,
         BigInt(input.sponsorId),
+        BigInt(input.placementParentId),
+        input.isLeft,
       BigInt(input.nonce)
     ]
   );
@@ -2428,6 +2434,8 @@ export async function registerUser(
       contract: core,
       account: normalizedAddress,
       sponsorId: Number(sponsorId),
+      placementParentId,
+      isLeft,
       nonce
     });
 

@@ -236,12 +236,14 @@ async function createPlacementSignature(
   coreAddress: string,
   account: string,
   sponsorId: bigint,
+  placementParentId: bigint,
+  isLeft: boolean,
   nonce: bigint,
   signerWallet: ethers.Wallet
 ) {
   const hash = ethers.solidityPackedKeccak256(
-    ["uint256", "address", "address", "uint256", "uint256"],
-    [chainId, coreAddress, account, sponsorId, nonce]
+    ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256"],
+    [chainId, coreAddress, account, sponsorId, placementParentId, isLeft, nonce]
   );
   return signerWallet.signMessage(ethers.getBytes(hash));
 }
@@ -433,15 +435,17 @@ async function registerTestUser(
 
   const nonce = await core.nonces(testUser.address);
   const network = await ethers.provider.getNetwork();
+  const [placementParentId, isLeft] = await binaryTree.findNextSlotUnderSponsor(sponsorId);
   const signature = await createPlacementSignature(
     network.chainId,
     addresses.Core,
     testUser.address,
     sponsorId,
+    placementParentId,
+    isLeft,
     nonce,
     signerWallet
   );
-  const [placementParentId, isLeft] = await binaryTree.findNextSlotUnderSponsor(sponsorId);
 
   console.log(`- ${label}: registering ${testUser.address}`);
   console.log(`  sponsorId=${sponsorId.toString()} placementParent=${placementParentId.toString()} isLeft=${isLeft}`);

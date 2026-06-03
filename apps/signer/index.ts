@@ -164,6 +164,13 @@ const signer = new ethers.Wallet(SIGNER_KEY);
 
 console.log("Placement signer:", signer.address);
 
+function normalizePlacementSide(isLeft: unknown): boolean {
+  if (typeof isLeft === "boolean") {
+    return isLeft;
+  }
+  return String(isLeft).toLowerCase() === "true";
+}
+
 app.post("/sign", async (req, res) => {
   try {
     const requestOrigin = req.headers.origin;
@@ -177,15 +184,23 @@ app.post("/sign", async (req, res) => {
       nonce,
       chainId,
       contractAddress,
+      placementParentId,
+      isLeft,
     } = req.body;
 
+    if (placementParentId === undefined || isLeft === undefined) {
+      return res.status(400).json({ error: "Missing placement data" });
+    }
+
     const msgHash = ethers.solidityPackedKeccak256(
-      ["uint256", "address", "address", "uint256", "uint256"],
+      ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256"],
       [
         BigInt(chainId),
         contractAddress,
         account,
         BigInt(sponsorId),
+        BigInt(placementParentId),
+        normalizePlacementSide(isLeft),
         BigInt(nonce),
       ]
     );
@@ -207,15 +222,23 @@ app.post("/sign-placement", async (req, res) => {
       nonce,
       chainId,
       contractAddress,
+      placementParentId,
+      isLeft,
     } = req.body;
 
+    if (placementParentId === undefined || isLeft === undefined) {
+      return res.status(400).json({ error: "Missing placement data" });
+    }
+
     const msgHash = ethers.solidityPackedKeccak256(
-      ["uint256", "address", "address", "uint256", "uint256"],
+      ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256"],
       [
         BigInt(chainId),
         contractAddress,
         account,
         BigInt(sponsorId),
+        BigInt(placementParentId),
+        normalizePlacementSide(isLeft),
         BigInt(nonce),
       ]
     );

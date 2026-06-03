@@ -140,8 +140,8 @@ async function main() {
   const signerWallet = new ethers.Wallet(placementSignerKey, ethers.provider);
   const nonce = await core.nonces(deployer.address);
   const hash = ethers.solidityPackedKeccak256(
-    ["uint256", "address", "address", "uint256", "uint256"],
-    [network.chainId, addresses.Core, deployer.address, 0n, nonce]
+    ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256"],
+    [network.chainId, addresses.Core, deployer.address, 0n, 0n, true, nonce]
   );
   const signature = await signerWallet.signMessage(ethers.getBytes(hash));
 

@@ -262,7 +262,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         if (userIdByAddress[msg.sender] != 0) revert AlreadyRegistered();
         if (placementSigner == address(0)) revert PlacementSignerNotSet();
         if (nonce != nonces[msg.sender]) revert InvalidNonce();
-        _verifyPlacementSignature(msg.sender, sponsorId, nonce, signature);
+        _verifyPlacementSignature(msg.sender, sponsorId, placementParentId, isLeft, nonce, signature);
 
         if (nextUserId == 1) {
             if (sponsorId != 0) revert RootSponsorMustBeZero();
@@ -1105,10 +1105,13 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     function _verifyPlacementSignature(
         address account,
         uint256 sponsorId,
+        uint256 placementParentId,
+        bool isLeft,
         uint256 nonce,
         bytes calldata signature
     ) internal view {
-        bytes32 structHash = keccak256(abi.encodePacked(block.chainid, address(this), account, sponsorId, nonce));
+        bytes32 structHash =
+            keccak256(abi.encodePacked(block.chainid, address(this), account, sponsorId, placementParentId, isLeft, nonce));
         bytes32 digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
         if (_recoverSigner(digest, signature) != placementSigner) revert InvalidSignature();
     }
