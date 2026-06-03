@@ -1087,6 +1087,21 @@ function App() {
     return nextSnapshot;
   }
 
+  async function refreshLiveStakeState(walletAddress?: string | null) {
+    const targetWallet = walletAddress ?? snapshot.walletAddress;
+    if (!targetWallet) {
+      setLiveWalletStakeState(null);
+      return;
+    }
+
+    try {
+      const nextLiveState = await metaguildx.loadLiveWalletStakeState(targetWallet);
+      setLiveWalletStakeState(nextLiveState);
+    } catch {
+      // Keep the confirmed action feedback visible; dashboard polling/manual refresh can retry this read.
+    }
+  }
+
   async function handleConnectWallet(targetView: DashboardView = "overview") {
     startLoadingSession("connecting wallet", "Connecting wallet. Please approve the wallet connection in MetaMask, then sign the authentication message. No gas fee is charged for the signature.");
     setConnectError(null);
@@ -1280,6 +1295,7 @@ function App() {
       const actionResult = await action();
       await new Promise((resolve) => setTimeout(resolve, 2000));
       const nextSnapshot = await refreshSnapshot();
+      await refreshLiveStakeState(nextSnapshot.walletAddress);
       setStatus(successLabel);
       setActionFeedback(onSuccess ? onSuccess(nextSnapshot, actionResult) : null);
   } catch (error) {
@@ -2510,6 +2526,7 @@ function App() {
 
       try {
         nextSnapshot = await refreshSnapshot();
+        await refreshLiveStakeState(nextSnapshot.walletAddress);
         const registeredUserId = typeof nextSnapshot.userId === "number" ? nextSnapshot.userId : null;
         const distribution =
           registeredUserId !== null
@@ -5166,17 +5183,6 @@ function App() {
                                 detail: "Position updated"
                               })
                             )
-                              .then(async () => {
-                                const walletAddress = snapshot.walletAddress;
-                                if (walletAddress) {
-                                  try {
-                                    const nextLiveState = await metaguildx.loadLiveWalletStakeState(walletAddress);
-                                    setLiveWalletStakeState(nextLiveState);
-                                  } catch {
-                                    // Keep the existing stake feedback; polling/manual refresh can retry live staking state.
-                                  }
-                                }
-                              })
                               .finally(() => {
                                 isStakePending.current = false;
                                 setStakeForm((current) => ({ ...current }));

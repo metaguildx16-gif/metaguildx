@@ -1,15 +1,27 @@
 ﻿import { ethers } from "hardhat";
-
 async function main() {
-  const stk = await ethers.getContractAt("MGXStaking", "0xCf731C4d43E8a5948706A8A9bba0C713DcbE5FCb");
-  const USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
-  const MGX  = "0x94CC4C342E96A4CB4618331e88309906F5ad3815";
-  const rp = await stk.rewardPool();
-  const pr1 = await stk.stakingRewardPoolPlatformReserve(USDT);
-  const pr2 = await stk.stakingRewardPoolPlatformReserve(MGX);
-  console.log("rewardPool:          ", ethers.formatEther(rp));
-  console.log("platformReserve[USDT]:", ethers.formatEther(pr1));
-  console.log("platformReserve[MGX]: ", ethers.formatEther(pr2));
+  const staking = await ethers.getContractAt("MGXStaking", "0x1f36aDb8eeB968000aFA1c8CFE6f38B0568D33b7");
+  const core = await ethers.getContractAt("MetaGuildXCore", "0xF28019a3cC992619b652967B96B3813bA3830D91");
+  console.log("rewardRate:", (await staking.rewardRate()).toString(), "bps/day");
+  console.log("rewardPool:", ethers.formatUnits(await staking.rewardPool(), 18), "MGX");
+  console.log("totalStaked:", ethers.formatUnits(await staking.totalStaked(), 18), "MGX");
+  const nextUser = await core.nextUserId();
+  console.log("\n=== Active Stakers ===");
+  for (let uid = 1n; uid < nextUser; uid++) {
+    const wallet = await core.getUserWallet(uid);
+    if (wallet === ethers.ZeroAddress) continue;
+    try {
+      const positions = await staking.getStakePositions(wallet);
+      if (!positions || positions.length === 0) continue;
+      const preview = await staking.pendingStakingReward(wallet);
+      for (let i = 0; i < positions.length; i++) {
+        const pos = positions[i];
+        if (pos.amount > 0n) {
+          console.log("User " + uid + " pos" + i + ": staked=" + ethers.formatUnits(pos.amount, 18) + " MGX lockDays=" + pos.lockDays + " reward=" + ethers.formatUnits(preview, 18) + " MGX rewardDebt=" + pos.rewardDebt.toString());
+        }
+      }
+    } catch(e: any) { }
+  }
+  console.log("Done");
 }
-
 main().catch(console.error);
