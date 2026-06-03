@@ -3703,7 +3703,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("overview")}
             >
-              <p className="text-lg font-semibold">Home</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🏠</span> Home</p>
             </button>
 
             <button
@@ -3713,7 +3713,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("income")}
             >
-              <p className="text-lg font-semibold">Earnings</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">💰</span> Earnings</p>
             </button>
 
             <button
@@ -3728,7 +3728,7 @@ function App() {
                 setTreeMode("personal");
               }}
             >
-              <p className="text-lg font-semibold">Network</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🌐</span> Network</p>
             </button>
 
             <button
@@ -3738,7 +3738,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("upgrade")}
             >
-              <p className="text-lg font-semibold">Upgrade</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">⬆️</span> Upgrade</p>
             </button>
 
             <button
@@ -3748,7 +3748,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("rebirth")}
             >
-              <p className="text-lg font-semibold">Rebirth</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">♻️</span> Rebirth</p>
             </button>
 
             <button
@@ -3761,7 +3761,7 @@ function App() {
                 setWalletSubView("main");
               }}
             >
-              <p className="text-lg font-semibold">Wallet</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">👛</span> Wallet</p>
             </button>
 
             <button
@@ -3771,7 +3771,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("support")}
             >
-              <p className="text-lg font-semibold">Support</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🎧</span> Support</p>
             </button>
 
             <button
@@ -5833,7 +5833,7 @@ function App() {
           ) : null}
 
           {dashboardView === "profile" && (
-            <div className="dashboard-page" style={{ padding: "24px", maxWidth: "860px", margin: "0 auto" }}>
+            <div className="dashboard-page" style={{ padding: "24px", maxWidth: "1000px", margin: "0 auto" }}>
 
               {/* Profile Header Card */}
               <div className="dashboard-card" style={{
@@ -5878,7 +5878,12 @@ function App() {
                       ? `${snapshot.walletAddress.slice(0,6)}...${snapshot.walletAddress.slice(-4)}`
                       : "—"}
                     <button
-                      onClick={() => { navigator.clipboard.writeText(snapshot?.walletAddress || ""); }}
+                      id="wallet-copy-btn"
+                      onClick={() => {
+                        navigator.clipboard.writeText(snapshot?.walletAddress || "");
+                        const btn = document.getElementById("wallet-copy-btn");
+                        if (btn) { btn.textContent = "✅"; setTimeout(() => { btn.textContent = "📋"; }, 2000); }
+                      }}
                       style={{
                         background: "none", border: "none", cursor: "pointer",
                         color: "#C9A84C", fontSize: "13px", padding: "0"
@@ -5935,7 +5940,7 @@ function App() {
               }}>
                 {[
                   { icon: "👥", label: "Direct Referrals", value: String(snapshot?.directReferrals ?? "—"), color: "#7EB3FF" },
-                  { icon: "🌐", label: "Total Team", value: String(snapshot?.totalTeamBusiness ?? "—"), color: "#7EB3FF" },
+                  { icon: "🌐", label: "Total Team", value: String((snapshot?.leftBranchNodes ?? 0) + (snapshot?.rightBranchNodes ?? 0)), color: "#7EB3FF" },
                   {
                     icon: "💰", label: "Total Earnings",
                     value: privacySettings.earnings === "all" ? `$${snapshot?.totalEarnings ?? "0"}` : "🔒 Hidden",
@@ -5995,13 +6000,14 @@ function App() {
           )}
 
           {dashboardView === "settings" && (
-            <div className="dashboard-page" style={{ padding: "24px", maxWidth: "720px", margin: "0 auto" }}>
+            <div className="dashboard-page" style={{ padding: "24px", maxWidth: "1100px", margin: "0 auto" }}>
               <h2 style={{ color: "#EEF4FF", fontSize: "20px", fontWeight: 700, marginBottom: "24px" }}>
                 ⚙️ Settings
               </h2>
 
+              <div style={{ display: "flex", gap: "24px", alignItems: "flex-start", flexWrap: "wrap" }}>
               {/* === PROFILE SECTION === */}
-              <div className="dashboard-card" style={{ padding: "28px", borderRadius: "16px", marginBottom: "20px" }}>
+              <div className="dashboard-card" style={{ padding: "28px", borderRadius: "16px", marginBottom: "20px", flex: "1 1 340px" }}>
                 <h3 style={{ color: "#C9A84C", fontSize: "15px", fontWeight: 600, marginBottom: "6px" }}>
                   👤 Profile
                 </h3>
@@ -6097,7 +6103,7 @@ function App() {
               </div>
 
               {/* === PRIVACY SECTION === */}
-              <div className="dashboard-card" style={{ padding: "28px", borderRadius: "16px", marginBottom: "20px" }}>
+              <div className="dashboard-card" style={{ padding: "28px", borderRadius: "16px", marginBottom: "20px", flex: "1 1 340px" }}>
                 <h3 style={{ color: "#C9A84C", fontSize: "15px", fontWeight: 600, marginBottom: "6px" }}>
                   🔒 Privacy Controls
                 </h3>
@@ -6144,6 +6150,7 @@ function App() {
                     </div>
                   </div>
                 ))}
+              </div>
               </div>
 
               {/* Auto-save note */}

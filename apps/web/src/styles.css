@@ -4798,7 +4798,8 @@ button:disabled {
   background-image:
     linear-gradient(rgba(46,111,216,.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(46,111,216,.03) 1px, transparent 1px);
-  background-size: 60px 60px;
+  background-size: 80px 80px;
+  opacity: 0.18;
   pointer-events: none;
   z-index: 0;
 }
