@@ -5833,7 +5833,7 @@ function App() {
           ) : null}
 
           {dashboardView === "profile" && (
-            <div className="dashboard-page" style={{ padding: "24px", maxWidth: "1000px", margin: "0 auto" }}>
+            <div className="dashboard-page" style={{ padding: "24px" }}>
 
               {/* Profile Header Card */}
               <div className="dashboard-card" style={{
@@ -5846,7 +5846,8 @@ function App() {
                 alignItems: "center",
                 gap: "24px",
                 flexWrap: "wrap",
-                position: "relative"
+                position: "relative",
+                width: "100%"
               }}>
                 {/* Avatar */}
                 <div style={{
@@ -5934,7 +5935,7 @@ function App() {
               {/* Stats Grid — 2×2 */}
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(2, 1fr)",
+                gridTemplateColumns: "repeat(4, 1fr)",
                 gap: "16px",
                 marginBottom: "24px"
               }}>
@@ -5965,7 +5966,7 @@ function App() {
               </div>
 
               {/* Personal Info Card */}
-              <div className="dashboard-card" style={{ padding: "28px", borderRadius: "16px" }}>
+              <div className="dashboard-card" style={{ padding: "28px", borderRadius: "16px", width: "100%" }}>
                 <h3 style={{ color: "#C9A84C", marginBottom: "20px", fontSize: "15px", fontWeight: 600 }}>
                   📋 Personal Info
                 </h3>
@@ -6000,7 +6001,7 @@ function App() {
           )}
 
           {dashboardView === "settings" && (
-            <div className="dashboard-page" style={{ padding: "24px", maxWidth: "1100px", margin: "0 auto" }}>
+            <div className="dashboard-page" style={{ padding: "24px" }}>
               <h2 style={{ color: "#EEF4FF", fontSize: "20px", fontWeight: 700, marginBottom: "24px" }}>
                 ⚙️ Settings
               </h2>
