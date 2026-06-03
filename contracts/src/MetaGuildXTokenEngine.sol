@@ -68,6 +68,7 @@ contract MetaGuildXTokenEngine is
     }
 
     function setCoreContract(address _core) external onlyOwner {
+        require(_core != address(0), "Zero address");
         coreContract = _core;
     }
 
@@ -137,4 +138,6 @@ contract MetaGuildXTokenEngine is
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    uint256[50] private __gap;
 }

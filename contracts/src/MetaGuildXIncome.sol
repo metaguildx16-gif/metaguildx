@@ -357,10 +357,12 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
     }
 
     function setCoreContract(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         coreContract = target;
     }
 
     function setIncomeRouterContract(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         incomeRouterContract = target;
     }
 

@@ -137,10 +137,12 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
     }
 
     function setCoreContract(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         coreContract = target;
     }
 
     function setIncomeContract(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         incomeContract = target;
     }
 
@@ -149,7 +151,7 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
     }
 
     function setRouterContract(address target) external onlyOwner {
-        require(target != address(0), "Invalid router");
+        require(target != address(0), "Zero address");
         routerContract = target;
     }
 

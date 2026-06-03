@@ -615,7 +615,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         return newId;
     }
 
-    function surrenderForCashback(uint256 userId) external nonReentrant {
+    function surrenderForCashback(uint256 userId) external nonReentrant whenNotPaused {
         MGXTypes.UserProfile storage user = usersById[userId];
         if (user.account != msg.sender) revert NotOwnerOfUser();
 
@@ -637,7 +637,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         ICashbackPool(cashbackPoolContract).surrenderForCashback(msg.sender, userId);
     }
 
-    function claimCashback(uint256 userId) external {
+    function claimCashback(uint256 userId) external whenNotPaused {
         if (msg.sender != this.getUserWallet(userId)) revert NotUser();
         ICashbackPool(cashbackPoolContract).claimCashback(msg.sender, userId);
     }
@@ -658,21 +658,21 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         IMGXStaking(stakingContract).stakeFor(msg.sender, amount, 0, duration, autoCompound, address(0));
     }
 
-    function claimStakingReward() external nonReentrant {
+    function claimStakingReward() external nonReentrant whenNotPaused {
         uint256 userId = userIdByAddress[msg.sender];
         if (userId == 0) revert UserNotRegistered();
         if (!activeUsers[userId]) revert UserNotActive();
         IMGXStaking(stakingContract).claimFor(msg.sender);
     }
 
-    function compoundStakingReward() external nonReentrant {
+    function compoundStakingReward() external nonReentrant whenNotPaused {
         uint256 userId = userIdByAddress[msg.sender];
         if (userId == 0) revert UserNotRegistered();
         if (!activeUsers[userId]) revert UserNotActive();
         IMGXStaking(stakingContract).compoundFor(msg.sender);
     }
 
-    function withdrawStake(uint256 amount) external nonReentrant {
+    function withdrawStake(uint256 amount) external nonReentrant whenNotPaused {
         uint256 userId = userIdByAddress[msg.sender];
         if (userId == 0) revert UserNotRegistered();
         if (!activeUsers[userId]) revert UserNotActive();
@@ -685,6 +685,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function setBinaryTreeContract(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         _validateContract(target);
         binaryTreeContract = target;
     }
@@ -702,16 +703,19 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function setIncomeRouterContract(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         _validateContract(target);
         incomeRouterContract = target;
     }
 
     function setIncomeEngineContract(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         _validateContract(target);
         incomeEngineContract = target;
     }
 
     function setUpgradeEngineContract(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         _validateContract(target);
         upgradeEngineContract = target;
     }
@@ -727,6 +731,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function setTokenEngineContract(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         _validateContract(target);
         tokenEngineContract = target;
     }
@@ -747,7 +752,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function setStakingContract(address target) external onlyOwner {
-        if (target == address(0)) revert InvalidAddress();
+        require(target != address(0), "Zero address");
         stakingContract = target;
     }
 
