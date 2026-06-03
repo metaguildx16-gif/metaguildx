@@ -5940,7 +5940,7 @@ function App() {
               }}>
                 {[
                   { icon: "👥", label: "Direct Referrals", value: String(snapshot?.directReferrals ?? "—"), color: "#7EB3FF" },
-                  { icon: "🌐", label: "Total Team", value: String((snapshot?.leftBranchNodes ?? 0) + (snapshot?.rightBranchNodes ?? 0)), color: "#7EB3FF" },
+                  { icon: "🌐", label: "Total Team", value: String(totalTeamMembers), color: "#7EB3FF" },
                   {
                     icon: "💰", label: "Total Earnings",
                     value: privacySettings.earnings === "all" ? `$${snapshot?.totalEarnings ?? "0"}` : "🔒 Hidden",
