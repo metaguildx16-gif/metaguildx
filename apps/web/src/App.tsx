@@ -3668,7 +3668,65 @@ function App() {
           aria-hidden={mobileNavOpen ? "false" : "true"}
         />
 
-        <header className="dashboard-topbar">
+        <div className="dashboard-shell">
+          {/* LEFT SIDEBAR */}
+          <aside className="dashboard-sidebar">
+            {/* Logo */}
+            <div className="dashboard-sidebar-logo">
+              <img src="/logo.png" alt="MGX" onError={(e) => { e.currentTarget.style.display='none'; }} />
+              <div className="dashboard-sidebar-logo-text">
+                <span>MetaGuildX</span>
+                <span>
+                  {snapshot?.walletAddress
+                    ? `${snapshot.walletAddress.slice(0,6)}...${snapshot.walletAddress.slice(-4)}`
+                    : "Dashboard"}
+                </span>
+              </div>
+            </div>
+
+            {/* Nav Items */}
+            <nav className="dashboard-sidebar-nav">
+              {[
+                { key: "overview",  icon: "🏠", label: "Home" },
+                { key: "income",    icon: "💰", label: "Earnings" },
+                { key: "network",   icon: "🌐", label: "Network" },
+                { key: "upgrade",   icon: "⬆️", label: "Upgrade" },
+                { key: "rebirth",   icon: "♻️", label: "Rebirth" },
+                { key: "wallet",    icon: "👛", label: "Wallet" },
+                { key: "support",   icon: "🎧", label: "Support" },
+                { key: "profile",   icon: "👤", label: "My Profile" },
+                { key: "settings",  icon: "⚙️", label: "Settings" },
+              ].map(item => (
+                <button
+                  key={item.key}
+                  className={`sidebar-nav-item${dashboardView === item.key || (item.key === "network" && ["network","tree","referrals"].includes(dashboardView)) ? " active" : ""}`}
+                  onClick={() => {
+                    setDashboardView(item.key as DashboardView);
+                    if (item.key === "wallet") setWalletSubView("main");
+                  }}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </nav>
+
+            {/* Footer: Logout */}
+            <div className="dashboard-sidebar-footer">
+              <button
+                className="sidebar-nav-item"
+                onClick={handleLogout}
+                style={{ color: "#FF6B7A" }}
+              >
+                <span className="nav-icon">🚪</span>
+                <span>Logout</span>
+              </button>
+            </div>
+          </aside>
+
+          {/* RIGHT: topbar + content */}
+          <div className="dashboard-body">
+        <header className="dashboard-topbar desktop-topbar">
           <div className="brand-lockup">
             <img src={logoMark} alt="MetaGuildX logo" className="brand-mark" />
             <div className="brand-copy">
@@ -3692,7 +3750,7 @@ function App() {
         </header>
 
         {!isAdminRoute || isAdminAuthorized ? (
-        <section className={`tab-nav dashboard-menu dashboard-nav ${mobileNavOpen ? "mobile-open" : ""}`}>
+        <section className={`tab-nav dashboard-menu dashboard-nav desktop-hide ${mobileNavOpen ? "mobile-open" : ""}`}>
           <div className="dashboard-nav-grid">
             {isAdminRoute ? null : (
               <>
@@ -6337,6 +6395,8 @@ function App() {
             </div>
           ) : null}
         </main>
+          </div>
+        </div>
       </div>
     );
   }

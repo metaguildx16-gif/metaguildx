@@ -123,9 +123,9 @@ async function main() {
 
   console.log("3. Deploying MetaGuildXIncome...");
   const income = await deployUupsProxy("MetaGuildXIncome", [
-    ethers.ZeroAddress,
-    ethers.ZeroAddress,
-    ethers.ZeroAddress,
+    deployer.address,
+    deployer.address,
+    deployer.address,
     usdtAddress
   ]);
 
