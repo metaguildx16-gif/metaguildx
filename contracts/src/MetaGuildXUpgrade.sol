@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "./utils/MetaGuildReentrancyGuardUpgradeable.sol";
 
 interface IMetaGuildXUpgradeCore {
     function getUserPackageLevel(uint256 userId) external view returns (uint256);
@@ -36,7 +37,7 @@ interface ICore2 {
     function setUserPackageLevel(uint256 userId, uint256 newLevel) external;
 }
 
-contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaGuildReentrancyGuardUpgradeable {
     address public coreContract;
     address public incomeContract;
     address public defaultPaymentAsset;
@@ -59,12 +60,16 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     function initialize(address core_, address income_, address paymentAsset_) external initializer {
         __Ownable_init(msg.sender);
+        __MetaGuildReentrancyGuard_init();
+        require(core_ != address(0), "Zero core");
+        require(income_ != address(0), "Zero income");
+        require(paymentAsset_ != address(0), "Zero asset");
         coreContract = core_;
         incomeContract = income_;
         defaultPaymentAsset = paymentAsset_;
     }
 
-    function checkAndTriggerUpgrade(uint256 userId, uint256 pkgPrice, address paymentAsset) external onlyIncomeContract {
+    function checkAndTriggerUpgrade(uint256 userId, uint256 pkgPrice, address paymentAsset) external onlyIncomeContract nonReentrant {
         IMetaGuildXUpgradeIncome income = IMetaGuildXUpgradeIncome(incomeContract);
         IMetaGuildXUpgradeCore core = IMetaGuildXUpgradeCore(coreContract);
         require(core.isUserActive(userId), "USER_NOT_ACTIVE");
@@ -85,6 +90,7 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
             return;
         }
 
+        require(currentLevel > 0 && currentLevel < 10, "Invalid level");
         uint256 totalOldEscrow = escrow;
         income.releaseEscrow(userId, upgradeCost);
         uint256 remainder = totalOldEscrow - upgradeCost;
@@ -98,12 +104,15 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
         }
     }
 
-    function checkAndTriggerRebirth(uint256 userId, address paymentAsset) external onlyIncomeContract returns (bool) {
+    function checkAndTriggerRebirth(uint256 userId, address paymentAsset) external onlyIncomeContract nonReentrant returns (bool) {
         IMetaGuildXUpgradeIncome income = IMetaGuildXUpgradeIncome(incomeContract);
         IMetaGuildXUpgradeCore core = IMetaGuildXUpgradeCore(coreContract);
         // originalPackageLevel check - allows rebirth
         // even after auto-upgrade from package 1
         if (core.getUserOriginalPackageLevel(userId) != 1) {
+            return false;
+        }
+        if (rebirthIdsByUser[userId].length > 0) {
             return false;
         }
 
@@ -147,10 +156,12 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
     }
 
     function setDefaultPaymentAsset(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         defaultPaymentAsset = target;
     }
 
     function setRouterContract(address target) external onlyOwner {
+        // TODO: Remove if unused before mainnet
         require(target != address(0), "Zero address");
         routerContract = target;
     }

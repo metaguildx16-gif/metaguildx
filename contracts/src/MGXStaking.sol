@@ -114,6 +114,7 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
     }
 
     function setRewardRate(uint256 _rewardRate) external onlyOwner {
+        require(_rewardRate >= 1 && _rewardRate <= 100, "Rate must be 1-100 bps");
         rewardRate = _rewardRate;
         emit RewardRateSet(_rewardRate);
     }
@@ -218,6 +219,7 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
         }
 
         totalStaked += amount;
+        require(positionsByAccountV2[account].length < 20, "Max positions reached");
         positionsByAccountV2[account].push(
             MGXTypes.StakePosition({
                 amount: amount,
@@ -284,6 +286,11 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
         paymentAsset = stakingAssetByAccount[account];
         if (paymentAsset != address(0)) {
             settlementAmount = _consumeRewardReserve(paymentAsset, reward);
+        } else if (reward > 0) {
+            address mgxToken = _getMgxToken();
+            require(mgxToken != address(0), "MGX not set");
+            bool success = IERC20(mgxToken).transfer(account, reward);
+            require(success, "MGX transfer failed");
         }
 
         _syncLegacyPosition(account);
@@ -346,6 +353,12 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
 
         _removePosition(account, index);
         _syncLegacyPosition(account);
+        if (paymentAsset == address(0) && amountAfterFee > 0) {
+            address mgxToken = _getMgxToken();
+            require(mgxToken != address(0), "MGX not set");
+            bool success = IERC20(mgxToken).transfer(account, amountAfterFee);
+            require(success, "MGX transfer failed");
+        }
         emit Withdrawn(account, amountAfterFee, fee, paymentAsset, settlementCredit);
     }
 
@@ -523,6 +536,7 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
     }
 
     function adminCorrectStake(address account, uint256 amount) external onlyOwner nonReentrant {
+        // TODO: Remove before mainnet — migration only, no token transfer
         require(account != address(0), "Invalid account");
         require(amount > 0, "Amount must be positive");
 

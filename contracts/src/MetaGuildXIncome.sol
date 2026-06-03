@@ -94,6 +94,11 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
         __Ownable_init(msg.sender);
         __MetaGuildReentrancyGuard_init();
 
+        require(core_ != address(0), "Zero core");
+        require(router_ != address(0), "Zero router");
+        require(upgradeEngine_ != address(0), "Zero upgradeEngine");
+        require(paymentAsset_ != address(0), "Zero asset");
+
         coreContract = core_;
         incomeRouterContract = router_;
         upgradeEngineContract = upgradeEngine_;
@@ -103,6 +108,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
     function routeIncome(uint256 userId, uint256 amount, address asset, string calldata incomeType, uint8 cyclePkgLevel)
         external
         onlyRouter
+        nonReentrant
     {
         if (userId == 0 || amount == 0) {
             return;
@@ -367,6 +373,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
     }
 
     function setUpgradeEngineContract(address target) external onlyOwner {
+        require(target != address(0), "Zero address");
         upgradeEngineContract = target;
     }
 
@@ -383,7 +390,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
 
         escrowBalances[userId][pkgLevel] -= amount;
         address asset = defaultPaymentAsset;
-        IERC20(asset).transfer(owner(), amount);
+        IMetaGuildXIncomeCore(coreContract).payoutUserIncome(userId, amount, asset);
 
         emit AdminEscrowReleased(userId, amount);
     }
@@ -411,6 +418,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
     }
 
     function adminRestoreEscrow(uint256 userId, uint8 pkgLevel, uint256 amount) external onlyOwner {
+        // TODO: Remove or timelock before mainnet — migration only
         require(amount > 0, "Amount must be > 0");
         escrowBalances[userId][pkgLevel] += amount;
         emit EscrowCredited(userId, amount, 0);
@@ -434,6 +442,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
         uint256 earningsAmount,
         uint256 rebirthAmount
     ) external onlyOwner {
+        // TODO: Remove or timelock before mainnet — migration only
         totalEarnings[userId][pkgLevel] += earningsAmount;
         if (rebirthAmount > 0) {
             rebirthEscrow[userId] += rebirthAmount;

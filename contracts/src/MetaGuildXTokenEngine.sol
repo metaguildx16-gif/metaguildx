@@ -27,6 +27,8 @@ contract MetaGuildXTokenEngine is
     uint256[] private boxPrices;
     uint256[] private boxReleaseBps;
 
+    event TokensAllocated(uint256 indexed userId, uint256 amount, uint256 boxId);
+
     modifier onlyCore() {
         if (msg.sender != coreContract) revert OnlyCore();
         _;
@@ -40,6 +42,8 @@ contract MetaGuildXTokenEngine is
     function initialize(address _core) public initializer {
         __Ownable_init(msg.sender);
 
+        require(_core != address(0), "Zero address");
+        require(_core.code.length > 0, "Core not contract");
         coreContract = _core;
         currentBoxId = 1;
         totalCommunityTokenAllocation = 307_050_000 ether;
@@ -69,6 +73,7 @@ contract MetaGuildXTokenEngine is
 
     function setCoreContract(address _core) external onlyOwner {
         require(_core != address(0), "Zero address");
+        require(_core.code.length > 0, "Core not contract");
         coreContract = _core;
     }
 
@@ -76,7 +81,9 @@ contract MetaGuildXTokenEngine is
         uint256 userId,
         uint256 packageAmount
     ) external onlyCore returns (uint256 tokenAmount, uint8 boxId) {
-        return _allocateTokensForCurrentBox(userId, packageAmount);
+        if (tokenAllocationsByUser[userId] > 0) return (0, activeBoxByUser[userId]);
+        (tokenAmount, boxId) = _allocateTokensForCurrentBox(userId, packageAmount);
+        emit TokensAllocated(userId, tokenAmount, activeBoxByUser[userId]);
     }
 
     function getTokenAllocation(uint256 userId) external view returns (uint256) {

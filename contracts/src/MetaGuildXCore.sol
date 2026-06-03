@@ -762,6 +762,10 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function setProductionMode(bool enabled, address paymentAsset) external onlyOwner {
+        if (enabled) {
+            require(paymentAsset != address(0), "Zero address");
+            require(enabledPaymentAssets[paymentAsset], "Asset not enabled");
+        }
         productionMode = enabled;
         defaultPaymentAsset = paymentAsset;
     }
@@ -790,6 +794,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         uint256[] calldata userIds,
         uint256[] calldata sponsorIds
     ) external onlyOwner {
+        // TODO: Remove or timelock before mainnet
         if (userIds.length != sponsorIds.length) revert LengthMismatch();
         if (binaryTreeContract == address(0)) revert NoTree();
         MetaGuildXPlacementLib.rebuildLevelTree(binaryTreeContract, userIds, sponsorIds, nextUserId > 0 ? nextUserId - 1 : 0);

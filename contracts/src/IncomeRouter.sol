@@ -213,7 +213,7 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
         uint256 sponsorId,
         uint256 businessAmount,
         address paymentAsset
-    ) external onlyCore {
+    ) external onlyCore whenNotPaused {
         IIncomeSystemCore core = IIncomeSystemCore(coreContract);
         uint8 juniorPkgLevel = _getUserPackageLevel(core, fromUserId);
         uint256 balanceBefore = paymentAsset == address(0) ? 0 : IERC20(paymentAsset).balanceOf(address(this));
@@ -292,6 +292,7 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
         uint256 totalLevelBudget = baseLevelAmount * MAX_LEVELS;
         uint256 distributed;
 
+        // paidIds size must equal MAX_LEVELS (currently 10) - update both if MAX_LEVELS changes
         uint256[10] memory paidIds;
         uint8 paidCount = 0;
         uint256 placementCursor = placedUnderId;
@@ -595,7 +596,9 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
                 }
             }
 
-            current = core.getLevelParent(current);
+            uint256 nextLevel = core.getLevelParent(current);
+            if (nextLevel == 0) nextLevel = core.getBinaryParent(current);
+            current = nextLevel;
         }
 
         return 0;
