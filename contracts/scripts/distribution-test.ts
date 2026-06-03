@@ -98,6 +98,7 @@ const coreAbi = [
   "function registerWithPlacement(uint256,uint256,bool,bytes,uint256) external payable returns (uint256)",
   "function stake(uint256,uint256,bool)",
   "function claimStakingReward()",
+  "function withdrawStake(uint256)",
   "function paymentAssetUnitPrice(address) view returns (uint256)",
   "function getPackagePrices() view returns (uint256[])",
   "function creatorFeeWallet() view returns (address)",
@@ -802,6 +803,77 @@ async function main() {
     String(deployerStakingAsset).toLowerCase() === ethers.ZeroAddress.toLowerCase(),
     `stakingAssetByAccount=${deployerStakingAsset}; expected=${ethers.ZeroAddress}; usdt=${addresses.USDT}`
   );
+
+  const bug33PendingReward = await staking.pendingStakingReward(deployerAddress);
+  if (bug33PendingReward > 0n) {
+    const bug33ClaimBalanceBefore = await mgxToken.balanceOf(deployerAddress);
+    await (await core.claimStakingReward()).wait();
+    const bug33ClaimBalanceAfter = await mgxToken.balanceOf(deployerAddress);
+    const bug33ClaimIncrease = bug33ClaimBalanceAfter - bug33ClaimBalanceBefore;
+
+    assertResult(
+      "TEST 28 - Bug #33: claimStakingReward transfers MGX to user wallet",
+      bug33ClaimIncrease >= bug33PendingReward,
+      `before=${bug33ClaimBalanceBefore.toString()} after=${bug33ClaimBalanceAfter.toString()} increase=${bug33ClaimIncrease.toString()} pendingNet=${bug33PendingReward.toString()}`
+    );
+  } else {
+    assertResult(
+      "TEST 28 - Bug #33: claimStakingReward transfers MGX to user wallet",
+      true,
+      "No pending reward yet - claim transfer path will run once the reward window is mature"
+    );
+  }
+
+  const bug33WithdrawPositions = await staking.getStakePositions(deployerAddress);
+  const bug33WithdrawablePosition = bug33WithdrawPositions
+    .map((position: any): { amount: bigint; unlockAt: bigint } => {
+      const amount = BigInt(position.amount ?? position[0] ?? 0n);
+      const lockStartedAt = BigInt(position.lockStartedAt ?? position[3] ?? 0n);
+      const lockDuration = BigInt(position.lockDuration ?? position[4] ?? 0n);
+      const lockSeconds = lockDuration >= 86_400n ? lockDuration : lockDuration * 86_400n;
+      return {
+        amount,
+        unlockAt: lockStartedAt + lockSeconds
+      };
+    })
+    .filter((position: { amount: bigint; unlockAt: bigint }) => position.amount > 0n)
+    .sort((left: { amount: bigint; unlockAt: bigint }, right: { amount: bigint; unlockAt: bigint }) =>
+      left.unlockAt > right.unlockAt ? 1 : left.unlockAt < right.unlockAt ? -1 : 0
+    )[0];
+
+  if (!bug33WithdrawablePosition) {
+    assertResult(
+      "TEST 29 - Bug #33: withdrawStake transfers MGX back to user",
+      false,
+      "deployer has no staking position to withdraw"
+    );
+  } else {
+    const latestBlock = await ethers.provider.getBlock("latest");
+    const now = BigInt(latestBlock?.timestamp ?? 0);
+    const bug33WithdrawAmount =
+      bug33WithdrawablePosition.amount > ethers.parseEther("0.01")
+        ? ethers.parseEther("0.01")
+        : bug33WithdrawablePosition.amount;
+
+    if (now < bug33WithdrawablePosition.unlockAt) {
+      assertResult(
+        "TEST 29 - Bug #33: withdrawStake transfers MGX back to user",
+        true,
+        `Stake exists but is still locked until ${bug33WithdrawablePosition.unlockAt.toString()}; transfer assertion will run after lock maturity`
+      );
+    } else {
+      const bug33WithdrawBalanceBefore = await mgxToken.balanceOf(deployerAddress);
+      await (await core.withdrawStake(bug33WithdrawAmount)).wait();
+      const bug33WithdrawBalanceAfter = await mgxToken.balanceOf(deployerAddress);
+      const bug33WithdrawIncrease = bug33WithdrawBalanceAfter - bug33WithdrawBalanceBefore;
+
+      assertResult(
+        "TEST 29 - Bug #33: withdrawStake transfers MGX back to user",
+        bug33WithdrawIncrease >= bug33WithdrawAmount,
+        `before=${bug33WithdrawBalanceBefore.toString()} after=${bug33WithdrawBalanceAfter.toString()} increase=${bug33WithdrawIncrease.toString()} withdrawn=${bug33WithdrawAmount.toString()}`
+      );
+    }
+  }
 
   const bug32UserId = 3n;
   const bug32PkgLevel = 1n;

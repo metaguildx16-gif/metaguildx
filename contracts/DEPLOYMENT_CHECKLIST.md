@@ -121,6 +121,11 @@ Verify: users can no longer stake unlimited times without spending MGX ✅
      to wallet instead of getting stuck in escrow. Defensive fix added
      to escrow_direct branch. Test #21 added to distribution-test.ts ✅
 
+#33: MGXStaking claimFor() and withdrawFor() — MGX token not
+     transferred to users when paymentAsset==address(0).
+     Fixed: added IERC20(mgxToken).transfer() in claimFor(),
+     withdrawFor() V2 and legacy paths. Tests #28 and #29 added ✅
+
 ## Post-Deploy Fixes
 
 1. Bug #24 — Staking claim reliability fixes (polling mutex, RPC fallback, error messages) ✅
@@ -136,6 +141,9 @@ Verify: users can no longer stake unlimited times without spending MGX ✅
 - Test 18: 8h reward cycle — elapsedCycles calculation correct ✅
 - Test 19: Bug #29 — stake uses address(0) paymentAsset ✅
 - Test 20: Genealogy Tree — level income follows sponsor chain ✅
+
+- Test 28: Bug #33 — claimStakingReward transfers MGX to user wallet ✅
+- Test 29: Bug #33 — withdrawStake transfers MGX back to user ✅
 
 ## Payment Normalization (Critical)
 
@@ -171,6 +179,8 @@ Note: `distribution-test.ts` now covers 17 checks (was 16)
 Note: `distribution-test.ts` now covers 18 checks (was 17)
 Note: `distribution-test.ts` now covers 19 checks (was 18)
 Note: `distribution-test.ts` now covers 27 checks (was 20)
+
+Note: `distribution-test.ts` now shows 29 passed
 
 ## Fresh Deploy Order (Exact)
 

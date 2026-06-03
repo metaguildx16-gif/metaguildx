@@ -377,6 +377,11 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
         paymentAsset = stakingAssetByAccount[account];
         if (paymentAsset != address(0)) {
             settlementAmount = _consumeRewardReserve(paymentAsset, reward);
+        } else {
+            address mgxToken = _getMgxToken();
+            require(mgxToken != address(0), "MGX not set");
+            bool success = IERC20(mgxToken).transfer(account, reward);
+            require(success, "MGX transfer failed");
         }
 
         emit Claimed(account, reward, paymentAsset, settlementAmount);
@@ -479,6 +484,13 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
                 _syncLegacyPosition(account);
             }
 
+            if (paymentAsset == address(0) && amountAfterFee > 0) {
+                address mgxToken = _getMgxToken();
+                require(mgxToken != address(0), "MGX not set");
+                bool success = IERC20(mgxToken).transfer(account, amountAfterFee);
+                require(success, "MGX transfer failed");
+            }
+
             emit Withdrawn(account, amountAfterFee, fee, paymentAsset, settlementCredit);
             return (amountAfterFee, paymentAsset, settlementCredit, fee, autoCompoundedReward);
         }
@@ -498,6 +510,13 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
             if (settlementConsumed > 0 && position.amount == 0) {
                 stakingAssetByAccount[account] = address(0);
             }
+        }
+
+        if (paymentAsset == address(0) && amountAfterFee > 0) {
+            address mgxToken = _getMgxToken();
+            require(mgxToken != address(0), "MGX not set");
+            bool success = IERC20(mgxToken).transfer(account, amountAfterFee);
+            require(success, "MGX transfer failed");
         }
 
         emit Withdrawn(account, amountAfterFee, fee, paymentAsset, settlementCredit);

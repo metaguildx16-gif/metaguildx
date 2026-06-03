@@ -1,30 +1,18 @@
-import { ethers, upgrades } from "hardhat";
-
+﻿import { ethers } from "hardhat";
 async function main() {
-  const PROXY = process.env.MGX_STAKING_ADDRESS!;
-  if (!PROXY) {
-    throw new Error("MGX_STAKING_ADDRESS env var is required");
-  }
-  const [deployer] = await ethers.getSigners();
-
-  console.log("Upgrading MGXStaking...");
-  console.log("Proxy:", PROXY);
-  console.log("Signer:", deployer.address);
-
-  const Factory = await ethers.getContractFactory("MGXStaking");
-  const upgraded = await upgrades.upgradeProxy(PROXY, Factory);
-  await upgraded.waitForDeployment();
-
-  const newImpl = await upgrades.erc1967.getImplementationAddress(PROXY);
-  console.log("MGXStaking upgraded âœ…");
-  console.log("New impl:", newImpl);
-
-  const staking = await ethers.getContractAt("MGXStaking", PROXY);
-  console.log("coreContract:", await staking.coreContract());
-  console.log("incomeContract:", await staking.incomeContract());
+  const proxyAddr = "0x1f36aDb8eeB968000aFA1c8CFE6f38B0568D33b7";
+  const implSlot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+  const oldImpl = await ethers.provider.getStorage(proxyAddr, implSlot);
+  console.log("Old impl:", "0x" + oldImpl.slice(26));
+  const factory = await ethers.getContractFactory("MGXStaking");
+  const newImpl = await factory.deploy();
+  await newImpl.waitForDeployment();
+  console.log("New impl:", await newImpl.getAddress());
+  const proxy = await ethers.getContractAt("MGXStaking", proxyAddr);
+  const tx = await proxy.upgradeToAndCall(await newImpl.getAddress(), "0x");
+  await tx.wait();
+  const newImplOnChain = await ethers.provider.getStorage(proxyAddr, implSlot);
+  console.log("On-chain impl:", "0x" + newImplOnChain.slice(26));
+  console.log("Changed:", oldImpl !== newImplOnChain ? "YES ✅" : "NO ❌");
 }
-
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main().catch(console.error);
