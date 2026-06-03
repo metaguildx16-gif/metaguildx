@@ -1,9 +1,10 @@
-const ENV_CORE_ADDRESS = import.meta.env.VITE_SYSTEM_PROXY_ADDRESS;
+const ENV_CORE_ADDRESS = import.meta.env.VITE_CORE_ADDRESS || import.meta.env.VITE_SYSTEM_PROXY_ADDRESS;
+const ENV_INCOME_ADDRESS = import.meta.env.VITE_INCOME_ADDRESS;
 const ENV_USDT_ADDRESS = import.meta.env.VITE_USDT_ADDRESS;
 
 export const CONTRACTS = {
   MetaGuildXCore: ENV_CORE_ADDRESS || "0xF28019a3cC992619b652967B96B3813bA3830D91",
-  MetaGuildXIncome: "0x16f7F2590Af7f3657AC4dA1416b1Ab4e852091F5",
+  MetaGuildXIncome: ENV_INCOME_ADDRESS || "0x16f7F2590Af7f3657AC4dA1416b1Ab4e852091F5",
   MetaGuildXUpgrade: "0x4e699918bc27A9b98D1FFA1251f4CC3d212226Cd",
   IncomeRouter: "0x30ec8A79712A36Fc24C03C16e4fae3BD8bF3ff85",
   BinaryTree: "0x6E10BD7c3aa13c5EC36C2DEc15Ba77bdBE3a883b",
@@ -38,6 +39,7 @@ export const ABIS = {
     "function usdtAddress() view returns (address)",
     "function getUserPackageLevel(uint256) view returns (uint256)",
     "function getUserOriginalPackageLevel(uint256) view returns (uint8)",
+    "function getUserWallet(uint256) view returns (address)",
     "function isRebirthUser(uint256) view returns (bool)",
     "function userIdByAddress(address) view returns (uint256)",
     "function getDirectReferralIds(uint256) view returns (uint256[])",

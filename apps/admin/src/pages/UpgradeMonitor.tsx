@@ -1,4 +1,4 @@
-import { Contract, JsonRpcProvider } from "ethers";
+import { BrowserProvider, Contract, JsonRpcProvider, type Eip1193Provider } from "ethers";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
@@ -26,6 +26,23 @@ type EscrowStatusRow = {
   escrowType: "Package Escrow" | "Rebirth Escrow" | "Package Escrow + Waiting Income";
   status: "Ready to upgrade" | "Ready to rebirth" | "Accumulating";
 };
+
+type StrandedEscrowRow = {
+  userId: number;
+  wallet: string;
+  currentPkg: number;
+  strandedPkg: number;
+  amountRaw: bigint;
+  amount: number;
+};
+
+type EthereumLike = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+
+function getEthereum() {
+  return (window as Window & { ethereum?: EthereumLike }).ethereum;
+}
 
 async function getEscrowStatusRows(): Promise<EscrowStatusRow[]> {
   console.log("getEscrowStatusRows START");
@@ -97,13 +114,66 @@ async function getEscrowStatusRows(): Promise<EscrowStatusRow[]> {
   return rows.sort((a, b) => b.progress - a.progress || b.escrow - a.escrow).slice(0, 50);
 }
 
+async function getStrandedEscrowRows(): Promise<StrandedEscrowRow[]> {
+  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+  const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider);
+  const income = new Contract(CONTRACTS.MetaGuildXIncome, ABIS.MetaGuildXIncome, provider);
+  const nextUserId = Number(await core.nextUserId());
+  const rows: StrandedEscrowRow[] = [];
+
+  for (let userId = 1; userId < nextUserId; userId += 1) {
+    let currentPkg = 0;
+    let wallet = "";
+
+    try {
+      currentPkg = Number(await core.getUserPackageLevel(userId));
+      if (currentPkg <= 1) {
+        continue;
+      }
+
+      try {
+        wallet = String(await core.getUserWallet(userId));
+      } catch {
+        const profile = await core.usersById(userId);
+        wallet = String(profile.account);
+      }
+    } catch {
+      continue;
+    }
+
+    for (let pkg = 1; pkg < currentPkg; pkg += 1) {
+      try {
+        const amountRaw = BigInt(await income.escrowBalances(userId, pkg));
+        if (amountRaw > 0n) {
+          rows.push({
+            userId,
+            wallet,
+            currentPkg,
+            strandedPkg: pkg,
+            amountRaw,
+            amount: Number(amountRaw) / 10
+          });
+        }
+      } catch {
+        // Keep scanning other packages/users if one read fails.
+      }
+    }
+  }
+
+  return rows.sort((a, b) => b.amount - a.amount || a.userId - b.userId || a.strandedPkg - b.strandedPkg);
+}
+
 export function UpgradeMonitor() {
   const location = useLocation();
   const escrowOnly = location.pathname === "/escrow";
   const [data, setData] = useState<UpgradeMonitorData | null>(null);
   const [escrowRows, setEscrowRows] = useState<EscrowStatusRow[]>([]);
+  const [strandedRows, setStrandedRows] = useState<StrandedEscrowRow[]>([]);
   const [balances, setBalances] = useState<ContractBalances | null>(null);
   const [loading, setLoading] = useState(true);
+  const [strandedLoading, setStrandedLoading] = useState(false);
+  const [releaseUserId, setReleaseUserId] = useState<number | null>(null);
+  const [strandedError, setStrandedError] = useState("");
 
   const loadBalances = async () => {
     const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
@@ -121,14 +191,56 @@ export function UpgradeMonitor() {
     });
   };
 
+  const loadStrandedEscrow = async () => {
+    setStrandedLoading(true);
+    setStrandedError("");
+    try {
+      setStrandedRows(await getStrandedEscrowRows());
+    } catch (error) {
+      setStrandedError(error instanceof Error ? error.message : "Failed to load stranded escrow");
+    } finally {
+      setStrandedLoading(false);
+    }
+  };
+
+  const handleReleaseStrandedEscrow = async (userId: number) => {
+    const ethereum = getEthereum();
+    if (!ethereum) {
+      setStrandedError("MetaMask not found");
+      return;
+    }
+
+    const confirmed = window.confirm(`Release all stranded escrow for User #${userId}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setReleaseUserId(userId);
+    setStrandedError("");
+    try {
+      const browserProvider = new BrowserProvider(ethereum as Eip1193Provider);
+      await browserProvider.send("eth_requestAccounts", []);
+      const signer = await browserProvider.getSigner();
+      const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, signer);
+      const tx = await core.adminReleaseStrandedEscrow(userId);
+      await tx.wait();
+      await Promise.all([loadStrandedEscrow(), loadBalances()]);
+    } catch (error) {
+      setStrandedError(error instanceof Error ? error.message : "Failed to release stranded escrow");
+    } finally {
+      setReleaseUserId(null);
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       
       // Run both independently - one failure won't block the other
-      const [upgradeResult, escrowResult] = await Promise.allSettled([
+      const [upgradeResult, escrowResult, strandedResult] = await Promise.allSettled([
         getUpgradeMonitorData(),
-        getEscrowStatusRows()
+        getEscrowStatusRows(),
+        getStrandedEscrowRows()
       ]);
 
       if (upgradeResult.status === "fulfilled") {
@@ -144,6 +256,13 @@ export function UpgradeMonitor() {
         console.error("getEscrowStatusRows failed:", escrowResult.reason);
       }
 
+      if (strandedResult.status === "fulfilled") {
+        setStrandedRows(strandedResult.value);
+      } else {
+        console.error("getStrandedEscrowRows failed:", strandedResult.reason);
+        setStrandedError(strandedResult.reason instanceof Error ? strandedResult.reason.message : "Failed to load stranded escrow");
+      }
+
       try {
         await loadBalances();
       } catch (e) {
@@ -154,6 +273,8 @@ export function UpgradeMonitor() {
     };
     void load();
   }, []);
+
+  const totalStrandedUsdt = strandedRows.reduce((total, row) => total + row.amount, 0);
 
   return (
     <div className="space-y-6">
@@ -253,6 +374,80 @@ export function UpgradeMonitor() {
                   {balances ? formatUsdt(balances.income) : "Loading..."}
                 </h4>
               </article>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-amber-500/20 bg-amber-500/5 p-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Stranded Escrow</h3>
+                <p className="mt-1 text-sm text-gray-300">
+                  Lower-package escrow held by users whose current package has already advanced.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="rounded-2xl border border-amber-500/20 bg-gray-950/70 px-4 py-3 text-sm">
+                  <span className="text-gray-400">Total stranded </span>
+                  <span className="font-semibold text-amber-300">{formatUsdt(totalStrandedUsdt)}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadStrandedEscrow()}
+                  disabled={strandedLoading}
+                  className="rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-gray-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {strandedLoading ? "Scanning..." : "Refresh Scan"}
+                </button>
+              </div>
+            </div>
+
+            {strandedError ? (
+              <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {strandedError}
+              </div>
+            ) : null}
+
+            <div className="mt-5 overflow-hidden rounded-2xl border border-gray-800">
+              <table className="min-w-full divide-y divide-gray-800 text-left text-sm">
+                <thead className="bg-gray-950/70 text-gray-400">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">User ID</th>
+                    <th className="px-4 py-3 font-medium">Wallet</th>
+                    <th className="px-4 py-3 font-medium">Current Pkg</th>
+                    <th className="px-4 py-3 font-medium">Stranded Pkg</th>
+                    <th className="px-4 py-3 font-medium">Amount (USDT)</th>
+                    <th className="px-4 py-3 font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800 bg-gray-950/50">
+                  {strandedRows.map((row) => (
+                    <tr key={`${row.userId}-${row.strandedPkg}`}>
+                      <td className="px-4 py-4 font-medium text-white">#{row.userId}</td>
+                      <td className="px-4 py-4 text-gray-300">{shortAddress(row.wallet)}</td>
+                      <td className="px-4 py-4 text-gray-300">Pkg {row.currentPkg}</td>
+                      <td className="px-4 py-4 text-amber-300">Pkg {row.strandedPkg}</td>
+                      <td className="px-4 py-4 font-semibold text-white">{formatUsdt(row.amount)}</td>
+                      <td className="px-4 py-4">
+                        <button
+                          type="button"
+                          onClick={() => void handleReleaseStrandedEscrow(row.userId)}
+                          disabled={releaseUserId === row.userId}
+                          className="rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-gray-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {releaseUserId === row.userId ? "Releasing..." : "Release"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!strandedLoading && strandedRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                        No stranded escrow found
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
             </div>
           </div>
         </section>
