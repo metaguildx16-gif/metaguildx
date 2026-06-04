@@ -5920,7 +5920,7 @@ function App() {
                   <img
                     src="/mgx-logo.png"
                     alt="MGX"
-                    style={{ width: "60px", height: "60px", objectFit: "contain",
+                    style={{ width: "80px", height: "80px", objectFit: "contain",
                       filter: "drop-shadow(0 0 8px rgba(201,168,76,0.4))" }}
                     onError={e => { e.currentTarget.style.display="none"; }}
                   />
@@ -6097,7 +6097,7 @@ function App() {
                     <img
                       src="/mgx-logo.png"
                       alt="MGX"
-                      style={{ width: "48px", height: "48px", objectFit: "contain",
+                      style={{ width: "64px", height: "64px", objectFit: "contain",
                         filter: "drop-shadow(0 0 6px rgba(201,168,76,0.3))" }}
                       onError={e => { e.currentTarget.style.display="none"; }}
                     />
