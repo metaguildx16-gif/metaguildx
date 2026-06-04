@@ -3896,7 +3896,7 @@ function App() {
                 </p>
                 {safeContractWarning ? <p className="warning-text">{safeContractWarning}</p> : null}
               </div>
-              <div className="summary-strip">
+              <div className="summary-strip w-full">
                 <article className="summary-chip">
                   <span>Total Earned</span>
                   <strong>${totalEarnedDisplay}</strong>
@@ -3949,7 +3949,7 @@ function App() {
           {!isAdminRoute && dashboardView === "overview" ? (
             <section className="panel dashboard-preview dashboard-view w-full max-w-full">
               <div className="overview-layout flex flex-col gap-4 w-full max-w-full">
-                <div className="overview-row overview-row-primary grid grid-cols-1 xl:grid-cols-2 gap-4 w-full max-w-full">
+                <div className="overview-row overview-row-primary grid grid-cols-1 lg:grid-cols-2 gap-4 w-full max-w-full">
                   <article className="section-card premium-panel dashboard-home-card">
                     <div className="section-card-header">
                       <div className="dashboard-card-title-stack">
