@@ -43,10 +43,12 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
     address public defaultPaymentAsset;
 
     mapping(uint256 => uint256[]) public rebirthIdsByUser;
+    mapping(uint256 => bool) private upgradeInProgress;
 
     event PackageUpgraded(uint256 indexed userId, uint256 newLevel);
     event RebirthCreated(uint256 indexed originalId, uint256 indexed newId);
     event MaxLevelEscrowReleased(uint256 indexed userId, uint256 amount);
+    event AutoUpgradeTriggerSkipped(uint256 indexed userId, uint256 packageIndex);
 
     modifier onlyIncomeContract() {
         require(msg.sender == incomeContract, "Only income contract");
@@ -69,7 +71,17 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
         defaultPaymentAsset = paymentAsset_;
     }
 
-    function checkAndTriggerUpgrade(uint256 userId, uint256 pkgPrice, address paymentAsset) external onlyIncomeContract nonReentrant {
+    function checkAndTriggerUpgrade(uint256 userId, uint256 pkgPrice, address paymentAsset) external onlyIncomeContract {
+        if (upgradeInProgress[userId]) {
+            emit AutoUpgradeTriggerSkipped(userId, pkgPrice);
+            return;
+        }
+        upgradeInProgress[userId] = true;
+        _doCheckAndTriggerUpgrade(userId, pkgPrice, paymentAsset);
+        upgradeInProgress[userId] = false;
+    }
+
+    function _doCheckAndTriggerUpgrade(uint256 userId, uint256 pkgPrice, address paymentAsset) internal {
         IMetaGuildXUpgradeIncome income = IMetaGuildXUpgradeIncome(incomeContract);
         IMetaGuildXUpgradeCore core = IMetaGuildXUpgradeCore(coreContract);
         require(core.isUserActive(userId), "USER_NOT_ACTIVE");

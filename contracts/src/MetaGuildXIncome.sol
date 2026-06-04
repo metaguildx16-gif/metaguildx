@@ -54,6 +54,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
     event AdminEscrowReleased(uint256 indexed userId, uint256 amount);
     event AdminEscrowAdded(uint256 indexed userId, uint256 amount);
     event StrandedEscrowReleased(uint256 indexed userId, uint256 pkgLevel, uint256 amount);
+    event AutoUpgradeCheckFailed(uint256 indexed userId, uint256 packageIndex, bytes reason);
 event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
     event AdminEarningsBackfilled(
         uint256 indexed userId,
@@ -108,7 +109,6 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
     function routeIncome(uint256 userId, uint256 amount, address asset, string calldata incomeType, uint8 cyclePkgLevel)
         external
         onlyRouter
-        nonReentrant
     {
         if (userId == 0 || amount == 0) {
             return;
@@ -259,10 +259,15 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
             return;
         }
 
-        IMetaGuildXUpgradeEngine(upgradeEngineContract).checkAndTriggerUpgrade(userId, packagePrice, paymentAsset);
+        try IMetaGuildXUpgradeEngine(upgradeEngineContract).checkAndTriggerUpgrade(userId, packagePrice, paymentAsset) {
+            // upgrade check succeeded
+        } catch (bytes memory reason) {
+            emit AutoUpgradeCheckFailed(userId, packagePrice, reason);
+            // distribution continues - no revert
+        }
     }
 
-    function releaseEscrow(uint256 userId, uint256 amount) external onlyUpgradeEngine {
+    function releaseEscrow(uint256 userId, uint256 amount) external onlyUpgradeEngine nonReentrant {
         uint256 pkgLevel = IMetaGuildXIncomeCore(coreContract).getUserPackageLevel(userId);
         require(escrowBalances[userId][pkgLevel] >= amount, "Insufficient escrow");
         escrowBalances[userId][pkgLevel] -= amount;
@@ -275,7 +280,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
         emit EscrowReleased(userId, amount);
     }
 
-    function releaseAllEscrow(uint256 userId, uint256 amount) external onlyUpgradeEngine {
+    function releaseAllEscrow(uint256 userId, uint256 amount) external onlyUpgradeEngine nonReentrant {
         uint256 remaining = amount;
         for (uint8 i = 1; i <= 10; i++) {
             if (remaining == 0) break;
@@ -312,7 +317,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
         emit IncomeReset(userId, pkgLevel);
     }
 
-    function releaseRebirthEscrow(uint256 userId) external onlyUpgradeEngine {
+    function releaseRebirthEscrow(uint256 userId) external onlyUpgradeEngine nonReentrant {
         uint256 amount = rebirthEscrow[userId];
         if (amount == 0) return;
         rebirthEscrow[userId] = 0;
@@ -381,7 +386,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
         defaultPaymentAsset = target;
     }
 
-    function adminReleaseEscrow(uint256 userId, uint256 amount) external onlyOwner {
+    function adminReleaseEscrow(uint256 userId, uint256 amount) external onlyOwner nonReentrant {
         IMetaGuildXIncomeCore core = IMetaGuildXIncomeCore(coreContract);
         uint256 pkgLevel = core.getUserPackageLevel(userId);
 
