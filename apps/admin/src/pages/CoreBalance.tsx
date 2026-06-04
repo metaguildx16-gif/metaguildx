@@ -462,23 +462,26 @@ export function CoreBalancePage() {
         </section>
       )}
 
-      {data && hasFailedDistributions && data.actualBalance > 0n && latestStuckRow ? (
+      {data && hasFailedDistributions ? (
         <section className="rounded-3xl border border-red-500/30 bg-red-500/10 p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-red-200">Stuck Distribution Check</h2>
               <p className="mt-2 text-sm text-red-100">
-                Active failed distributions detected on-chain.
-                Latest related TX: {shortAddress(latestStuckRow.txHash)}.
+                Active failed distributions detected on-chain.{" "}
+                {latestStuckRow ? `Latest related TX: ${shortAddress(latestStuckRow.txHash)}.` : ""}
               </p>
             </div>
             <button
               type="button"
-              onClick={() => void handleSweep()}
-              disabled={!isOwner || sweeping || data.actualBalance === 0n}
-              className="rounded-full bg-amber-500 px-5 py-3 text-sm font-semibold text-gray-950 disabled:opacity-50"
+              onClick={() => {
+                const firstFailed = data.failedRows[0];
+                if (firstFailed) void handleRetry(firstFailed.userId);
+              }}
+              disabled={!isOwner || data.failedRows.length === 0}
+              className="rounded-full bg-red-500 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 hover:bg-red-400"
             >
-              {sweeping ? "Sweeping..." : "Sweep to Creator"}
+              Retry Now
             </button>
           </div>
         </section>
