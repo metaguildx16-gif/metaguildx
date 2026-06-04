@@ -803,9 +803,14 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     function adminRetryDistribution(uint256 userId) external onlyOwner {
         if (!failedDistribution[userId]) revert NotFailedDistribution(userId);
 
-        address paymentAsset = userPrimaryAsset[userId];
-        if (paymentAsset == address(0)) {
-            paymentAsset = defaultPaymentAsset;
+        address paymentAsset;
+        if (productionMode) {
+            paymentAsset = userPrimaryAsset[userId];
+            if (paymentAsset == address(0)) {
+                paymentAsset = defaultPaymentAsset;
+            }
+        } else {
+            paymentAsset = address(0);
         }
         _retryDistributionForUser(userId, paymentAsset);
     }
@@ -865,8 +870,10 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         uint256 packageAmount = packagePricesArray[profile.packageLevel - 1];
         uint256 placedUnderId = IMetaGuildXBinaryTree(binaryTreeContract).getParent(userId);
         uint256 settlementAmt = _platformToSettlement(paymentAsset, packageAmount);
-        uint256 coreBal = IERC20(paymentAsset).balanceOf(address(this));
-        if (coreBal < settlementAmt) revert InsufficientCoreBalance();
+        if (paymentAsset != address(0)) {
+            uint256 coreBal = IERC20(paymentAsset).balanceOf(address(this));
+            if (coreBal < settlementAmt) revert InsufficientCoreBalance();
+        }
 
         try IMetaGuildXRouter(incomeRouterContract).distributeJoinIncome(
             userId,
