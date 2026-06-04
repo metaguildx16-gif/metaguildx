@@ -3673,7 +3673,7 @@ function App() {
           <aside className="dashboard-sidebar">
             {/* Logo */}
             <div className="dashboard-sidebar-logo">
-              <img src="/logo.png" alt="MGX" onError={(e) => { e.currentTarget.style.display='none'; }} />
+              <img src="/mgx logo.png" alt="MGX" onError={(e) => { e.currentTarget.style.display='none'; }} />
               <div className="dashboard-sidebar-logo-text">
                 <span>MetaGuildX</span>
                 <span>
@@ -5912,11 +5912,18 @@ function App() {
                   width: "88px", height: "88px", borderRadius: "50%",
                   background: "linear-gradient(135deg, #1a3a6e, #2E6FD8)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "36px", flexShrink: 0,
+                  flexShrink: 0,
                   boxShadow: "0 0 32px rgba(46,111,216,0.4)",
-                  border: "2px solid rgba(201,168,76,0.4)"
+                  border: "2px solid rgba(201,168,76,0.4)",
+                  overflow: "hidden"
                 }}>
-                  👤
+                  <img
+                    src="/mgx logo.png"
+                    alt="MGX"
+                    style={{ width: "60px", height: "60px", objectFit: "contain",
+                      filter: "drop-shadow(0 0 8px rgba(201,168,76,0.4))" }}
+                    onError={e => { e.currentTarget.style.display="none"; }}
+                  />
                 </div>
 
                 {/* User Info */}
@@ -6084,8 +6091,17 @@ function App() {
                     width: "72px", height: "72px", borderRadius: "50%",
                     background: "linear-gradient(135deg, #1a3a6e, #2E6FD8)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "28px", border: "2px solid rgba(201,168,76,0.3)", flexShrink: 0
-                  }}>👤</div>
+                    border: "2px solid rgba(201,168,76,0.3)", flexShrink: 0,
+                    overflow: "hidden"
+                  }}>
+                    <img
+                      src="/mgx logo.png"
+                      alt="MGX"
+                      style={{ width: "48px", height: "48px", objectFit: "contain",
+                        filter: "drop-shadow(0 0 6px rgba(201,168,76,0.3))" }}
+                      onError={e => { e.currentTarget.style.display="none"; }}
+                    />
+                  </div>
                   <div>
                     <div style={{ fontSize: "13px", color: "#EEF4FF", marginBottom: "4px", fontWeight: 500 }}>
                       Profile Photo
