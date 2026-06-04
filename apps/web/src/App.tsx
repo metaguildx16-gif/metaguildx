@@ -3673,7 +3673,7 @@ function App() {
           <aside className="dashboard-sidebar">
             {/* Logo */}
             <div className="dashboard-sidebar-logo">
-              <img src="/mgx logo.png" alt="MGX" onError={(e) => { e.currentTarget.style.display='none'; }} />
+              <img src="/mgx-logo.png" alt="MGX" onError={(e) => { e.currentTarget.style.display='none'; }} />
               <div className="dashboard-sidebar-logo-text">
                 <span>MetaGuildX</span>
                 <span>
@@ -5918,7 +5918,7 @@ function App() {
                   overflow: "hidden"
                 }}>
                   <img
-                    src="/mgx logo.png"
+                    src="/mgx-logo.png"
                     alt="MGX"
                     style={{ width: "60px", height: "60px", objectFit: "contain",
                       filter: "drop-shadow(0 0 8px rgba(201,168,76,0.4))" }}
@@ -6095,7 +6095,7 @@ function App() {
                     overflow: "hidden"
                   }}>
                     <img
-                      src="/mgx logo.png"
+                      src="/mgx-logo.png"
                       alt="MGX"
                       style={{ width: "48px", height: "48px", objectFit: "contain",
                         filter: "drop-shadow(0 0 6px rgba(201,168,76,0.3))" }}
