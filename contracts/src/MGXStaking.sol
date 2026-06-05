@@ -78,6 +78,8 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
         _initializeV2(_rewardRate, lockDays, multipliers);
     }
 
+    // NOTE: initializeV3 sets treasury top-up config.
+    // executeTopUp() is not yet implemented — these values are informational.
     function initializeV3() external onlyOwner reinitializer(3) {
         treasury = owner();
         minBalanceThreshold = 100_000 ether;
@@ -85,6 +87,8 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
         topUpCooldown = 12 hours;
     }
 
+    // NOTE: initializeV3 sets treasury top-up config.
+    // executeTopUp() is not yet implemented — these values are informational.
     function initializeV3(
         address _treasury,
         uint256 _threshold,
@@ -907,11 +911,15 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
     mapping(address => uint256[]) private positionSettlementBalancesByAccount;
     uint256 public rewardRate;
     mapping(uint256 => uint256) public lockMultiplier;
+    // NOTE: Treasury auto top-up is not yet implemented.
+    // These variables are reserved for future use.
+    // Do NOT remove — storage layout must be preserved for UUPS upgrades.
+    // A guarded executeTopUp() function should be added in a future upgrade.
     address public treasury;
-    uint256 public minBalanceThreshold;
-    uint256 public topUpAmount;
-    uint256 public lastTopUpTime;
-    uint256 public topUpCooldown;
+    uint256 public minBalanceThreshold; // Minimum rewardPool before top-up triggers
+    uint256 public topUpAmount;         // Amount to top up per trigger
+    uint256 public lastTopUpTime;       // Last top-up timestamp (cooldown tracking)
+    uint256 public topUpCooldown;       // Minimum time between top-ups
     uint256[] public validLockDays;
     uint256[35] private __gap;
 }
