@@ -221,12 +221,29 @@ function App() {
   };
   const defaultProfile = { nickname: "", displayName: "" };
   const [profileMeta, setProfileMeta] = useState(defaultProfile);
+  const [userDisplayNames, setUserDisplayNames] = useState<Record<string, string>>({});
+  const getDisplayName = (wallet: string | undefined, userId: number): string => {
+    if (!wallet) return `User #${userId}`;
+    const name = userDisplayNames[wallet.toLowerCase()];
+    return name || `User #${userId}`;
+  };
   const saveProfileMeta = (updated: typeof defaultProfile) => {
     setProfileMeta(updated);
     const walletKey = snapshot?.walletAddress
       ? `mgx_profile_v1_${snapshot.walletAddress.toLowerCase()}`
       : PROFILE_STORAGE_KEY;
     localStorage.setItem(walletKey, JSON.stringify(updated));
+    // Also save to backend
+    if (snapshot?.walletAddress) {
+      fetch(`${import.meta.env.VITE_PLACEMENT_SIGNER_URL}/profile`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-wallet-address": snapshot.walletAddress.toLowerCase(),
+        },
+        body: JSON.stringify(updated),
+      }).catch(() => {});
+    }
   };
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -716,19 +733,30 @@ function App() {
   }, [snapshot.walletAddress]);
 
   useEffect(() => {
-    const walletKey = snapshot?.walletAddress
-      ? `mgx_profile_v1_${snapshot.walletAddress.toLowerCase()}`
-      : null;
-    if (!walletKey) {
+    if (!snapshot?.walletAddress) {
       setProfileMeta(defaultProfile);
       return;
     }
+    const walletKey = `mgx_profile_v1_${snapshot.walletAddress.toLowerCase()}`;
+    // First load from localStorage (instant)
     try {
       const saved = localStorage.getItem(walletKey);
-      setProfileMeta(saved ? JSON.parse(saved) : defaultProfile);
-    } catch {
-      setProfileMeta(defaultProfile);
-    }
+      if (saved) setProfileMeta(JSON.parse(saved));
+    } catch {}
+    // Then fetch from backend (authoritative)
+    fetch(`${import.meta.env.VITE_PLACEMENT_SIGNER_URL}/profile?wallet=${snapshot.walletAddress.toLowerCase()}`)
+      .then(r => r.json())
+      .then((data: { displayName?: string; nickname?: string }) => {
+        if (data.displayName || data.nickname) {
+          const merged = {
+            displayName: data.displayName ?? "",
+            nickname: data.nickname ?? "",
+          };
+          setProfileMeta(merged);
+          localStorage.setItem(walletKey, JSON.stringify(merged));
+        }
+      })
+      .catch(() => {});
   }, [snapshot?.walletAddress]);
 
   useEffect(() => {
@@ -1138,6 +1166,28 @@ function App() {
       isActive = false;
     };
   }, [dashboardView, treeMode, snapshot.userId, treeViewUserId]);
+
+  useEffect(() => {
+    if (!["network", "tree"].includes(dashboardView)) return;
+    const wallets = snapshot.treePreview
+      .map(n => n.account)
+      .filter((w): w is string => !!w && w !== "0x0000000000000000000000000000000000000000")
+      .slice(0, 30);
+    if (wallets.length === 0) return;
+    const url = `${import.meta.env.VITE_PLACEMENT_SIGNER_URL}/profiles/batch?wallets=${wallets.join(",")}`;
+    fetch(url)
+      .then(r => r.json())
+      .then((data: { wallet: string; displayName: string; nickname: string }[]) => {
+        const map: Record<string, string> = {};
+        for (const p of data) {
+          if (p.displayName || p.nickname) {
+            map[p.wallet.toLowerCase()] = p.displayName || p.nickname;
+          }
+        }
+        setUserDisplayNames(map);
+      })
+      .catch(() => {});
+  }, [dashboardView, snapshot.treePreview]);
 
   async function refreshSnapshot(walletAddress?: string | null) {
     startLoadingSession("loading user profile", "Loading user profile...");
@@ -2358,6 +2408,7 @@ function App() {
     const treeNode = snapshot.treePreview.find((entry) => entry.userId === userId);
     return {
       userId,
+      displayName: getDisplayName(treeNode?.account, userId),
       packageLevel: featured?.packageLevel ?? treeNode?.packageLevel ?? 1,
       wallet: "account" in (treeNode ?? {}) && treeNode?.account ? `${treeNode.account.slice(0, 6)}...${treeNode.account.slice(-4)}` : "Wallet loading",
       totalEarnings: featured?.totalEarnings ?? "0",
@@ -4037,8 +4088,8 @@ function App() {
                         </>
                       ) : (
                         <>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Left</span><span className={`income-amount ${directLeftNode ? "" : "text-amber"}`}>{directLeftNode ? `User #${directLeftNode.userId}` : "Empty slot"}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Right</span><span className={`income-amount ${directRightNode ? "" : "text-amber"}`}>{directRightNode ? `User #${directRightNode.userId}` : "Empty slot"}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Left</span><span className={`income-amount ${directLeftNode ? "" : "text-amber"}`}>{directLeftNode ? getDisplayName(directLeftNode.account, directLeftNode.userId) : "Empty slot"}</span></div>
+                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Right</span><span className={`income-amount ${directRightNode ? "" : "text-amber"}`}>{directRightNode ? getDisplayName(directRightNode.account, directRightNode.userId) : "Empty slot"}</span></div>
                           <div className="income-row dashboard-tree-row"><span className="income-label">Level Left</span><span className="income-amount">{snapshot.levelTreeLeft ?? 0}</span></div>
                           <div className="income-row dashboard-tree-row"><span className="income-label">Level Right</span><span className="income-amount">{snapshot.levelTreeRight ?? 0}</span></div>
                           <div className="income-row dashboard-tree-row"><span className="income-label">Total Team</span><span className="income-amount">{totalTeamLabel}</span></div>
@@ -4175,7 +4226,7 @@ function App() {
                               {userReferralRows.length > 0 ? userReferralRows.map((node, index) => (
                                 <tr key={`network-referral-${node.userId}`} className="referrals-data-row">
                                   <td className="referrals-col-user">{index + 1}</td>
-                                  <td className="referrals-col-user referral-cell-strong"><span className="referral-user-pill">{`#${node.userId}`}</span></td>
+                                  <td className="referrals-col-user referral-cell-strong"><span className="referral-user-pill">{node.displayName}</span></td>
                                   <td className="referrals-col-package"><span className="referral-pkg-pill">{`Pkg ${node.packageLevel}`}</span></td>
                                   <td className="referrals-col-joined"><span className="referral-joined-muted">{node.joinedLabel}</span></td>
                                   <td className={`referrals-col-income ${parseDisplayNumber(node.income) > 0 ? "referral-income-positive" : "referral-income-zero"}`}>${parseDisplayNumber(node.income).toFixed(2)}</td>
@@ -4503,7 +4554,7 @@ function App() {
                       <tbody className="divide-y divide-gray-800/70">
                         {userReferralRows.length > 0 ? userReferralRows.map((node) => (
                           <tr key={`referral-${node.userId}`} className="referrals-data-row">
-                            <td className="referrals-col-user referral-cell-strong">{`#${node.userId}`}</td>
+                            <td className="referrals-col-user referral-cell-strong">{node.displayName}</td>
                             <td className="referrals-col-wallet referrals-wallet-col referral-cell-wallet">{node.wallet}</td>
                             <td className="referrals-col-package">Pkg {node.packageLevel}</td>
                             <td className="referrals-col-joined">{node.joinedLabel}</td>
