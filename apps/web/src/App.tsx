@@ -4290,6 +4290,7 @@ function App() {
                               }
                               emptyStateText={treeMode === "personal" ? "No tree nodes loaded yet." : "No level tree available."}
                               showEventHistory={false}
+                              userDisplayNames={userDisplayNames}
                             />
                           )}
                         </div>
@@ -4955,6 +4956,7 @@ function App() {
                                 initialRootId={selectedRebirthId}
                                 disableRootSync={true}
                                 showEventHistory={false}
+                                userDisplayNames={userDisplayNames}
                               />
                             </Suspense>
                           ) : null}

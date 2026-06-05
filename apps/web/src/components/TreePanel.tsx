@@ -23,8 +23,23 @@ type DisplayTreeNode = {
   right: DisplayTreeNode | null;
 };
 
-function formatSideUser(userId: number) {
-  return userId ? `User ${userId}` : "Open slot";
+type TreePanelProps = {
+  userDisplayNames?: Record<string, string>;
+  [key: string]: any;
+};
+
+function getDisplayName(userDisplayNames: Record<string, string> | undefined, node?: TreeNodeLike | null) {
+  if (!node) return "Open slot";
+  return (node.account && userDisplayNames?.[node.account.toLowerCase()]) || `User ${node.userId}`;
+}
+
+function formatSideUser(
+  userId: number,
+  treeNodeMap?: Map<number, TreeNodeLike>,
+  userDisplayNames?: Record<string, string>
+) {
+  if (!userId) return "Open slot";
+  return getDisplayName(userDisplayNames, treeNodeMap?.get(userId) ?? null);
 }
 
 function compactWallet(address?: string | null) {
@@ -41,8 +56,9 @@ function TreeVisualNode(props: {
   focusTreeUser: (userId: number) => void;
   setManualRootSet: (value: boolean) => void;
   setTreeViewRootId: (userId: number) => void;
+  userDisplayNames?: Record<string, string>;
 }) {
-  const { branch, selectedTreeUserId, currentUserId, focusTreeUser, setManualRootSet, setTreeViewRootId } = props;
+  const { branch, selectedTreeUserId, currentUserId, focusTreeUser, setManualRootSet, setTreeViewRootId, userDisplayNames } = props;
   if (!branch) {
     return null;
   }
@@ -74,7 +90,10 @@ function TreeVisualNode(props: {
         <span className="tree-node-badge">{branch.side === "ROOT" ? "ROOT" : branch.side === "Left" ? "L" : "R"}</span>
         {branch.node ? (
           <>
-            <strong>User {branch.node.userId}</strong>
+            <strong>
+              {(branch.node.account && userDisplayNames?.[branch.node.account.toLowerCase()])
+                || `User ${branch.node.userId}`}
+            </strong>
             <span className="tree-node-wallet" title={branch.node.account}>
               {compactWallet(branch.node.account)}
             </span>
@@ -97,6 +116,7 @@ function TreeVisualNode(props: {
             focusTreeUser={focusTreeUser}
             setManualRootSet={setManualRootSet}
             setTreeViewRootId={setTreeViewRootId}
+            userDisplayNames={userDisplayNames}
           />
           <TreeVisualNode
             branch={branch.right}
@@ -105,6 +125,7 @@ function TreeVisualNode(props: {
             focusTreeUser={focusTreeUser}
             setManualRootSet={setManualRootSet}
             setTreeViewRootId={setTreeViewRootId}
+            userDisplayNames={userDisplayNames}
           />
         </ul>
       ) : null}
@@ -112,7 +133,7 @@ function TreeVisualNode(props: {
   );
 }
 
-export default function TreePanel(props: any) {
+export default function TreePanel(props: TreePanelProps) {
   const {
     snapshot,
     treePreview = snapshot.treePreview,
@@ -133,7 +154,8 @@ export default function TreePanel(props: any) {
     emptyStateText = "No tree nodes loaded yet.",
     initialRootId = null,
     disableRootSync = false,
-    showEventHistory = true
+    showEventHistory = true,
+    userDisplayNames
   } = props;
 
   const treeNodeMap = new Map<number, TreeNodeLike>(treePreview.map((node: TreeNodeLike) => [node.userId, node] as const));
@@ -307,6 +329,7 @@ export default function TreePanel(props: any) {
                       focusTreeUser={focusTreeUser}
                       setManualRootSet={setManualRootSet}
                       setTreeViewRootId={setTreeViewRootId}
+                      userDisplayNames={userDisplayNames}
                     />
                   </ul>
                 </div>
@@ -321,19 +344,19 @@ export default function TreePanel(props: any) {
           <div className="tree-focus-strip">
             <div className="tree-focus-card">
               <span>Parent</span>
-              <strong>{selectedTreeParent ? `User ${selectedTreeParent.userId}` : "Root"}</strong>
+              <strong>{selectedTreeParent ? getDisplayName(userDisplayNames, selectedTreeParent) : "Root"}</strong>
             </div>
             <div className="tree-focus-card">
               <span>Left</span>
-              <strong>{formatSideUser(effectiveLeftSideId)}</strong>
+              <strong>{formatSideUser(effectiveLeftSideId, treeNodeMap, userDisplayNames)}</strong>
             </div>
             <div className="tree-focus-card">
               <span>Selected</span>
-              <strong>{selectedTreeNode ? `User ${selectedTreeNode.userId}` : "Pick a node"}</strong>
+              <strong>{selectedTreeNode ? getDisplayName(userDisplayNames, selectedTreeNode) : "Pick a node"}</strong>
             </div>
             <div className="tree-focus-card">
               <span>Right</span>
-              <strong>{formatSideUser(effectiveRightSideId)}</strong>
+              <strong>{formatSideUser(effectiveRightSideId, treeNodeMap, userDisplayNames)}</strong>
             </div>
           </div>
         </article>
@@ -352,15 +375,15 @@ export default function TreePanel(props: any) {
                         className={`breadcrumb-button ${selectedTreeUserId === userId ? "breadcrumb-button-active" : ""}`}
                         onClick={() => focusTreeUser(userId)}
                       >
-                        User {userId}
+                        {getDisplayName(userDisplayNames, treeNodeMap.get(userId))}
                       </button>
                     </span>
                   ))}
                 </div>
 
                 <div className="selected-node-header">
-                  <strong>{`User #${selectedTreeNode.userId} · Package ${selectedPackageLevel}`}</strong>
-                  <span>{`Depth: ${selectedTreeNode.depth} · Parent: ${selectedTreeParent ? `User ${selectedTreeParent.userId}` : "Root"}`}</span>
+                  <strong>{`${getDisplayName(userDisplayNames, selectedTreeNode)} · Package ${selectedPackageLevel}`}</strong>
+                  <span>{`Depth: ${selectedTreeNode.depth} · Parent: ${selectedTreeParent ? getDisplayName(userDisplayNames, selectedTreeParent) : "Root"}`}</span>
                 </div>
 
                 <div className="selected-node-grid">
@@ -404,7 +427,7 @@ export default function TreePanel(props: any) {
                     <strong>Left Leg</strong>
                     {leftLegNode ? (
                       <ul className="metric-list compact">
-                        <li>{`User ${leftLegNode.userId} · Pkg ${leftLegNode.packageLevel}`}</li>
+                        <li>{`${getDisplayName(userDisplayNames, leftLegNode)} · Pkg ${leftLegNode.packageLevel}`}</li>
                         <li>Subtree members: {selectedTreeDetails?.leftBranchNodes ?? leftBranchNodes.length}</li>
                       </ul>
                     ) : (
@@ -427,7 +450,7 @@ export default function TreePanel(props: any) {
                     <strong>Right Leg</strong>
                     {rightLegNode ? (
                       <ul className="metric-list compact">
-                        <li>{`User ${rightLegNode.userId} · Pkg ${rightLegNode.packageLevel}`}</li>
+                        <li>{`${getDisplayName(userDisplayNames, rightLegNode)} · Pkg ${rightLegNode.packageLevel}`}</li>
                         <li>Subtree members: {selectedTreeDetails?.rightBranchNodes ?? rightBranchNodes.length}</li>
                       </ul>
                     ) : (
