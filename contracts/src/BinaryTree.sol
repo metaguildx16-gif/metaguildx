@@ -568,8 +568,8 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
         // Level-order traversal with left-slot priority across the whole level:
         // fill all left children first, then all right children.
-        uint256[] memory currentLevel = new uint256[](1000);
-        uint256[] memory nextLevel = new uint256[](1000);
+        uint256[] memory currentLevel = new uint256[](2000);
+        uint256[] memory nextLevel = new uint256[](2000);
         uint256 currentCount = 1;
         currentLevel[0] = insertUnder;
 
@@ -597,13 +597,13 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             uint256 nextCount = 0;
             for (uint256 i = 0; i < currentCount; i++) {
                 uint256[2] storage children = levelChildren[currentLevel[i]];
-                if (children[0] != 0) {
+                if (children[0] != 0 && nextCount < 1999) {
                     nextLevel[nextCount++] = children[0];
                 }
             }
             for (uint256 i = 0; i < currentCount; i++) {
                 uint256[2] storage children = levelChildren[currentLevel[i]];
-                if (children[1] != 0) {
+                if (children[1] != 0 && nextCount < 1999) {
                     nextLevel[nextCount++] = children[1];
                 }
             }
