@@ -148,7 +148,7 @@ app.use(cors({
 app.use(express.json());
 app.use((req, res, next) => globalLimiter(req, res, next));
 app.use((req, res, next) => {
-  if (req.path === "/health" || req.path === "/sign" || req.path.startsWith("/support/tickets")) {
+  if (req.path === "/health" || req.path.startsWith("/support/tickets") || req.path.startsWith("/profile")) {
     return next();
   }
 
@@ -176,6 +176,10 @@ app.post("/sign", async (req, res) => {
     const requestOrigin = req.headers.origin;
     if (!requestOrigin || !allowedOrigins.includes(requestOrigin)) {
       return res.status(403).json({ error: "Forbidden origin" });
+    }
+    const signerToken = req.headers["x-signer-token"];
+    if (typeof signerToken !== "string" || signerToken !== AUTH_TOKEN) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
     const {
