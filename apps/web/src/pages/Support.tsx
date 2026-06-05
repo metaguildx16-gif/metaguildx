@@ -115,6 +115,11 @@ export function SupportPage({ userId, walletAddress }: SupportPageProps) {
 
   useEffect(() => {
     void loadUserTickets();
+    // Auto-refresh every 30 seconds to show admin replies
+    const interval = window.setInterval(() => {
+      void loadUserTickets();
+    }, 30000);
+    return () => window.clearInterval(interval);
   }, [walletAddress]);
 
   const myTickets = useMemo(() => {
@@ -301,6 +306,17 @@ export function SupportPage({ userId, walletAddress }: SupportPageProps) {
                   <div style={{ color: "#00d4ff", fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase" }}>My Tickets</div>
                   <h3 style={{ margin: "8px 0 0", color: "#ffffff", fontSize: 22 }}>Track your conversations</h3>
                 </div>
+                <button
+                  onClick={() => void loadUserTickets()}
+                  style={{
+                    padding: "6px 14px", borderRadius: "8px", fontSize: "12px",
+                    background: "rgba(46,111,216,0.12)",
+                    border: "1px solid rgba(46,111,216,0.25)",
+                    color: "#7EB3FF", cursor: "pointer", fontWeight: 500
+                  }}
+                >
+                  🔄 Refresh
+                </button>
                 <div style={{ color: "#8892a4", fontSize: 13 }}>{myTickets.length} saved</div>
               </div>
 

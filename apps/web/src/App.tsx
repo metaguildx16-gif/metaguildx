@@ -220,17 +220,13 @@ function App() {
     localStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify(updated));
   };
   const defaultProfile = { nickname: "", displayName: "" };
-  const [profileMeta, setProfileMeta] = useState<typeof defaultProfile>(() => {
-    try {
-      const saved = localStorage.getItem(PROFILE_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : defaultProfile;
-    } catch {
-      return defaultProfile;
-    }
-  });
+  const [profileMeta, setProfileMeta] = useState(defaultProfile);
   const saveProfileMeta = (updated: typeof defaultProfile) => {
     setProfileMeta(updated);
-    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(updated));
+    const walletKey = snapshot?.walletAddress
+      ? `mgx_profile_v1_${snapshot.walletAddress.toLowerCase()}`
+      : PROFILE_STORAGE_KEY;
+    localStorage.setItem(walletKey, JSON.stringify(updated));
   };
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -718,6 +714,22 @@ function App() {
       isDashboardPolling.current = false;
     };
   }, [snapshot.walletAddress]);
+
+  useEffect(() => {
+    const walletKey = snapshot?.walletAddress
+      ? `mgx_profile_v1_${snapshot.walletAddress.toLowerCase()}`
+      : null;
+    if (!walletKey) {
+      setProfileMeta(defaultProfile);
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(walletKey);
+      setProfileMeta(saved ? JSON.parse(saved) : defaultProfile);
+    } catch {
+      setProfileMeta(defaultProfile);
+    }
+  }, [snapshot?.walletAddress]);
 
   useEffect(() => {
     let isActive = true;
