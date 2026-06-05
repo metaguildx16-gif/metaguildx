@@ -1157,6 +1157,10 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
+    // NOTE: futurePool is informational accounting only.
+    // MGX tokens are already transferred to user wallets at allocation time.
+    // No actual MGX recovery or burn happens on surrender.
+    // This value tracks surrendered allocations for analytics purposes only.
     uint256 public futurePool;
     mapping(uint256 => bool) public activeUsers;
     address public stakingContract;
