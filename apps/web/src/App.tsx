@@ -176,6 +176,7 @@ function App() {
   const [personalTreePreview, setPersonalTreePreview] = useState<TreePreviewNode[]>([]);
   const [isLoadingLevelTree, setIsLoadingLevelTree] = useState(false);
   const [selectedRebirthId, setSelectedRebirthId] = useState<number | null>(null);
+  const [rebirthNavStack, setRebirthNavStack] = useState<number[]>([]);
   const [rebirthNodeDetails, setRebirthNodeDetails] = useState<TreeNodeDetails | null>(null);
   const [isLoadingRebirthDetails, setIsLoadingRebirthDetails] = useState(false);
   const [rebirthBoxEarningsByPkg, setRebirthBoxEarningsByPkg] = useState<Record<number, string>>({});
@@ -232,6 +233,27 @@ function App() {
     localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(updated));
   };
   const [profileSaved, setProfileSaved] = useState(false);
+
+  const navigateToRebirth = (id: number) => {
+    setRebirthNavStack(prev => selectedRebirthId ? [...prev, selectedRebirthId] : prev);
+    setSelectedRebirthId(id);
+    setRebirthDashView("earnings");
+  };
+
+  const rebirthGoBack = () => {
+    if (rebirthNavStack.length > 0) {
+      const prev = [...rebirthNavStack];
+      const last = prev.pop()!;
+      setRebirthNavStack(prev);
+      setSelectedRebirthId(last);
+      setRebirthDashView("earnings");
+    } else {
+      setSelectedRebirthId(null);
+      setRebirthNavStack([]);
+      setRebirthDashView("earnings");
+    }
+  };
+
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -4617,16 +4639,45 @@ function App() {
                     {selectedRebirthId ? (
                       <div className="rebirth-subdash rebirth-subdash-shell">
                         <div className="rebirth-subdash-header">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedRebirthId(null);
-                              setRebirthDashView("earnings");
-                            }}
-                            className="rebirth-back-btn"
-                          >
-                            ? Back
-                          </button>
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+                            <button
+                              onClick={rebirthGoBack}
+                              style={{
+                                display: "flex", alignItems: "center", gap: "6px",
+                                padding: "8px 16px", borderRadius: "8px", border: "none",
+                                background: "rgba(46,111,216,0.15)", color: "#7EB3FF",
+                                cursor: "pointer", fontSize: "13px", fontWeight: 600
+                              }}
+                            >
+                              ← Back
+                            </button>
+                            {/* Breadcrumb */}
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#8899BB" }}>
+                              <span
+                                style={{ cursor: "pointer", color: "#7EB3FF" }}
+                                onClick={() => { setSelectedRebirthId(null); setRebirthNavStack([]); }}
+                              >
+                                Rebirth IDs
+                              </span>
+                              {rebirthNavStack.map((id, i) => (
+                                <span key={id} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <span>›</span>
+                                  <span
+                                    style={{ cursor: "pointer", color: "#7EB3FF" }}
+                                    onClick={() => {
+                                      const newStack = rebirthNavStack.slice(0, i);
+                                      setRebirthNavStack(newStack);
+                                      setSelectedRebirthId(id);
+                                    }}
+                                  >
+                                    #{id}
+                                  </span>
+                                </span>
+                              ))}
+                              <span>›</span>
+                              <span style={{ color: "#EEF4FF", fontWeight: 600 }}>#{selectedRebirthId}</span>
+                            </div>
+                          </div>
                           <div className="rebirth-subdash-headline">
                             <span className="rebirth-detail-badge">ACTIVE ID</span>
                             <h2 className="rebirth-subdash-title">{`Rebirth ID #${selectedRebirthId}`}</h2>
@@ -4677,6 +4728,41 @@ function App() {
                             </div>
                           ))}
                         </div>
+
+                        {/* Sub-rebirth IDs for this selected rebirth */}
+                        {(() => {
+                          const currentDetail = rebirthNodeDetails;
+                          const subRebirthIds = currentDetail?.rebirthIds ?? [];
+                          if (subRebirthIds.length === 0) return null;
+                          return (
+                            <div style={{ marginBottom: "16px" }}>
+                              <div style={{
+                                fontSize: "13px", fontWeight: 600, color: "#C9A84C",
+                                marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px"
+                              }}>
+                                ♻️ Rebirth IDs from #{selectedRebirthId}
+                              </div>
+                              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                                {subRebirthIds.map((subId: number) => (
+                                  <button
+                                    key={subId}
+                                    onClick={() => navigateToRebirth(subId)}
+                                    style={{
+                                      padding: "8px 16px", borderRadius: "8px",
+                                      background: "rgba(201,168,76,0.1)",
+                                      border: "1px solid rgba(201,168,76,0.3)",
+                                      color: "#C9A84C", cursor: "pointer",
+                                      fontSize: "13px", fontWeight: 600,
+                                      display: "flex", alignItems: "center", gap: "6px"
+                                    }}
+                                  >
+                                    ♻️ ID #{subId}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         <div className="rebirth-subdash-tabs">
                           {(["earnings", "tree", "referral"] as const).map((tab) => (
@@ -4848,7 +4934,12 @@ function App() {
                           const isRebirthIncomeLoading = !rebirthIncomeByUserId[row.userId];
 
                           return (
-                            <article key={`rebirth-${row.rebirthId}`} className="rebirth-id-card premium">
+                            <article
+                              key={`rebirth-${row.rebirthId}`}
+                              className="rebirth-id-card premium"
+                              style={{ cursor: "pointer" }}
+                              onClick={() => { setRebirthNavStack([]); navigateToRebirth(Number(row.rebirthId)); }}
+                            >
                               <div className="rebirth-id-card-top">
                                 <div className="rebirth-id-copy">
                                   <div className="rebirth-id-header">
@@ -4909,8 +5000,8 @@ function App() {
                                   type="button"
                                   className="rebirth-id-view-btn"
                                   onClick={() => {
-                                    setSelectedRebirthId(Number(row.rebirthId));
-                                    setRebirthDashView("earnings");
+                                    setRebirthNavStack([]);
+                                    navigateToRebirth(Number(row.rebirthId));
                                   }}
                                 >
                                   View Details
