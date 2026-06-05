@@ -96,7 +96,12 @@ export function SupportPage({ userId, walletAddress }: SupportPageProps) {
 
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_PLACEMENT_SIGNER_URL}/support/tickets?wallet=${encodeURIComponent(walletAddress.toLowerCase())}`
+        `${import.meta.env.VITE_PLACEMENT_SIGNER_URL}/support/tickets?wallet=${encodeURIComponent(walletAddress.toLowerCase())}`,
+        {
+          headers: {
+            "x-wallet-address": walletAddress.toLowerCase(),
+          },
+        }
       );
       if (!res.ok) {
         throw new Error("Failed to load tickets");
@@ -151,7 +156,10 @@ export function SupportPage({ userId, walletAddress }: SupportPageProps) {
         `${import.meta.env.VITE_PLACEMENT_SIGNER_URL}/support/tickets`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-wallet-address": walletAddress.toLowerCase(),
+          },
           body: JSON.stringify({
             userId,
             wallet: walletAddress.toLowerCase(),
