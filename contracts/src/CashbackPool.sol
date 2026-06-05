@@ -227,9 +227,14 @@ contract CashbackPool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Met
         bool productionMode = core.productionMode();
         require(surrendered[userId], "User not surrendered");
 
-        productionMode;
-        uint256 accumulated =
-            (cashbackPerSurrenderedScaledByAsset[_asset] - cashbackClaimDebtByUserAsset[userId][_asset]) / CASHBACK_SCALAR;
+        uint256 accumulated;
+        if (productionMode) {
+            accumulated =
+                (cashbackPerSurrenderedScaledByAsset[_asset] - cashbackClaimDebtByUserAsset[userId][_asset]) / CASHBACK_SCALAR;
+        } else {
+            accumulated =
+                (cashbackPerSurrenderedScaled - cashbackClaimDebtByUser[userId]) / CASHBACK_SCALAR;
+        }
         platformAmount = accumulated;
         require(platformAmount > 0, "No cashback");
 
@@ -242,9 +247,13 @@ contract CashbackPool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Met
         settlementAmount = 0;
         cashbackClaimed[userId] += platformAmount;
 
-        cashbackClaimDebtByUserAsset[userId][_asset] = cashbackPerSurrenderedScaledByAsset[_asset];
-        cashbackSettlementClaimDebtByUserAsset[userId][_asset] =
-            cashbackPerSurrenderedSettlementScaledByAsset[_asset];
+        if (productionMode) {
+            cashbackClaimDebtByUserAsset[userId][_asset] = cashbackPerSurrenderedScaledByAsset[_asset];
+            cashbackSettlementClaimDebtByUserAsset[userId][_asset] =
+                cashbackPerSurrenderedSettlementScaledByAsset[_asset];
+        } else {
+            cashbackClaimDebtByUser[userId] = cashbackPerSurrenderedScaled;
+        }
 
         core.payoutUserIncome(userId, platformAmount, _asset);
 
