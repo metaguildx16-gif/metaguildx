@@ -298,15 +298,41 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     function _attachAsChild(uint256 parentId, uint256 childId) internal {
         require(childId != parentId, "Self attach");
-        require(nodes[childId].parentId == 0 || nodes[childId].parentId == parentId, "Invalid parent state");
-
+        require(
+            nodes[childId].parentId == 0 || nodes[childId].parentId == parentId,
+            "Invalid parent state"
+        );
         if (nodes[parentId].leftChildId == 0) {
             nodes[parentId].leftChildId = childId;
-        } else {
+        } else if (nodes[parentId].rightChildId == 0) {
             nodes[parentId].rightChildId = childId;
+        } else {
+            // Both slots occupied — find next available slot via BFS
+            uint256 slot = _findNextAvailableSlotBFS(parentId);
+            require(slot != 0, "No available slot under replacement");
+            if (nodes[slot].leftChildId == 0) {
+                nodes[slot].leftChildId = childId;
+            } else {
+                nodes[slot].rightChildId = childId;
+            }
         }
-
         nodes[childId].parentId = parentId;
+    }
+
+    function _findNextAvailableSlotBFS(uint256 startId) internal view returns (uint256) {
+        uint256[512] memory queue;
+        uint256 head = 0;
+        uint256 tail = 0;
+        queue[tail++] = startId;
+        while (head < tail && tail < 512) {
+            uint256 current = queue[head++];
+            if (nodes[current].leftChildId == 0 || nodes[current].rightChildId == 0) {
+                return current;
+            }
+            if (tail < 511) queue[tail++] = nodes[current].leftChildId;
+            if (tail < 511) queue[tail++] = nodes[current].rightChildId;
+        }
+        return 0;
     }
 
     function _validateNode(uint256 userId) internal view {
