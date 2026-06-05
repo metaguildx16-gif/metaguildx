@@ -81,7 +81,6 @@ contract MetaGuildXTokenEngine is
         uint256 userId,
         uint256 packageAmount
     ) external onlyCore returns (uint256 tokenAmount, uint8 boxId) {
-        if (tokenAllocationsByUser[userId] > 0) return (0, activeBoxByUser[userId]);
         (tokenAmount, boxId) = _allocateTokensForCurrentBox(userId, packageAmount);
         emit TokensAllocated(userId, tokenAmount, activeBoxByUser[userId]);
     }

@@ -1,47 +1,54 @@
-﻿import { ethers } from "hardhat";
-async function main() {
-  const proxyAddr = "0xF28019a3cC992619b652967B96B3813bA3830D91";
-  const implSlot = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
-  const oldImpl = await ethers.provider.getStorage(proxyAddr, implSlot);
-  console.log("Old impl:", "0x" + oldImpl.slice(26));
+import { ethers, upgrades } from "hardhat";
+import * as dotenv from "dotenv";
+dotenv.config();
 
-  console.log("Deploying MetaGuildXPaymentLib...");
-  const paymentLibFactory = await ethers.getContractFactory("MetaGuildXPaymentLib");
-  const paymentLib = await paymentLibFactory.deploy();
+async function main() {
+  const [deployer] = await ethers.getSigners();
+  console.log("Upgrading with:", deployer.address);
+
+  const CORE_PROXY = "0x19F72c5a287334086fD34D41ebe6bb534524D202";
+
+  // Deploy fresh library instances (same bytecode, new addresses)
+  console.log("Deploying libraries...");
+
+  const paymentLib = await (await ethers.getContractFactory("MetaGuildXPaymentLib")).deploy();
   await paymentLib.waitForDeployment();
   const paymentLibAddress = await paymentLib.getAddress();
   console.log("MetaGuildXPaymentLib:", paymentLibAddress);
 
-  console.log("Deploying MetaGuildXPlacementLib...");
-  const placementLibFactory = await ethers.getContractFactory("MetaGuildXPlacementLib");
-  const placementLib = await placementLibFactory.deploy();
+  const placementLib = await (await ethers.getContractFactory("MetaGuildXPlacementLib")).deploy();
   await placementLib.waitForDeployment();
   const placementLibAddress = await placementLib.getAddress();
   console.log("MetaGuildXPlacementLib:", placementLibAddress);
 
-  console.log("Deploying UpgradeCycleLib...");
-  const upgradeCycleLibFactory = await ethers.getContractFactory("UpgradeCycleLib");
-  const upgradeCycleLib = await upgradeCycleLibFactory.deploy();
+  const upgradeCycleLib = await (await ethers.getContractFactory("UpgradeCycleLib")).deploy();
   await upgradeCycleLib.waitForDeployment();
   const upgradeCycleLibAddress = await upgradeCycleLib.getAddress();
   console.log("UpgradeCycleLib:", upgradeCycleLibAddress);
 
-  const factory = await ethers.getContractFactory("MetaGuildXCore", {
+  const CoreFactory = await ethers.getContractFactory("MetaGuildXCore", {
     libraries: {
       MetaGuildXPaymentLib: paymentLibAddress,
       MetaGuildXPlacementLib: placementLibAddress,
-      UpgradeCycleLib: upgradeCycleLibAddress
+      UpgradeCycleLib: upgradeCycleLibAddress,
     }
   });
 
-  const newImpl = await factory.deploy();
-  await newImpl.waitForDeployment();
-  console.log("New impl:", await newImpl.getAddress());
-  const proxy = await ethers.getContractAt("MetaGuildXCore", proxyAddr);
-  const tx = await proxy.upgradeToAndCall(await newImpl.getAddress(), "0x");
-  await tx.wait();
-  const newImplOnChain = await ethers.provider.getStorage(proxyAddr, implSlot);
-  console.log("On-chain impl:", "0x" + newImplOnChain.slice(26));
-  console.log("Changed:", oldImpl !== newImplOnChain ? "YES ✅" : "NO ❌");
+  console.log("\nImporting Core proxy...");
+  await upgrades.forceImport(CORE_PROXY, CoreFactory, {
+    kind: "uups",
+    unsafeAllowLinkedLibraries: true
+  });
+
+  console.log("Upgrading MetaGuildXCore...");
+  const upgraded = await upgrades.upgradeProxy(CORE_PROXY, CoreFactory, {
+    unsafeAllowLinkedLibraries: true
+  });
+  await upgraded.waitForDeployment();
+
+  const coreImpl = await upgrades.erc1967.getImplementationAddress(CORE_PROXY);
+  console.log("\nMetaGuildXCore new impl:", coreImpl);
+  console.log("Core upgrade complete!");
 }
-main().catch(console.error);
+
+main().catch((e) => { console.error(e); process.exit(1); });
