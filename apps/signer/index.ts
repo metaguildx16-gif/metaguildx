@@ -258,7 +258,11 @@ app.post("/sign-placement", async (req, res) => {
 
 app.post("/support/tickets", (req, res, next) => ticketSubmissionLimiter(req, res, next), (req, res) => {
   try {
-    const { userId, wallet, category, subject, description } = req.body;
+    const walletFromHeader = typeof req.headers["x-wallet-address"] === "string"
+      ? req.headers["x-wallet-address"].toLowerCase()
+      : null;
+    const { userId, category, subject, description } = req.body;
+    const wallet = walletFromHeader ?? (typeof req.body.wallet === "string" ? req.body.wallet.toLowerCase() : null);
     if (!wallet || !subject || !description) {
       return res.status(400).json({ error: "Missing required fields" });
     }
