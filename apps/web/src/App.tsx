@@ -3662,7 +3662,7 @@ function App() {
             <div style={{display:"flex",flexDirection:"column",gap:2}}>
               <span style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:".9rem"}}>MetaGuildX</span>
               {snapshot.userId ? (
-                <span style={{fontSize:".7rem",color:"#C9A84C",fontWeight:600}}>{`User #${snapshot.userId}`}</span>
+                <span style={{fontSize:".7rem",color:"#C9A84C",fontWeight:600}}>{profileMeta.displayName || `User #${snapshot.userId}`}</span>
               ) : null}
             </div>
           </div>
@@ -3704,6 +3704,9 @@ function App() {
               />
               <div className="dashboard-sidebar-logo-text">
                 <span>MetaGuildX</span>
+                {snapshot?.userId ? (
+                  <span>{profileMeta.displayName || `User #${snapshot.userId}`}</span>
+                ) : null}
                 <span>
                   {snapshot?.walletAddress
                     ? `${snapshot.walletAddress.slice(0,6)}...${snapshot.walletAddress.slice(-4)}`
@@ -3766,7 +3769,7 @@ function App() {
             <div className="brand-copy">
               <strong>MetaGuildX Dashboard</strong>
               <span className="brand-wallet-text" title={snapshot.walletAddress ?? "Wallet pending"}>
-                {snapshot.walletAddress ? `${snapshot.walletAddress.slice(0, 6)}...${snapshot.walletAddress.slice(-4)}` : "Wallet pending"}
+                {snapshot.userId ? profileMeta.displayName || `User #${snapshot.userId}` : snapshot.walletAddress ? `${snapshot.walletAddress.slice(0, 6)}...${snapshot.walletAddress.slice(-4)}` : "Wallet pending"}
               </span>
             </div>
           </div>
@@ -3923,7 +3926,7 @@ function App() {
             <p className="section-label">Home</p>
             <div className="dashboard-hero-row">
               <div>
-                <h2>{snapshot.userId ? `Welcome back, User #${snapshot.userId}` : "Welcome back"}</h2>
+                <h2>{snapshot.userId ? <>Welcome back, {profileMeta.displayName || `User #${snapshot.userId}`}</> : "Welcome back"}</h2>
                 <p>
                   {snapshot.packageLevel ? `Package ${snapshot.packageLevel}` : "Package pending"}{" · "}
                   {snapshot.isRegistered ? "Active member" : "Activation pending"}{" · Since "}{memberSinceLabel}
