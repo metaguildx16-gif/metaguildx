@@ -35,3 +35,8 @@ contracts/scripts/*tmp*
 
 contracts/artifacts-local/
 contracts/cache-local/
+# Environment files
+.env
+.env.local
+.env.production
+*.env
