@@ -460,7 +460,7 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             return (sponsorId, false);
         }
 
-        uint256[] memory queue = new uint256[](512);
+        uint256[] memory queue = new uint256[](1024);
         uint256 front = 0;
         uint256 back = 0;
 
@@ -487,16 +487,16 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                     return (rightNodeId, false);
                 }
 
-                if (leftNode.leftChildId != 0) {
+                if (leftNode.leftChildId != 0 && back < 1023) {
                     queue[back++] = leftNode.leftChildId;
                 }
-                if (rightNode.leftChildId != 0) {
+                if (rightNode.leftChildId != 0 && back < 1023) {
                     queue[back++] = rightNode.leftChildId;
                 }
-                if (leftNode.rightChildId != 0) {
+                if (leftNode.rightChildId != 0 && back < 1023) {
                     queue[back++] = leftNode.rightChildId;
                 }
-                if (rightNode.rightChildId != 0) {
+                if (rightNode.rightChildId != 0 && back < 1023) {
                     queue[back++] = rightNode.rightChildId;
                 }
 
@@ -511,10 +511,10 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
                 if (nodeDepth[nodeId] < maxDepth && node.rightChildId == 0) {
                     return (nodeId, false);
                 }
-                if (node.leftChildId != 0) {
+                if (node.leftChildId != 0 && back < 1023) {
                     queue[back++] = node.leftChildId;
                 }
-                if (node.rightChildId != 0) {
+                if (node.rightChildId != 0 && back < 1023) {
                     queue[back++] = node.rightChildId;
                 }
             }
