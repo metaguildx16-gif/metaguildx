@@ -260,6 +260,7 @@ async function main() {
     ["CashbackPool", addresses.CashbackPool],
     ["MGXStaking",   addresses.MGXStaking],
     ["TokenEngine",  addresses.TokenEngine],
+    ["MGXToken",     addresses.MGXToken],
   ];
   for (const [name, addr] of transferTargets) {
     try {
@@ -274,6 +275,21 @@ async function main() {
     } catch (e: any) {
       console.log(`${name}: transfer failed — ${e.message}`);
     }
+  }
+  // Verify all ownership transfers succeeded
+  let ownershipOk = true;
+  for (const [name, addr] of transferTargets) {
+    const c = await ethers.getContractAt(ownerAbi, addr);
+    const finalOwner = await c.owner();
+    if (finalOwner.toLowerCase() !== SAFE_ADDRESS.toLowerCase()) {
+      console.log(`${name}: ❌ STILL NOT GNOSIS SAFE — ${finalOwner}`);
+      ownershipOk = false;
+    } else {
+      console.log(`${name}: ✅ confirmed Gnosis Safe`);
+    }
+  }
+  if (!ownershipOk) {
+    throw new Error("CRITICAL: Some contracts not owned by Gnosis Safe after transfer!");
   }
   console.log("Ownership transfer complete ✅");
 

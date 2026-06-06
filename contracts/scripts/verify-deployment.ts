@@ -17,7 +17,7 @@ type DeployedAddresses = {
 };
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployed-addresses.json");
-const FIXED_USDT = "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
+const GNOSIS_SAFE = "0x6D01d1E9771193467B5fae47Ce8463d7060098eA";
 const EXPECTED_USDT_UNIT_PRICE = 10n ** 17n;
 const EXPECTED_CHECKS = 14;
 
@@ -32,7 +32,11 @@ async function main() {
   console.log("=== MetaGuildX V3 Deployment Verification ===\n");
 
   const deployed = loadAddresses();
-  const [deployer] = await ethers.getSigners();
+  const network = await ethers.provider.getNetwork();
+  const USDT_ADDRESS =
+    network.name === "opbnbMainnet"
+      ? "0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3"
+      : "0xF4975eB104932bDBcA491A9Cb985439eA03863e0";
 
   const CORE = deployed?.Core ?? "0xBD66787F1eBe0A135e64240F1822C9082d7a20eF";
   const INCOME = deployed?.Income ?? "0x87d752D160299c09BaDaac3dd66FBac483A5b67b";
@@ -40,7 +44,7 @@ async function main() {
   const BTREE = deployed?.BinaryTree ?? "0x6d37A7A2c6C091F980afA3790bf28975E39ec558";
   const STAKING = deployed?.MGXStaking ?? "0x8A08982EE0244f2333109000d8b0Ab08Ef2b2a1E";
   const TOKEN_ENGINE = deployed?.TokenEngine ?? "0x04E7B67Ff27E3Cc983276C947F5fDFE2c6a9fBF5";
-  const EXPECTED_OWNER = deployer.address.toLowerCase();
+  const expectedOwner = GNOSIS_SAFE.toLowerCase();
 
   const core = new ethers.Contract(
     CORE,
@@ -113,14 +117,14 @@ async function main() {
     }
   }
 
-  await check("Core owner = deployer", async () => {
+  await check("Core owner = Gnosis Safe", async () => {
     const owner = await core.owner();
-    return owner.toLowerCase() === EXPECTED_OWNER;
+    return owner.toLowerCase() === expectedOwner;
   });
 
-  await check("Income owner = deployer", async () => {
+  await check("Income owner = Gnosis Safe", async () => {
     const owner = await income.owner();
-    return owner.toLowerCase() === EXPECTED_OWNER;
+    return owner.toLowerCase() === expectedOwner;
   });
 
   await check("Router coreContract set", async () => {
@@ -162,16 +166,16 @@ async function main() {
 
   await check("defaultPaymentAsset = correct USDT", async () => {
     const asset = await core.defaultPaymentAsset();
-    return asset.toLowerCase() === FIXED_USDT.toLowerCase();
+    return asset.toLowerCase() === USDT_ADDRESS.toLowerCase();
   });
 
   await check("USDT payment asset enabled", async () => {
-    const enabled = await core.enabledPaymentAssets(FIXED_USDT);
+    const enabled = await core.enabledPaymentAssets(USDT_ADDRESS);
     return enabled === true;
   });
 
   await check("USDT unit price = 1e17", async () => {
-    const price = await core.paymentAssetUnitPrice(FIXED_USDT);
+    const price = await core.paymentAssetUnitPrice(USDT_ADDRESS);
     return price === EXPECTED_USDT_UNIT_PRICE;
   });
 
