@@ -191,9 +191,12 @@ export function TeamPage(props: DashboardPageProps) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {(snapshot.directReferralIds ?? []).map((uid: any, i: any) => {
-            const node = snapshot.treePreview.find((n: any) => n.userId === uid);
+            const node = snapshot.treePreview.find((n: any) => n.userId === uid)
+              ?? snapshot.featuredUsers.find((n: any) => n.userId === uid) as any;
             const wallet = node?.account;
-            const name = wallet ? (userDisplayNames[wallet.toLowerCase()] || `User #${uid}`) : `User #${uid}`;
+            const name = wallet
+              ? (userDisplayNames[wallet.toLowerCase()] || `User #${uid}`)
+              : `User #${uid}`;
             const income = snapshot.directReferralIncomeByUserId?.[uid] ?? "0";
             return (
               <div key={uid} style={{
@@ -213,7 +216,7 @@ export function TeamPage(props: DashboardPageProps) {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: "14px", fontWeight: 600, color: "#EEF4FF" }}>{name}</div>
                   <div style={{ fontSize: "11px", color: "#8899BB", fontFamily: "monospace" }}>
-                    {wallet ? `${wallet.slice(0,6)}...${wallet.slice(-4)}` : "Loading..."}
+                    {wallet ? `${wallet.slice(0,6)}...${wallet.slice(-4)}` : `#${uid}`}
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>

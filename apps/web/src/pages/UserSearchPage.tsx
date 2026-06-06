@@ -190,6 +190,9 @@ export function UserSearchPage(props: DashboardPageProps) {
         <h3 style={{ color: "#C9A84C", fontSize: "14px", fontWeight: 600, marginBottom: "16px" }}>
           Results
         </h3>
+        <div style={{ fontSize: "11px", color: "#3D5580", marginBottom: "12px" }}>
+          Showing results from visible network ({snapshot.treePreview.length} nodes)
+        </div>
         {(() => {
           const q = userSearchQuery.trim().toLowerCase();
           const results = snapshot.treePreview.filter((node: any) => {
@@ -246,7 +249,7 @@ export function UserSearchPage(props: DashboardPageProps) {
         textAlign: "center", color: "#8899BB", padding: "60px 0",
         fontSize: "14px"
       }}>
-        🔍 Start typing to search users in the network
+        🔍 Search within your visible network ({snapshot.treePreview.length} members shown)
       </div>
     )}
   </div>
