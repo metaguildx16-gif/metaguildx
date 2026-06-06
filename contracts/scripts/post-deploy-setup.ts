@@ -35,7 +35,7 @@ async function main() {
   const SAFE_ADDRESS =
     network.name === "opbnbMainnet"
       ? "0x6D01d1E9771193467B5fae47Ce8463d7060098eA"
-      : "";
+      : "0x6D01d1E9771193467B5fae47Ce8463d7060098eA"; // testnet + mainnet both
 
   console.log("=== Post-Deploy Setup ===");
   console.log("Deployer:", deployer.address);
@@ -244,6 +244,38 @@ async function main() {
   console.log("Core -> TokenEngine:", coreTokenEngine);
   console.log("Staking -> Core:", stakingCore);
   console.log("Staking -> Income:", stakingIncome);
+
+  // === Ownership Transfer to Gnosis Safe ===
+  console.log("\n=== Transferring Ownership to Gnosis Safe ===");
+  const ownerAbi = [
+    "function owner() view returns (address)",
+    "function transferOwnership(address) external"
+  ];
+  const transferTargets: [string, string][] = [
+    ["Core",         addresses.Core],
+    ["Income",       addresses.Income],
+    ["Router",       addresses.Router],
+    ["BinaryTree",   addresses.BinaryTree],
+    ["Upgrade",      addresses.Upgrade],
+    ["CashbackPool", addresses.CashbackPool],
+    ["MGXStaking",   addresses.MGXStaking],
+    ["TokenEngine",  addresses.TokenEngine],
+  ];
+  for (const [name, addr] of transferTargets) {
+    try {
+      const c = await ethers.getContractAt(ownerAbi, addr, deployer);
+      const currentOwner = await c.owner();
+      if (currentOwner.toLowerCase() === SAFE_ADDRESS.toLowerCase()) {
+        console.log(`${name}: already Gnosis Safe ✅`);
+        continue;
+      }
+      await (await c.transferOwnership(SAFE_ADDRESS)).wait();
+      console.log(`${name}: ownership transferred ✅`);
+    } catch (e: any) {
+      console.log(`${name}: transfer failed — ${e.message}`);
+    }
+  }
+  console.log("Ownership transfer complete ✅");
 
   console.log("\n=== Post-Deploy Setup Complete ===");
 }

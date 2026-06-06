@@ -1,123 +1,54 @@
-import fs from "fs";
-import path from "path";
 import { ethers } from "hardhat";
-
-type DeployedAddresses = {
-  Core: string;
-  Income: string;
-  Router: string;
-  BinaryTree: string;
-  Upgrade: string;
-  CashbackPool: string;
-  MGXStaking: string;
-  MGXToken: string;
-  TokenEngine: string;
-  USDT: string;
-  deployBlock: number;
-};
-
-type OwnershipTarget = {
-  label: string;
-  address: string;
-};
-
-const ADDRESSES_PATH = path.join(__dirname, "..", "deployed-addresses.json");
-const SAFE_OWNER = "0x6D01d1E9771193467B5fae47Ce8463d7060098eA";
-const EXPECTED_DEPLOYER = "0x8ABC4fF35207a7eA76743D29Ce7F3b3adda0538E";
-
-function loadAddresses(): DeployedAddresses {
-  if (!fs.existsSync(ADDRESSES_PATH)) {
-    throw new Error(`Missing deployed-addresses.json at ${ADDRESSES_PATH}`);
-  }
-
-  return JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf8")) as DeployedAddresses;
-}
+import * as dotenv from "dotenv";
+dotenv.config();
 
 async function main() {
-  console.log("=== MetaGuildX V3 Ownership Transfer ===\n");
-  console.log("Safety note:");
-  console.log("- After running this script, all admin functions require Gnosis Safe multisig approval.");
-  console.log("- 2 of 3 signers must approve each transaction.");
-  console.log("- Test on testnet first before mainnet.\n");
-
-  const deployed = loadAddresses();
   const [deployer] = await ethers.getSigners();
-  const deployerAddress = await deployer.getAddress();
+  console.log("Transferring from:", deployer.address);
 
-  console.log(`Current signer: ${deployerAddress}`);
-  console.log(`Expected deployer: ${EXPECTED_DEPLOYER}`);
-  console.log(`New owner (Safe): ${SAFE_OWNER}\n`);
+  const GNOSIS_SAFE = "0x6D01d1E9771193467B5fae47Ce8463d7060098eA";
 
-  const ownableAbi = [
-    "function owner() view returns (address)",
-    "function transferOwnership(address newOwner) external"
-  ] as const;
-
-  const targets: OwnershipTarget[] = [
-    { label: "MetaGuildXCore", address: deployed.Core },
-    { label: "MetaGuildXIncome", address: deployed.Income },
-    { label: "MetaGuildXUpgrade", address: deployed.Upgrade },
-    { label: "MGXStaking", address: deployed.MGXStaking },
-    { label: "MGXToken", address: deployed.MGXToken },
-    { label: "MetaGuildXTokenEngine", address: deployed.TokenEngine }
+  const contracts: [string, string][] = [
+    ["Core",         "0x19F72c5a287334086fD34D41ebe6bb534524D202"],
+    ["Income",       "0x72433Cd3d2e41ed2B230510496835803aD245a48"],
+    ["Router",       "0xe59Ad238162D9591BCC7659A10fe017004a4cA69"],
+    ["BinaryTree",   "0xf2aC2f87DFabf67EDAdCfFF8dbb9A1aAEB93c923"],
+    ["Upgrade",      "0x2a9Ed16e119da2CDB241Ac672bB5ece059730D50"],
+    ["CashbackPool", "0xfA98cee4B1bFBf609A55Bc3e5B4ef511D3Df0423"],
+    ["MGXStaking",   "0xEd70b05b28bfbc4885111260F4d3eEE127B043c9"],
+    ["TokenEngine",  "0x68F028Cb932114AE700FD0dc263f2e9d8FcFE351"],
   ];
 
-  let transferred = 0;
-  let failed = 0;
-  let skipped = 0;
+  const ownerAbi = [
+    "function owner() view returns (address)",
+    "function transferOwnership(address) external"
+  ];
 
-  for (const target of targets) {
-    console.log(`--- ${target.label} ---`);
+  console.log("\nTransferring ownership to Gnosis Safe:", GNOSIS_SAFE);
 
+  for (const [name, addr] of contracts) {
     try {
-      const contract = new ethers.Contract(target.address, ownableAbi, deployer);
-      const currentOwner = String(await contract.owner());
-
-      console.log(`Address: ${target.address}`);
-      console.log(`Current owner: ${currentOwner}`);
-
-      if (currentOwner.toLowerCase() !== deployerAddress.toLowerCase()) {
-        console.log(`⚠️  Skipped: current owner is not the connected deployer signer.`);
-        skipped++;
-        console.log("");
+      const c = await ethers.getContractAt(ownerAbi, addr, deployer);
+      const owner = await c.owner();
+      if (owner.toLowerCase() === GNOSIS_SAFE.toLowerCase()) {
+        console.log(`${name}: already Gnosis Safe ?`);
         continue;
       }
-
-      if (deployerAddress.toLowerCase() !== EXPECTED_DEPLOYER.toLowerCase()) {
-        console.log(`⚠️  Warning: signer does not match the expected deployer address, but owner check passed.`);
-      }
-
-      const tx = await contract.transferOwnership(SAFE_OWNER);
-      console.log(`Transfer tx: ${tx.hash}`);
+      console.log(`${name}: transferring...`);
+      const tx = await c.transferOwnership(GNOSIS_SAFE);
       await tx.wait();
-
-      const newOwner = String(await contract.owner());
-      if (newOwner.toLowerCase() === SAFE_OWNER.toLowerCase()) {
-        console.log(`✅ Ownership transferred to ${SAFE_OWNER}`);
-        transferred++;
-      } else {
-        console.log(`❌ Transfer verification failed. Owner is still ${newOwner}`);
-        failed++;
-      }
-    } catch (error) {
-      console.log(`❌ Transfer failed: ${error instanceof Error ? error.message : String(error)}`);
-      failed++;
+      console.log(`${name}: ? done`);
+    } catch (e: any) {
+      console.log(`${name}: ? failed � ${e.message}`);
     }
-
-    console.log("");
   }
 
-  console.log("=== Ownership Transfer Summary ===");
-  console.log(`Transferred: ${transferred}`);
-  console.log(`Skipped: ${skipped}`);
-  console.log(`Failed: ${failed}`);
-
-  if (failed > 0) {
-    process.exit(1);
+  console.log("\nVerifying...");
+  for (const [name, addr] of contracts) {
+    const c = await ethers.getContractAt(ownerAbi, addr);
+    const owner = await c.owner();
+    console.log(`${name}: ${owner.toLowerCase() === GNOSIS_SAFE.toLowerCase() ? "? Gnosis Safe" : "? " + owner}`);
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+main().catch(console.error);
