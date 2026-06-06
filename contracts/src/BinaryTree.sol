@@ -315,6 +315,9 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
             } else {
                 nodes[slot].rightChildId = childId;
             }
+            // Use actual attachment parent (slot), not original parentId
+            nodes[childId].parentId = slot;
+            return;
         }
         nodes[childId].parentId = parentId;
     }

@@ -62,6 +62,7 @@ interface IMetaGuildXIncome {
 
 interface IMetaGuildXCashbackPool {
     function notifyCashbackAccrued(uint256 platformAmount, address paymentAsset, uint256 settlementAmount) external;
+    function distribute(address paymentAsset, bool productionMode) external returns (uint256 totalAmount);
     function totalSurrenderedUsers() external view returns (uint256);
 }
 
@@ -257,12 +258,14 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         uint256 placementParentId,
         bool isLeft,
         bytes calldata signature,
-        uint256 nonce
+        uint256 nonce,
+        uint256 deadline
     ) external payable nonReentrant whenNotPaused returns (uint256 userId) {
         if (userIdByAddress[msg.sender] != 0) revert AlreadyRegistered();
         if (placementSigner == address(0)) revert PlacementSignerNotSet();
         if (nonce != nonces[msg.sender]) revert InvalidNonce();
-        _verifyPlacementSignature(msg.sender, sponsorId, placementParentId, isLeft, nonce, signature);
+        if (deadline != 0 && block.timestamp > deadline) revert("Signature expired");
+        _verifyPlacementSignature(msg.sender, sponsorId, placementParentId, isLeft, nonce, deadline, signature);
 
         if (nextUserId == 1) {
             if (sponsorId != 0) revert RootSponsorMustBeZero();
@@ -992,6 +995,13 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
                 paymentAsset,
                 cashbackSettlementShare
             );
+            // Distribute accumulated pool to surrendered users immediately
+            if (paymentAsset != address(0)) {
+                IMetaGuildXCashbackPool(cashbackPoolContract).distribute(
+                    paymentAsset,
+                    productionMode
+                );
+            }
         } else {
             _payoutCreatorAmount(cashbackPlatformShare, paymentAsset, creatorFeeWallet, 10_000);
         }
@@ -1122,10 +1132,11 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         uint256 placementParentId,
         bool isLeft,
         uint256 nonce,
+        uint256 deadline,
         bytes calldata signature
     ) internal view {
         bytes32 structHash =
-            keccak256(abi.encodePacked(block.chainid, address(this), account, sponsorId, placementParentId, isLeft, nonce));
+            keccak256(abi.encodePacked(block.chainid, address(this), account, sponsorId, placementParentId, isLeft, nonce, deadline));
         bytes32 digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", structHash));
         if (_recoverSigner(digest, signature) != placementSigner) revert InvalidSignature();
     }

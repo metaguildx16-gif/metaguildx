@@ -108,7 +108,7 @@ const metaGuildXCoreAbi = [
   "function getLevelChildren(uint256) view returns (uint256 left, uint256 right)",
   "function isLevelEligibleUser(uint256) view returns (bool)",
   "function isRebirthUser(uint256) view returns (bool)",
-  "function registerWithPlacement(uint256,uint256,bool,bytes,uint256) returns (uint256)",
+  "function registerWithPlacement(uint256,uint256,bool,bytes,uint256,uint256) returns (uint256)",
   "function upgradePackage(uint256,uint8)",
   "function stake(uint256,uint256,bool)",
   "function claimStakingReward()",
@@ -2202,9 +2202,10 @@ async function signPlacementInstruction(input: {
   placementParentId: number;
   isLeft: boolean;
   nonce: number;
-  }) {
+  }): Promise<{ signature: string; deadline: bigint }> {
     const network = await input.provider.getNetwork();
     const contractAddress = await input.contract.getAddress();
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
     const placementData = {
       chainId: network.chainId.toString(),
       contractAddress,
@@ -2212,7 +2213,8 @@ async function signPlacementInstruction(input: {
       sponsorId: input.sponsorId,
       placementParentId: input.placementParentId,
       isLeft: input.isLeft,
-      nonce: input.nonce
+      nonce: input.nonce,
+      deadline: deadline.toString()
     };
   const configuredSignerUrl = readTrimmedEnv("VITE_PLACEMENT_SIGNER_URL");
   if (!configuredSignerUrl) {
@@ -2220,7 +2222,7 @@ async function signPlacementInstruction(input: {
   }
   const signerUrl = configuredSignerUrl;
   const digest = solidityPackedKeccak256(
-    ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256"],
+    ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256", "uint256"],
     [
       network.chainId,
       contractAddress,
@@ -2228,13 +2230,15 @@ async function signPlacementInstruction(input: {
         BigInt(input.sponsorId),
         BigInt(input.placementParentId),
         input.isLeft,
-      BigInt(input.nonce)
+      BigInt(input.nonce),
+      deadline
     ]
   );
 
   if (activeNetworkConfig.key === "local") {
     const connectedSigner = await input.provider.getSigner();
-    return connectedSigner.signMessage(getBytes(digest));
+    const signature = await connectedSigner.signMessage(getBytes(digest));
+    return { signature, deadline };
   }
 
   try {
@@ -2252,13 +2256,13 @@ async function signPlacementInstruction(input: {
         throw new Error("Placement signing service unavailable");
       }
 
-      const payload = (await response.json()) as { signedTx?: string; signature?: string; signer?: string };
+      const payload = (await response.json()) as { signedTx?: string; signature?: string; signer?: string; deadline?: number | string };
       const signature = payload.signedTx ?? payload.signature;
       if (!signature) {
         throw new Error("Placement signing service returned no signature");
       }
 
-      return signature;
+      return { signature, deadline: payload.deadline !== undefined ? BigInt(payload.deadline) : 0n };
     } catch (error) {
       console.warn("MetaGuildX placement signer fetch failed", { signerUrl, error });
       throw new Error("Placement signing service unavailable");
@@ -2431,7 +2435,7 @@ export async function registerUser(
     const nonce = Number(await core.nonces(normalizedAddress));
     const { placementParentId, isLeft } = await findPlacementSlot(core, Number(sponsorId));
 
-    const signature = await signPlacementInstruction({
+    const { signature, deadline } = await signPlacementInstruction({
       provider,
       contract: core,
       account: normalizedAddress,
@@ -2448,6 +2452,7 @@ export async function registerUser(
         isLeft,
         signature,
         BigInt(nonce),
+        deadline,
         { from: normalizedAddress }
       );
     } catch (staticErr: any) {
@@ -2460,6 +2465,7 @@ export async function registerUser(
       isLeft,
       signature,
       BigInt(nonce),
+      deadline,
       { gasLimit: 5_000_000n }
     );    await tx.wait();    onProgress?.("success");
 

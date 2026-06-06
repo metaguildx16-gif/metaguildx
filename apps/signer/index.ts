@@ -223,8 +223,9 @@ app.post("/sign", async (req, res) => {
       return res.status(400).json({ error: "Missing placement data" });
     }
 
+    const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
     const msgHash = ethers.solidityPackedKeccak256(
-      ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256"],
+      ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256", "uint256"],
       [
         BigInt(chainId),
         contractAddress,
@@ -233,12 +234,13 @@ app.post("/sign", async (req, res) => {
         BigInt(placementParentId),
         normalizePlacementSide(isLeft),
         BigInt(nonce),
+        BigInt(deadline),
       ]
     );
 
     const signature = await signer.signMessage(ethers.getBytes(msgHash));
 
-    res.json({ signature, signer: signer.address });
+    res.json({ signature, signer: signer.address, deadline });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error(`[SIGN ERROR] ${new Date().toISOString()} — ${message}`);
@@ -262,8 +264,9 @@ app.post("/sign-placement", async (req, res) => {
       return res.status(400).json({ error: "Missing placement data" });
     }
 
+    const deadline = Math.floor(Date.now() / 1000) + 600; // 10 minutes
     const msgHash = ethers.solidityPackedKeccak256(
-      ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256"],
+      ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256", "uint256"],
       [
         BigInt(chainId),
         contractAddress,
@@ -272,12 +275,13 @@ app.post("/sign-placement", async (req, res) => {
         BigInt(placementParentId),
         normalizePlacementSide(isLeft),
         BigInt(nonce),
+        BigInt(deadline),
       ]
     );
 
     const signature = await signer.signMessage(ethers.getBytes(msgHash));
 
-    res.json({ signature, signer: signer.address });
+    res.json({ signature, signer: signer.address, deadline });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error(`[SIGN-PLACEMENT ERROR] ${new Date().toISOString()} — ${message}`);
