@@ -95,21 +95,21 @@ function saveTicketsToFile(tickets: SupportTicket[]): void {
   fs.writeFileSync(TICKETS_FILE, JSON.stringify(tickets, null, 2));
 }
 
-function loadProfilesFromFile(): Record<string, UserProfile> {
+function loadProfilesFromFile(): UserProfile[] {
   try {
     if (!fs.existsSync(PROFILES_FILE)) {
-      return {};
+      return [];
     }
 
     const raw = fs.readFileSync(PROFILES_FILE, "utf-8");
-    const parsed = JSON.parse(raw) as Record<string, UserProfile>;
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    const parsed = JSON.parse(raw) as UserProfile[];
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return {};
+    return [];
   }
 }
 
-function saveProfilesToFile(profiles: Record<string, UserProfile>): void {
+function saveProfilesToFile(profiles: UserProfile[]): void {
   fs.mkdirSync(path.dirname(PROFILES_FILE), { recursive: true });
   fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles, null, 2));
 }
@@ -381,7 +381,7 @@ app.get("/profile", (req, res) => {
   }
 
   const profiles = loadProfilesFromFile();
-  const profile = profiles[wallet];
+  const profile = profiles.find((item) => item.wallet.toLowerCase() === wallet);
   if (!profile) {
     return res.json({ displayName: "", nickname: "" });
   }
@@ -404,8 +404,8 @@ app.get("/profiles/batch", (req, res) => {
   return res.json(
     wallets.map((wallet) => ({
       wallet,
-      displayName: profiles[wallet]?.displayName ?? "",
-      nickname: profiles[wallet]?.nickname ?? "",
+      displayName: profiles.find((item) => item.wallet.toLowerCase() === wallet)?.displayName ?? "",
+      nickname: profiles.find((item) => item.wallet.toLowerCase() === wallet)?.nickname ?? "",
     }))
   );
 });
@@ -421,12 +421,18 @@ app.post("/profile", (req, res) => {
   const displayName = typeof req.body.displayName === "string" ? req.body.displayName.trim().slice(0, 40) : "";
   const nickname = typeof req.body.nickname === "string" ? req.body.nickname.trim().slice(0, 30) : "";
   const profiles = loadProfilesFromFile();
-  profiles[wallet] = {
+  const existingIndex = profiles.findIndex((item) => item.wallet.toLowerCase() === wallet);
+  const profile = {
     wallet,
     displayName,
     nickname,
     updatedAt: Date.now(),
   };
+  if (existingIndex >= 0) {
+    profiles[existingIndex] = profile;
+  } else {
+    profiles.push(profile);
+  }
   saveProfilesToFile(profiles);
   return res.json({ success: true });
 });
