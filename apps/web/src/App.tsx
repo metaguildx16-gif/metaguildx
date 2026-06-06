@@ -2,7 +2,21 @@
 import { Suspense, lazy, startTransition, useEffect, useRef, useState } from "react";
 import logoMark from "./assets/mgx logo.png";
 import { fallbackSnapshot } from "./appFallback";
+import { CashbackPage } from "./pages/CashbackPage";
+import { IncomePage } from "./pages/IncomePage";
+import { LevelsPage } from "./pages/LevelsPage";
+import { NetworkPage } from "./pages/NetworkPage";
+import { OverviewPage } from "./pages/OverviewPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { RebirthPage } from "./pages/RebirthPage";
+import { ReferralsPage } from "./pages/ReferralsPage";
+import { RegisterPage } from "./pages/RegisterPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { SupportPage } from "./pages/Support";
+import { TeamPage } from "./pages/TeamPage";
+import { UpgradePage } from "./pages/UpgradePage";
+import { UserSearchPage } from "./pages/UserSearchPage";
+import { WalletPage } from "./pages/WalletPage";
 import { activeNetworkConfig } from "./config/networks";
 import * as metaguildx from "./lib/metaguildx";
 import type { ConnectedWalletHistoryRow, DashboardSnapshot, LiveWalletStakeState, RegistrationResult, TreeNodeDetails, TreePreviewNode } from "./lib/metaguildx";
@@ -20,6 +34,8 @@ type DashboardView =
   | "overview"
   | "profile"
   | "users"
+  | "team"
+  | "usersearch"
   | "activity"
   | "settings"
   | "tree"
@@ -207,6 +223,7 @@ function App() {
   const [walletMoveAmount, setWalletMoveAmount] = useState("10");
   const [stakeForm, setStakeForm] = useState({ amount: "10", durationKey: "30D" as StakeDurationKey, autoCompound: true });
   const [walletSubView, setWalletSubView] = useState<WalletSubView>("main");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
   const [privacySettings, setPrivacySettings] = useState<typeof defaultPrivacy>(() => {
     try {
       const saved = localStorage.getItem(PRIVACY_STORAGE_KEY);
@@ -3654,6 +3671,157 @@ function App() {
   }
 
   function renderDashboard() {
+    const dashboardPageProps = {
+      activeLevelsCount,
+      activeTreePreview,
+      asMgx,
+      availableStakeAmount,
+      boxEarningsDisplay,
+      canSubmitStake,
+      canUpgradeCurrentPackage,
+      canUseIndexedStakingActions,
+      connectedWalletHistoryRows,
+      connectedWalletTotalDisplay,
+      directIncomeDisplay,
+      directLeftNode,
+      directRightNode,
+      displayedMgxAllocated,
+      displayedPendingStakingReward,
+      displayedPersonalStaked,
+      displayedStakePositions,
+      displayedTotalMgxAllocated,
+      displayedTotalStaked,
+      earningsDashTab,
+      escrowBalance,
+      frozenEscrowDisplay,
+      getDisplayName,
+      handleCopyRebirthReferralLink,
+      handleCopyReferralLink,
+      handleCopyWalletAddress,
+      handleLoadMoreHistory,
+      handleLogout,
+      handleRefreshRewards,
+      handleRefreshSection,
+      handleShareReferralLink,
+      hasClaimableReward,
+      hasWithdrawableStake,
+      isConnectedWalletHistoryLoading,
+      isConnectedWalletLoading,
+      isLoading,
+      isLoadingLevelTree,
+      isLoadingRebirthDetails,
+      isLoadingTreeDetails,
+      isStakePending,
+      LazyTreePanel,
+      leftBranchNodes,
+      levelIncomeDisplay,
+      lockPeriods,
+      metaguildx,
+      mgxAllocationRows,
+      mgxAvailableDisplay,
+      navigateToRebirth,
+      networkBonusDisplay,
+      networkBonusHistoryRows,
+      networkDashTab,
+      nextUnlockReferralTarget,
+      nextUpgradeLevel,
+      opBnbGasDisplay,
+      outerUsdtBalanceDisplay,
+      parseDisplayNumber,
+      privacySettings,
+      profileMeta,
+      profileSaved,
+      rebirthBoxEarningsByPkg,
+      rebirthDashView,
+      rebirthEscrowProgress,
+      rebirthFrozenAmount,
+      rebirthGoBack,
+      rebirthIncomeByUserId,
+      rebirthNavStack,
+      rebirthNeededAmount,
+      rebirthNodeDetails,
+      rebirthPkgLevel,
+      rebirthProgressLabel,
+      rebirthProgressPercent,
+      rebirthProgressStep,
+      rebirthRows,
+      rebirthStatusLabel,
+      rebirthTreePreview,
+      rebirthXSlotStep,
+      recentActivityRows,
+      referralCopyStatus,
+      referralGoalLabel,
+      referralLink,
+      referralSponsorId,
+      referralSponsorProfile,
+      registerForm,
+      registrationSummary,
+      regStep,
+      renderSkeletonRows,
+      rewardWindowReady,
+      rightBranchNodes,
+      runWalletAction,
+      savePrivacy,
+      saveProfileMeta,
+      selectedFeaturedUser,
+      selectedRebirthId,
+      selectedRebirthRow,
+      selectedTreeChildren,
+      selectedTreeDetails,
+      selectedTreeNode,
+      selectedTreeParent,
+      selectedTreePath,
+      selectedTreeUserId,
+      setActionFeedback,
+      setDashboardView,
+      setEarningsDashTab,
+      setNetworkDashTab,
+      setProfileMeta,
+      setProfileSaved,
+      setRebirthDashView,
+      setRebirthNavStack,
+      setRegisterForm,
+      setSelectedRebirthId,
+      setSelectedTreeUserId,
+      setShowActivationConfirm,
+      setStakeForm,
+      setStatus,
+      setTreeMode,
+      setUserSearchQuery,
+      setWalletMoveAmount,
+      setWalletSubView,
+      shortWalletAddress,
+      showDashboardSkeleton,
+      snapshot,
+      spilloverIncomeDisplay,
+      stakeableMgxAllocated,
+      stakeForm,
+      StakingSummary,
+      Suspense,
+      teamBusinessDisplay,
+      totalMgxAllocatedDisplay,
+      totalReceivedDisplay,
+      totalTeamLabel,
+      totalTeamMembers,
+      transferFromBalance,
+      transferFromLabel,
+      transferToLabel,
+      treeLevels,
+      treeMode,
+      upgradeMilestones,
+      upgradeNeedDisplay,
+      upgradeProgressPercent,
+      upgradeRemainingDisplay,
+      userDisplayNames,
+      userLevelSummaryRows,
+      userPackageLevel,
+      userReferralRows,
+      userSearchQuery,
+      visibleLevelBreakdownRows,
+      walletMoveAmount,
+      walletSubView,
+    };
+
     if (isAdminRoute) {
       return (
         <div className="dashboard-page admin-handoff-page">
@@ -3780,6 +3948,7 @@ function App() {
 
             {/* Nav Items */}
             <nav className="dashboard-sidebar-nav">
+              {/* Main nav items */}
               {[
                 { key: "overview",  icon: "🏠", label: "Home" },
                 { key: "income",    icon: "💰", label: "Earnings" },
@@ -3787,9 +3956,6 @@ function App() {
                 { key: "upgrade",   icon: "⬆️", label: "Upgrade" },
                 { key: "rebirth",   icon: "♻️", label: "Rebirth" },
                 { key: "wallet",    icon: "👛", label: "Wallet" },
-                { key: "support",   icon: "🎧", label: "Support" },
-                { key: "profile",   icon: "👤", label: "My Profile" },
-                { key: "settings",  icon: "⚙️", label: "Settings" },
               ].map(item => (
                 <button
                   key={item.key}
@@ -3798,6 +3964,44 @@ function App() {
                     setDashboardView(item.key as DashboardView);
                     if (item.key === "wallet") setWalletSubView("main");
                   }}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+
+              {/* Community section */}
+              <div style={{
+                fontSize: "10px", fontWeight: 700, color: "#3D5580",
+                textTransform: "uppercase", letterSpacing: "0.1em",
+                padding: "16px 14px 6px", marginTop: "8px"
+              }}>
+                Community
+              </div>
+              {[
+                { key: "team",       icon: "👥", label: "My Team" },
+                { key: "usersearch", icon: "🔍", label: "User Search" },
+              ].map(item => (
+                <button
+                  key={item.key}
+                  className={`sidebar-nav-item${dashboardView === item.key ? " active" : ""}`}
+                  onClick={() => setDashboardView(item.key as DashboardView)}
+                >
+                  <span className="nav-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              ))}
+
+              {/* Bottom items */}
+              {[
+                { key: "support",  icon: "🎧", label: "Support" },
+                { key: "profile",  icon: "👤", label: "My Profile" },
+                { key: "settings", icon: "⚙️", label: "Settings" },
+              ].map(item => (
+                <button
+                  key={item.key}
+                  className={`sidebar-nav-item${dashboardView === item.key ? " active" : ""}`}
+                  onClick={() => setDashboardView(item.key as DashboardView)}
                 >
                   <span className="nav-icon">{item.icon}</span>
                   <span>{item.label}</span>
@@ -4046,2358 +4250,31 @@ function App() {
             ) : null}
           </section>
 
-          {!isAdminRoute && dashboardView === "overview" ? (
-            <section className="panel dashboard-preview dashboard-view w-full max-w-full">
-              <div className="overview-layout flex flex-col gap-4 w-full max-w-full">
-                <div className="overview-row overview-row-primary grid grid-cols-1 lg:grid-cols-2 gap-4 w-full max-w-full">
-                  <article className="section-card premium-panel dashboard-home-card">
-                    <div className="section-card-header">
-                      <div className="dashboard-card-title-stack">
-                        <span className="section-badge blue">Earnings Summary</span>
-                      </div>
-                      <button type="button" className="btn-refresh-reward" onClick={() => void handleRefreshSection("Home")} disabled={isLoading}>
-                        ↻
-                      </button>
-                    </div>
-                    <div className="section-card-body dashboard-home-body">
-                      {showDashboardSkeleton ? (
-                        renderSkeletonRows(3)
-                      ) : (
-                        <>
-                          <div className="income-row dashboard-summary-row"><span className="income-label">Direct Income</span><span className="income-amount">${directIncomeDisplay}</span></div>
-                          <div className="income-row dashboard-summary-row"><span className="income-label">Level Income</span><span className="income-amount">${levelIncomeDisplay}</span></div>
-                          <div className="income-row dashboard-summary-row"><span className="income-label">Frozen</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
-                          <div className="dashboard-summary-total">
-                            <span>Total</span>
-                            <strong>{`$${totalReceivedDisplay}`}</strong>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </article>
+          {!isAdminRoute && dashboardView === "overview" ? <OverviewPage {...dashboardPageProps} /> : null}
 
-                  <article className="section-card premium-panel dashboard-home-card">
-                    <div className="section-card-header">
-                      <span className="section-badge blue">My Tree</span>
-                    </div>
-                    <div className="section-card-body dashboard-home-body">
-                      {showDashboardSkeleton ? (
-                        <>
-                          {renderSkeletonRows(6)}
-                          <div className="mt-4 h-10 w-full animate-pulse rounded-lg bg-gray-700/50" />
-                        </>
-                      ) : (
-                        <>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Left</span><span className={`income-amount ${directLeftNode ? "" : "text-amber"}`}>{directLeftNode ? getDisplayName(directLeftNode.account, directLeftNode.userId) : "Empty slot"}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Direct Right</span><span className={`income-amount ${directRightNode ? "" : "text-amber"}`}>{directRightNode ? getDisplayName(directRightNode.account, directRightNode.userId) : "Empty slot"}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Level Left</span><span className="income-amount">{snapshot.levelTreeLeft ?? 0}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Level Right</span><span className="income-amount">{snapshot.levelTreeRight ?? 0}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Total Team</span><span className="income-amount">{totalTeamLabel}</span></div>
-                          <div className="income-row dashboard-tree-row"><span className="income-label">Left | Right</span><span className="income-amount">{snapshot.leftBranchNodes} | {snapshot.rightBranchNodes}</span></div>
-                          <button
-                            type="button"
-                            className="btn-primary-large mt-4 dashboard-tree-cta"
-                            onClick={() => setDashboardView("network")}
-                          >
-                            View Full Tree
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </article>
-                </div>
-              </div>
-            </section>
-          ) : null}
+          {dashboardView === "network" || dashboardView === "tree" ? <NetworkPage {...dashboardPageProps} /> : null}
 
-          {dashboardView === "network" || dashboardView === "tree" ? (
-            <section className="panel dashboard-view w-full max-w-full">
-              <p className="section-label">Network</p>
-              <div className="summary-strip referrals-summary-strip premium-network-stats w-full max-w-full" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-                <article className="summary-chip premium-network-card" style={{minWidth:0,overflow:"hidden"}}>
-                  <span style={{fontSize:".68rem",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:4}}>Direct Referrals</span>
-                  <strong style={{fontFamily:"Syne,sans-serif",fontSize:"1.2rem",fontWeight:700,color:"var(--text-primary)",display:"block"}}>{snapshot.directReferrals}</strong>
-                </article>
-                <article className="summary-chip premium-network-card" style={{minWidth:0,overflow:"hidden"}}>
-                  <span style={{fontSize:".68rem",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:4}}>Total Team</span>
-                  <strong style={{fontFamily:"Syne,sans-serif",fontSize:"1.2rem",fontWeight:700,color:"var(--text-primary)",display:"block"}}>{totalTeamLabel}</strong>
-                </article>
-                <article className="summary-chip premium-network-card" style={{minWidth:0,overflow:"hidden"}}>
-                  <span style={{fontSize:".68rem",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:4}}>Left | Right</span>
-                  <strong style={{fontFamily:"Syne,sans-serif",fontSize:"1.1rem",fontWeight:700,color:"var(--text-primary)",display:"block"}}>{snapshot.leftBranchNodes} | {snapshot.rightBranchNodes}</strong>
-                </article>
-                <article className="summary-chip premium-network-card team-business">
-                  <span>📊 Team Business</span>
-                  <strong>${teamBusinessDisplay}</strong>
-                </article>
-              </div>
+          {dashboardView === "income" ? <IncomePage {...dashboardPageProps} /> : null}
 
-              <div className="dashboard-subtabs-shell">
-                <div className="dashboard-subtabs">
-                  {([
-                    ["referrals", "Referrals"],
-                    ["tree", "Tree"],
-                    ["incomelog", "Income Log"]
-                  ] as const).map(([tabId, label]) => (
-                    <button
-                      key={tabId}
-                      type="button"
-                      className={`dashboard-subtab ${networkDashTab === tabId ? "active" : ""}`}
-                      onClick={() => setNetworkDashTab(tabId)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+          {dashboardView === "referrals" ? <ReferralsPage {...dashboardPageProps} /> : null}
 
-                <div className={`dashboard-subtab-content ${networkDashTab === "tree" ? "is-tree" : ""}`}>
-                  {networkDashTab === "referrals" ? (
-                    <div className="referrals-layout">
-                      <article className="section-card referral-card-link premium-panel">
-                        <div className="section-card-header">
-                          <h3 className="section-card-title">Share Your Link</h3>
-                        </div>
-                        <div className="section-card-body premium-share-card">
-                          <div className="referral-link-box">
-                            <input
-                              className="referral-link-input"
-                              value={referralLink ?? "Connect wallet to generate your referral link"}
-                              readOnly
-                              aria-label="Referral link"
-                              title={referralLink ?? "Connect wallet to generate link"}
-                            />
-                            <button
-                              type="button"
-                              className="referral-copy-btn"
-                              onClick={handleCopyReferralLink}
-                              disabled={!referralLink}
-                            >
-                              <span aria-hidden="true">✦</span>
-                              <span>Copy</span>
-                            </button>
-                            <button
-                              type="button"
-                              className="referral-share-btn share-wa"
-                              onClick={() => handleShareReferralLink("whatsapp")}
-                              disabled={!referralLink}
-                              aria-label="Share on WhatsApp"
-                            >
-                              WA
-                            </button>
-                            <button
-                              type="button"
-                              className="referral-share-btn share-tg"
-                              onClick={() => handleShareReferralLink("telegram")}
-                              disabled={!referralLink}
-                              aria-label="Share on Telegram"
-                            >
-                              TG
-                            </button>
-                            <button
-                              type="button"
-                              className="referral-share-btn share-x"
-                              onClick={() => handleShareReferralLink("twitter")}
-                              disabled={!referralLink}
-                              aria-label="Share on X"
-                            >
-                              X
-                            </button>
-                          </div>
-                          {referralCopyStatus ? <p className="copy-status-text">{referralCopyStatus}</p> : null}
-                        </div>
-                      </article>
+          {dashboardView === "levels" ? <LevelsPage {...dashboardPageProps} /> : null}
 
-                      <article className="section-card premium-panel">
-                        <div className="section-card-header">
-                          <h3 className="section-card-title">Direct Referrals</h3>
-                        </div>
-                        <div className="section-card-body overflow-x-auto">
-                          <table className="referrals-table min-w-full divide-y divide-gray-800 text-left text-sm">
-                            <thead className="text-gray-400">
-                              <tr>
-                                <th className="referrals-col-user">#</th>
-                                <th className="referrals-col-user">User</th>
-                                <th className="referrals-col-package">Package</th>
-                                <th className="referrals-col-joined">Joined</th>
-                                <th className="referrals-col-income">Income</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-800/70">
-                              {userReferralRows.length > 0 ? userReferralRows.map((node, index) => (
-                                <tr key={`network-referral-${node.userId}`} className="referrals-data-row">
-                                  <td className="referrals-col-user">{index + 1}</td>
-                                  <td className="referrals-col-user referral-cell-strong"><span className="referral-user-pill">{node.displayName}</span></td>
-                                  <td className="referrals-col-package"><span className="referral-pkg-pill">{`Pkg ${node.packageLevel}`}</span></td>
-                                  <td className="referrals-col-joined"><span className="referral-joined-muted">{node.joinedLabel}</span></td>
-                                  <td className={`referrals-col-income ${parseDisplayNumber(node.income) > 0 ? "referral-income-positive" : "referral-income-zero"}`}>${parseDisplayNumber(node.income).toFixed(2)}</td>
-                                </tr>
-                              )) : (
-                                <tr><td colSpan={5} className="py-6 text-center text-gray-500">No direct referrals yet</td></tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </article>
-                    </div>
-                  ) : null}
+          {dashboardView === "rebirth" ? <RebirthPage {...dashboardPageProps} /> : null}
 
-                  {networkDashTab === "tree" ? (
-                    <div className="network-tree-shell">
-                      <div className="dashboard-tree-mode-bar">
-                        <button
-                          type="button"
-                          onClick={() => setTreeMode("personal")}
-                          className={`dashboard-subtab ${treeMode === "personal" ? "active" : ""}`}
-                        >
-                          Personal Tree
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setTreeMode("level")}
-                          className={`dashboard-subtab ${treeMode === "level" ? "active" : ""}`}
-                        >
-                          Level Tree
-                        </button>
-                      </div>
-                      <Suspense fallback={<section className="panel"><p>Loading tree view...</p></section>}>
-                        <div className="dashboard-tree-scroll">
-                          {treeMode === "level" && (snapshot.directReferrals ?? 0) === 0 ? (
-                            <div className="section-card-body empty-state">
-                              <p>No referrals yet. Invite someone to see your Level Tree.</p>
-                            </div>
-                          ) : (
-                            <LazyTreePanel
-                              snapshot={snapshot}
-                              treePreview={activeTreePreview}
-                              treeLevels={treeLevels}
-                              selectedTreeUserId={selectedTreeUserId}
-                              setSelectedTreeUserId={setSelectedTreeUserId}
-                              selectedTreeNode={selectedTreeNode}
-                              selectedTreePath={selectedTreePath}
-                              selectedTreeParent={selectedTreeParent}
-                              selectedTreeChildren={selectedTreeChildren}
-                              selectedTreeDetails={treeMode === "personal" ? selectedTreeDetails : null}
-                              selectedFeaturedUser={selectedFeaturedUser}
-                              leftBranchNodes={leftBranchNodes}
-                              rightBranchNodes={rightBranchNodes}
-                              isLoadingTreeDetails={treeMode === "personal" ? isLoadingTreeDetails : isLoadingLevelTree}
-                              treeLabel={treeMode === "personal" ? "Tree" : "Level Tree"}
-                              treeTitle={treeMode === "personal" ? "Binary Tree View" : "Level Tree View"}
-                              treeDescription={
-                                treeMode === "personal"
-                                  ? "Root stays centered. Left and right child slots stay visible for at least three levels."
-                                  : "Eligible users are shown in the same pyramid layout. Open slots stay visible for at least three levels."
-                              }
-                              emptyStateText={treeMode === "personal" ? "No tree nodes loaded yet." : "No level tree available."}
-                              showEventHistory={false}
-                              userDisplayNames={userDisplayNames}
-                            />
-                          )}
-                        </div>
-                      </Suspense>
-                    </div>
-                  ) : null}
+          {dashboardView === "wallet" ? <WalletPage {...dashboardPageProps} /> : null}
 
-                  {networkDashTab === "incomelog" ? (
-                    <article className="section-card premium-panel">
-                      <div className="section-card-header">
-                        <h3 className="section-card-title">Income Log</h3>
-                      </div>
-                      <div className="section-card-body">
-                        <ul className="metric-list compact progress-list">
-                          {networkBonusHistoryRows.length > 0 ? networkBonusHistoryRows.map((item) => (
-                            <li key={`network-log-${item.txHash}`}>
-                              <strong>{item.fromUserId ? `From User #${item.fromUserId}` : "Rebirth network"}</strong> � {item.dateLabel}<br />
-                              <span className="text-secondary">{`Amount: $${item.amount}`}</span>
-                            </li>
-                          )) : <li>No network income log yet.</li>}
-                        </ul>
-                      </div>
-                    </article>
-                  ) : null}
-                </div>
-              </div>
-            </section>
-          ) : null}
+          {dashboardView === "upgrade" ? <UpgradePage {...dashboardPageProps} /> : null}
 
-          {dashboardView === "income" ? (
-            <section className="panel dashboard-view w-full max-w-full">
-              <p className="section-label">Earnings</p>
-              <div className="stats-grid premium-earnings-strip">
-                <article className="stat-card premium-earnings-stat"><p className="stat-card-label">Direct Income</p><p className="stat-card-value">${directIncomeDisplay}</p></article>
-                <article className="stat-card premium-earnings-stat"><p className="stat-card-label">Level Income</p><p className="stat-card-value">${levelIncomeDisplay}</p></article>
-                <article className="stat-card premium-earnings-stat" title="Display only — Network activity"><p className="stat-card-label">Crossline Income</p><p className="stat-card-value">${networkBonusDisplay}</p></article>
-                <article className="stat-card premium-earnings-total"><p className="stat-card-label">Total Earned</p><p className="stat-card-value">${totalReceivedDisplay}</p></article>
-              </div>
+          {dashboardView === "cashback" ? <CashbackPage {...dashboardPageProps} /> : null}
 
-              <div className="dashboard-subtabs-shell">
-                <div className="dashboard-subtabs">
-                  {([
-                    ["overview", "Overview"],
-                    ["levels", "Levels"],
-                    ["boxcross", "Box & Cross"],
-                    ["activity", "Activity"]
-                  ] as const).map(([tabId, label]) => (
-                    <button
-                      key={tabId}
-                      type="button"
-                      className={`dashboard-subtab ${earningsDashTab === tabId ? "active" : ""}`}
-                      onClick={() => setEarningsDashTab(tabId)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+          {dashboardView === "profile" && <ProfilePage {...dashboardPageProps} />}
 
-                <div className="dashboard-subtab-content">
-                  {earningsDashTab === "overview" ? (
-                    <article className="section-card premium-panel">
-                      <div className="section-card-header">
-                        <h3 className="section-card-title">My Earnings</h3>
-                        <button type="button" className="btn-refresh-reward" onClick={() => void handleRefreshSection("Earnings")} disabled={isLoading}>
-                          ? Refresh
-                        </button>
-                      </div>
-                      <div className="section-card-body">
-                        {showDashboardSkeleton ? (
-                          renderSkeletonRows(6)
-                        ) : (
-                          <>
-                            <div className="income-row premium-income-row"><span className="income-label">Direct Income</span><span className="income-amount">${directIncomeDisplay}</span></div>
-                            <div className="income-row premium-income-row"><span className="income-label">Level Income</span><span className="income-amount">${levelIncomeDisplay}</span></div>
-                            <div className="income-row premium-income-row total"><span className="income-label">Total Earned</span><span className="income-amount">${totalReceivedDisplay}</span></div>
-                            <div className="income-row premium-income-row muted"><span className="income-label">Frozen (Auto-Upgrade)</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
-                            <div className="income-row income-row-secondary" title="Display only � Network activity">
-                              <span className="income-label">Crossline (Display)</span>
-                              <span className="income-amount">${networkBonusDisplay}</span>
-                            </div>
-                            <div className="income-row premium-income-row amber">
-                              <span className="income-label">Spillover (Display)</span>
-                              <span className="income-amount">${spilloverIncomeDisplay}</span>
-                            </div>
-                            <p className="premium-income-note">Network activity record only.</p>
-                          </>
-                        )}
-                      </div>
-                    </article>
-                  ) : null}
+          {dashboardView === "settings" && <SettingsPage {...dashboardPageProps} />}
 
-                  {earningsDashTab === "levels" ? (
-                    <article className="section-card premium-panel">
-                      <div className="section-card-header">
-                        <h3 className="section-card-title">Level Income Breakdown</h3>
-                      </div>
-                      <div className="section-card-body">
-                        <div className="levels-summary-card premium-levels-summary">
-                          <div className="levels-summary-line">
-                            <span>Active Levels:</span>
-                            <strong className="premium-level-pill">{activeLevelsCount} / 10</strong>
-                          </div>
-                          <div className="levels-summary-line">
-                            <span>Direct Referrals:</span>
-                            <strong>{snapshot.directReferrals}</strong>
-                          </div>
-                          <div className="levels-summary-line">
-                            <span>Unlock Rule:</span>
-                            <strong>{referralGoalLabel}</strong>
-                          </div>
-                        </div>
-                        <div className="levels-status-grid compact-level-grid mt-4">
-                          {visibleLevelBreakdownRows.map((row) => {
-                            const levelSummary = userLevelSummaryRows.find((candidate) => candidate.levelNumber === row.level);
-                            const isUnlocked = levelSummary?.isUnlocked ?? false;
-                            const hasIncome = parseDisplayNumber(row.amount) > 0;
-                            return (
-                              <article
-                                key={`income-level-${row.level}`}
-                                className={`level-status-card ${!isUnlocked ? "level-status-card-locked" : hasIncome ? "level-status-card-active" : "level-status-card-info"}`}
-                              >
-                                <strong>{`L${row.level}`}</strong>
-                                <span className={`level-status-badge ${isUnlocked ? (hasIncome ? "active" : "info") : "locked"}`}>
-                                  {!isUnlocked ? "Locked" : hasIncome ? "Active" : "Ready"}
-                                </span>
-                                <span className="level-status-members">{row.members} {row.members === 1 ? "member" : "members"}</span>
-                                <span className="level-status-rate">${parseDisplayNumber(row.amount).toFixed(2)}</span>
-                              </article>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </article>
-                  ) : null}
+          {dashboardView === "team" && <TeamPage {...dashboardPageProps} />}
 
-                  {earningsDashTab === "boxcross" ? (
-                    <div className="income-layout">
-                      <article className="section-card premium-panel">
-                        <div className="section-card-header">
-                          <h3 className="section-card-title text-yellow-400">Box Earnings</h3>
-                        </div>
-                        <div className="section-card-body space-y-2">
-                          <p className="text-xs text-gray-400">Income by package cycle</p>
-                          {Object.entries(boxEarningsDisplay).map(([slot, amount]) => (
-                            <div
-                              key={`box-earnings-${slot}`}
-                              className="box-earnings-row"
-                            >
-                              <div className="box-earnings-left">
-                                <span className="box-earnings-badge">
-                                  {slot}
-                                </span>
-                                <span className="text-sm text-gray-300">{`Box ${slot}`}</span>
-                                <span className="box-earnings-pkg">{`Pkg ${slot}`}</span>
-                              </div>
-                              <strong className="font-semibold text-cyan-400">{`$${amount}`}</strong>
-                            </div>
-                          ))}
-                          {Object.keys(boxEarningsDisplay).length === 0 ? (
-                            <div className="py-4 text-center text-sm text-gray-500">No box earnings yet</div>
-                          ) : null}
-                        </div>
-                      </article>
-
-                      <article className="section-card premium-panel">
-                        <div className="section-card-header">
-                          <h3 className="section-card-title" title="Display only � Network activity">Crossline Income</h3>
-                        </div>
-                        <div className="section-card-body">
-                          <p className="text-secondary">Display only � Network activity.</p>
-                          <ul className="metric-list compact progress-list mt-4">
-                            {networkBonusHistoryRows.length > 0 ? networkBonusHistoryRows.map((item) => (
-                              <li key={`crossline-${item.txHash}`}>
-                                <strong>{item.fromUserId ? `From User #${item.fromUserId} (rebirth network)` : "Rebirth network"}</strong> � {item.dateLabel}<br />
-                                <span className="text-secondary">{`Amount: $${item.amount}`}</span>
-                              </li>
-                            )) : <li>No crossline income yet.</li>}
-                          </ul>
-                        </div>
-                      </article>
-                    </div>
-                  ) : null}
-
-                  {earningsDashTab === "activity" ? (
-                    <article className="section-card premium-panel">
-                      <div className="section-card-header">
-                        <h3 className="section-card-title">Recent Activity</h3>
-                      </div>
-                      <div className="section-card-body">
-                        <ul className="metric-list compact progress-list">
-                          {recentActivityRows.length > 0 ? recentActivityRows.slice(0, 5).map((item, index) => (
-                            <li key={`recent-income-${item.blockNumber ?? "na"}-${item.primary}-${item.secondary}-${index}`}>
-                              <strong>{item.primary}</strong> · {item.timestampLabel ?? "Live"}<br />
-                              <span className="text-secondary">{item.secondary}</span>
-                            </li>
-                          )) : <li>No activity yet.</li>}
-                        </ul>
-                      </div>
-                    </article>
-                  ) : null}
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          {dashboardView === "referrals" ? (
-            <section className="panel dashboard-view w-full max-w-full">
-              <p className="section-label">Referrals</p>
-              <div className="summary-strip referrals-summary-strip flex flex-wrap gap-2 w-full max-w-full">
-                <article className="summary-chip">
-                  <span>Total Direct Referrals</span>
-                  <strong>{snapshot.directReferrals}</strong>
-                </article>
-                <article className="summary-chip">
-                  <span>Total Team Business</span>
-                  <strong>${snapshot.totalTeamBusiness}</strong>
-                </article>
-              </div>
-              <div className="referrals-layout">
-                <article className="section-card referral-card-link">
-                  <div className="section-card-header">
-                    <h3 className="section-card-title">Your Referral Link</h3>
-                  </div>
-                  <div className="section-card-body">
-                    <div className="referral-link-box">
-                      <input
-                        className="referral-link-input"
-                        value={referralLink ?? "Connect wallet to generate your referral link"}
-                        readOnly
-                        aria-label="Referral link"
-                        title={referralLink ?? "Connect wallet to generate link"}
-                      />
-                      <button
-                        type="button"
-                        className="referral-copy-btn"
-                        onClick={handleCopyReferralLink}
-                        disabled={!referralLink}
-                      >
-                        <span aria-hidden="true">✦</span>
-                        <span>Copy</span>
-                      </button>
-                    </div>
-                    {referralCopyStatus ? <p className="copy-status-text">{referralCopyStatus}</p> : null}
-                  </div>
-                </article>
-              </div>
-              <article className="section-card">
-                <div className="section-card-header">
-                  <h3 className="section-card-title">Direct Referrals</h3>
-                </div>
-                <div className="section-card-body overflow-x-auto">
-                    <table className="referrals-table min-w-full divide-y divide-gray-800 text-left text-sm">
-                      <thead className="text-gray-400">
-                        <tr>
-                          <th className="referrals-col-user">User ID</th>
-                          <th className="referrals-col-wallet referrals-wallet-col">Wallet</th>
-                          <th className="referrals-col-package">Package</th>
-                          <th className="referrals-col-joined">Joined</th>
-                          <th className="referrals-col-income">Your Income</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-800/70">
-                        {userReferralRows.length > 0 ? userReferralRows.map((node) => (
-                          <tr key={`referral-${node.userId}`} className="referrals-data-row">
-                            <td className="referrals-col-user referral-cell-strong">{node.displayName}</td>
-                            <td className="referrals-col-wallet referrals-wallet-col referral-cell-wallet">{node.wallet}</td>
-                            <td className="referrals-col-package">Pkg {node.packageLevel}</td>
-                            <td className="referrals-col-joined">{node.joinedLabel}</td>
-                            <td className={`referrals-col-income ${parseDisplayNumber(node.income) > 0 ? "referral-income-positive" : "referral-income-zero"}`}>${node.income}</td>
-                          </tr>
-                        )) : (
-                          <tr><td colSpan={5} className="py-6 text-center text-gray-500">No direct referrals yet</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </article>
-            </section>
-          ) : null}
-
-          {dashboardView === "levels" ? (
-            <section className="panel dashboard-view w-full max-w-full">
-              <p className="section-label">Level Summary</p>
-              <div className="levels-layout">
-                <article className="section-card levels-card-main">
-                  <div className="section-card-header">
-                    <h3 className="section-card-title">Unlock Summary</h3>
-                  </div>
-                  <div className="section-card-body">
-                    <div className="levels-summary-card">
-                      <div className="levels-summary-line">
-                        <span>Active Levels:</span>
-                        <strong>{activeLevelsCount} / 10</strong>
-                      </div>
-                      <div className="levels-summary-line">
-                        <span>Direct Referrals:</span>
-                        <strong>{snapshot.directReferrals}</strong>
-                      </div>
-                      <div className="levels-summary-line">
-                        <span>Next unlock at:</span>
-                        <strong>{nextUnlockReferralTarget ? `${nextUnlockReferralTarget} referrals` : "All levels unlocked"}</strong>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-
-                <article className="section-card levels-card-main">
-                  <div className="section-card-header">
-                    <h3 className="section-card-title">Level Status Grid</h3>
-                  </div>
-                  <div className="section-card-body">
-                    <div className="levels-status-grid">
-                      {userLevelSummaryRows.map((row) => (
-                        <article
-                          key={`level-summary-${row.levelNumber}`}
-                          className={`level-status-card ${row.isUnlocked ? "level-status-card-active" : "level-status-card-locked"}`}
-                        >
-                          <strong>{`Level ${row.levelNumber}`}</strong>
-                          <span className={`level-status-badge ${row.isUnlocked ? "active" : "locked"}`}>
-                            {row.isUnlocked ? "✅ Active" : "🔒 Locked"}
-                          </span>
-                          <span className="level-status-rate">4%</span>
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-                </article>
-
-                <article className="section-card levels-card-side">
-                  <div className="section-card-header">
-                    <h3 className="section-card-title">Unlock Rules</h3>
-                  </div>
-                  <div className="section-card-body">
-                    <ul className="metric-list">
-                      <li>1 referral = 2 levels unlocked</li>
-                      <li>5 referrals = all 10 levels unlocked</li>
-                    </ul>
-                  </div>
-                </article>
-              </div>
-            </section>
-          ) : null}
-
-          {dashboardView === "rebirth" ? (
-            <section className="panel dashboard-view w-full max-w-full">
-              <p className="section-label">Rebirth</p>
-              <div className="space-y-6">
-                <article className="section-card premium-panel border border-gray-700 bg-gray-900/90 shadow-[0_20px_45px_rgba(0,0,0,0.35)]">
-                  <div className="section-card-header border-b border-gray-800">
-                    <h3 className="section-card-title text-yellow-400">Rebirth Status</h3>
-                  </div>
-                  <div className="section-card-body space-y-5">
-                    <div className="rebirth-status-banner">
-                      <div>
-                        <p className="rebirth-status-eyebrow">Rebirth Cycle Status</p>
-                        <h4 className="rebirth-status-title">
-                          {snapshot.rebirthCount > 0 ? "Rebirth Triggered" : "Rebirth Charging"}
-                        </h4>
-                        <p className="rebirth-status-copy">
-                          {snapshot.rebirthCount > 0
-                            ? "Your next earning identity is active and ready to grow with its own tree and rewards."
-                            : "Keep filling your Package 1 journey to unlock the next rebirth slot with a fresh earning identity."}
-                        </p>
-                      </div>
-                      <span className={`rebirth-status-pill ${snapshot.rebirthCount > 0 ? "is-success" : "is-waiting"}`}>
-                        {snapshot.rebirthCount > 0 ? "ACTIVE" : "IN PROGRESS"}
-                      </span>
-                    </div>
-
-                    <div className="rebirth-status-grid">
-                      <div className="rebirth-status-metric">
-                        <p className="rebirth-status-metric-label">Total Rebirths</p>
-                        <p className="rebirth-status-metric-value">{snapshot.rebirthCount}</p>
-                      </div>
-                      <div className="rebirth-status-metric">
-                        <p className="rebirth-status-metric-label">Current Status</p>
-                        <p className={`rebirth-status-metric-value ${snapshot.rebirthCount > 0 ? "is-success" : "is-waiting"}`}>
-                          {rebirthStatusLabel}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="rebirth-progress-shell">
-                      <div className="rebirth-progress-meta">
-                        <div>
-                          <p className="text-sm font-semibold text-yellow-400">xSlot Progress</p>
-                          <p className="mt-1 text-sm text-gray-300">Current cycle progress toward the next rebirth trigger.</p>
-                        </div>
-                        <span className="rebirth-progress-pill">
-                          xSlot {rebirthProgressStep} / 5
-                        </span>
-                      </div>
-                      <div className="mt-4 h-3 overflow-hidden rounded-full bg-gray-950">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 transition-all duration-500"
-                          style={{ width: `${rebirthProgressPercent}%` }}
-                        />
-                      </div>
-                      <div className="rebirth-context-badges">
-                        <span className="rebirth-context-badge">{`Current Package: ${snapshot.packageLevel ? `Pkg ${snapshot.packageLevel}` : "Pending"}`}</span>
-                        <span className="rebirth-context-badge">{`Current Box: ${snapshot.currentBoxId ?? 1}`}</span>
-                        <span className="rebirth-context-badge is-bright">{rebirthProgressLabel}</span>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-
-                <article className="section-card premium-panel border border-gray-700 bg-gray-900/90 shadow-[0_20px_45px_rgba(0,0,0,0.35)]">
-                  <div className="section-card-header border-b border-gray-800">
-                    <h3 className="section-card-title text-yellow-400">My Rebirth IDs</h3>
-                  </div>
-                  <div className="section-card-body">
-                    {selectedRebirthId ? (
-                      <div className="rebirth-subdash rebirth-subdash-shell">
-                        <div className="rebirth-subdash-header">
-                          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-                            <button
-                              onClick={rebirthGoBack}
-                              style={{
-                                display: "flex", alignItems: "center", gap: "6px",
-                                padding: "8px 16px", borderRadius: "8px", border: "none",
-                                background: "rgba(46,111,216,0.15)", color: "#7EB3FF",
-                                cursor: "pointer", fontSize: "13px", fontWeight: 600
-                              }}
-                            >
-                              ← Back
-                            </button>
-                            {/* Breadcrumb */}
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#8899BB" }}>
-                              <span
-                                style={{ cursor: "pointer", color: "#7EB3FF" }}
-                                onClick={() => { setSelectedRebirthId(null); setRebirthNavStack([]); }}
-                              >
-                                Rebirth IDs
-                              </span>
-                              {rebirthNavStack.map((id, i) => (
-                                <span key={id} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                  <span>›</span>
-                                  <span
-                                    style={{ cursor: "pointer", color: "#7EB3FF" }}
-                                    onClick={() => {
-                                      const newStack = rebirthNavStack.slice(0, i);
-                                      setRebirthNavStack(newStack);
-                                      setSelectedRebirthId(id);
-                                    }}
-                                  >
-                                    #{id}
-                                  </span>
-                                </span>
-                              ))}
-                              <span>›</span>
-                              <span style={{ color: "#EEF4FF", fontWeight: 600 }}>#{selectedRebirthId}</span>
-                            </div>
-                          </div>
-                          <div className="rebirth-subdash-headline">
-                            <span className="rebirth-detail-badge">ACTIVE ID</span>
-                            <h2 className="rebirth-subdash-title">{`Rebirth ID #${selectedRebirthId}`}</h2>
-                          </div>
-                        </div>
-
-                        <div className="rebirth-stats-row">
-                          {[
-                            { label: "Package", value: selectedRebirthRow ? `Pkg ${selectedRebirthRow.packageLevel}` : "Pkg 1", icon: "📦" },
-                            { label: "Direct Income", value: `$${rebirthNodeDetails?.directIncome ?? "0"}`, cyan: true, icon: "💰" },
-                            { label: "Level Income", value: `$${rebirthNodeDetails?.levelIncome ?? "0"}`, cyan: true, icon: "📊" },
-                            { label: "Total Team", value: String((rebirthNodeDetails?.leftBranchNodes ?? 0) + (rebirthNodeDetails?.rightBranchNodes ?? 0)), icon: "👥" },
-                            { label: "Direct Referrals", value: String(rebirthNodeDetails?.directReferrals ?? 0), icon: "🤝" },
-                            {
-                              label: "Total Earnings",
-                              value: `$${
-                                rebirthNodeDetails
-                                  ? (
-                                      parseFloat(rebirthNodeDetails.directIncome ?? "0") +
-                                      parseFloat(rebirthNodeDetails.levelIncome ?? "0")
-                                    ).toFixed(2)
-                                  : "0"
-                              }`,
-                              gold: true,
-                              icon: "🏆"
-                            },
-                            ...(rebirthNodeDetails && parseDisplayNumber(rebirthNodeDetails.mgxAllocated) > 0
-                              ? [
-                                  {
-                                    label: "MGX Allocated",
-                                    value: `${rebirthNodeDetails.mgxAllocated} MGX`,
-                                    gold: true,
-                                    icon: "MGX"
-                                  }
-                                ]
-                              : [])
-                          ].map((stat, index) => (
-                            <div key={`rebirth-stat-${index}`} className="rebirth-stat-card">
-                              <span className="rebirth-stat-icon" aria-hidden="true">{stat.icon}</span>
-                              <span className="rebirth-stat-label">{stat.label}</span>
-                              <strong
-                                className={`rebirth-stat-value ${
-                                  stat.cyan ? "text-cyan" : stat.gold ? "text-gold" : ""
-                                }`}
-                              >
-                                {stat.value}
-                              </strong>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Sub-rebirth IDs for this selected rebirth */}
-                        {(() => {
-                          const currentDetail = rebirthNodeDetails;
-                          const subRebirthIds = currentDetail?.rebirthIds ?? [];
-                          if (subRebirthIds.length === 0) return null;
-                          return (
-                            <div style={{ marginBottom: "16px" }}>
-                              <div style={{
-                                fontSize: "13px", fontWeight: 600, color: "#C9A84C",
-                                marginBottom: "10px", display: "flex", alignItems: "center", gap: "8px"
-                              }}>
-                                ♻️ Rebirth IDs from #{selectedRebirthId}
-                              </div>
-                              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                                {subRebirthIds.map((subId: number) => (
-                                  <button
-                                    key={subId}
-                                    onClick={() => navigateToRebirth(subId)}
-                                    style={{
-                                      padding: "8px 16px", borderRadius: "8px",
-                                      background: "rgba(201,168,76,0.1)",
-                                      border: "1px solid rgba(201,168,76,0.3)",
-                                      color: "#C9A84C", cursor: "pointer",
-                                      fontSize: "13px", fontWeight: 600,
-                                      display: "flex", alignItems: "center", gap: "6px"
-                                    }}
-                                  >
-                                    ♻️ ID #{subId}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        <div className="rebirth-subdash-tabs">
-                          {(["earnings", "tree", "referral"] as const).map((tab) => (
-                            <button
-                              key={tab}
-                              type="button"
-                              onClick={() => setRebirthDashView(tab)}
-                              className={`rebirth-tab ${rebirthDashView === tab ? "active" : ""}`}
-                            >
-                              {tab === "referral" ? "Referral Link" : `${tab.charAt(0).toUpperCase()}${tab.slice(1)}`}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="rebirth-subdash-content">
-                          {rebirthDashView === "earnings" ? (
-                            <>
-                              <div className="rebirth-earnings-grid">
-                                {[
-                                  { label: "Direct Income", value: rebirthNodeDetails?.directIncome ?? "0", money: true },
-                                  { label: "Level Income", value: rebirthNodeDetails?.levelIncome ?? "0", money: true },
-                                  { label: "Left Team", value: String(rebirthNodeDetails?.leftBranchNodes ?? 0) },
-                                  { label: "Right Team", value: String(rebirthNodeDetails?.rightBranchNodes ?? 0) }
-                                ].map((item, index) => (
-                                  <div key={`rebirth-earnings-${index}`} className="rebirth-income-card">
-                                    <span>{item.label}</span>
-                                    <strong className={item.money ? "text-cyan" : ""}>
-                                      {item.money ? `$${item.value}` : item.value}
-                                    </strong>
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="section-card mt-4">
-                                <div className="section-card-header">
-                                  <h3 className="section-card-title">Auto-Upgrade Escrow</h3>
-                                </div>
-                                <div className="section-card-body">
-                                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                    <div className="flex items-center justify-between gap-3">
-                                      <span className="text-sm font-medium text-white">🔐 Auto-Upgrade Escrow</span>
-                                      <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold text-cyan-300">
-                                        {`xSlot ${rebirthXSlotStep} / 5`}
-                                      </span>
-                                    </div>
-                                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-                                      <div
-                                        className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-600"
-                                        style={{ width: `${Math.min(rebirthEscrowProgress, 100)}%` }}
-                                      />
-                                    </div>
-                                    <div className="mt-2 text-right text-xs font-medium text-cyan-300">
-                                      {`${rebirthEscrowProgress.toFixed(1)}%`}
-                                    </div>
-                                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                                      <div className="rounded-xl border border-white/8 bg-black/10 px-3 py-2">
-                                        <span className="block text-xs uppercase tracking-[0.18em] text-gray-400">Frozen</span>
-                                        <span className="mt-1 block text-sm font-semibold text-cyan-300">{`$${rebirthFrozenAmount.toFixed(2)}`}</span>
-                                      </div>
-                                      <div className="rounded-xl border border-white/8 bg-black/10 px-3 py-2">
-                                        <span className="block text-xs uppercase tracking-[0.18em] text-gray-400">Needed</span>
-                                        <span className="mt-1 block text-sm font-semibold text-white">{`$${rebirthNeededAmount.toFixed(2)}`}</span>
-                                      </div>
-                                      <div className="rounded-xl border border-white/8 bg-black/10 px-3 py-2">
-                                        <span className="block text-xs uppercase tracking-[0.18em] text-gray-400">Package</span>
-                                        <span className="mt-1 block text-sm font-semibold text-white">{`Pkg ${rebirthPkgLevel}`}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="section-card mt-4">
-                                <div className="section-card-header">
-                                  <h3 className="section-card-title">Box Earnings</h3>
-                                </div>
-                                <div className="section-card-body">
-                                  {Object.keys(rebirthBoxEarningsByPkg).length > 0 ? (
-                                    <div className="space-y-3">
-                                      {Object.entries(rebirthBoxEarningsByPkg)
-                                        .sort((a, b) => Number(a[0]) - Number(b[0]))
-                                        .map(([pkg, amount]) => (
-                                          <div key={`rebirth-box-${pkg}`} className="income-row premium-income-row">
-                                            <span className="income-label">{`Box 1 � Pkg ${pkg}`}</span>
-                                            <span className="income-amount">{`$${Number(amount).toFixed(2)}`}</span>
-                                          </div>
-                                        ))}
-                                    </div>
-                                  ) : (
-                                    <div className="py-2 text-sm text-gray-500">No box earnings yet</div>
-                                  )}
-                                </div>
-                              </div>
-                            </>
-                          ) : null}
-
-                          {rebirthDashView === "tree" ? (
-                            <Suspense
-                              fallback={
-                                <div className="text-center text-gray-400 py-8">
-                                  Loading tree...
-                                </div>
-                              }
-                            >
-                              <LazyTreePanel
-                                key={`rebirth-tree-${selectedRebirthId}`}
-                                snapshot={snapshot}
-                                treePreview={rebirthTreePreview}
-                                selectedTreeUserId={selectedRebirthId}
-                                setSelectedTreeUserId={setSelectedRebirthId}
-                                selectedTreeNode={
-                                  rebirthTreePreview.find((node) => node.userId === selectedRebirthId) ?? null
-                                }
-                                selectedTreePath={[]}
-                                selectedTreeParent={null}
-                                selectedTreeChildren={[]}
-                                selectedTreeDetails={rebirthNodeDetails}
-                                selectedFeaturedUser={null}
-                                leftBranchNodes={[]}
-                                rightBranchNodes={[]}
-                                isLoadingTreeDetails={isLoadingRebirthDetails}
-                                treeLabel="Rebirth Tree"
-                                treeTitle={`Rebirth Tree: User ${selectedRebirthId}`}
-                                treeDescription="Earns independently from original ID."
-                                emptyStateText="No rebirth tree data."
-                                initialRootId={selectedRebirthId}
-                                disableRootSync={true}
-                                showEventHistory={false}
-                                userDisplayNames={userDisplayNames}
-                              />
-                            </Suspense>
-                          ) : null}
-
-                          {rebirthDashView === "referral" ? (
-                            <div className="rebirth-referral-section">
-                              <p className="text-secondary mb-3">
-                                {`Share this link to add members under Rebirth ID #${selectedRebirthId}`}
-                              </p>
-                              <div className="referral-link-row">
-                                <input
-                                  readOnly
-                                  className="referral-link-input"
-                                  value={
-                                    typeof window !== "undefined"
-                                      ? `${window.location.origin}/?ref=${selectedRebirthId ?? ""}`
-                                      : ""
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  className="btn-primary-large"
-                                  onClick={() =>
-                                    navigator.clipboard.writeText(
-                                      `${window.location.origin}/?ref=${selectedRebirthId ?? ""}`
-                                    )
-                                  }
-                                >
-                                  Copy
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : rebirthRows.length > 0 ? (
-                      <div className="rebirth-id-grid">
-                        {rebirthRows.map((row) => {
-                          const rebirthReferralLink =
-                            typeof window !== "undefined"
-                              ? `${window.location.origin}/?ref=${row.userId}`
-                              : "Wallet unavailable";
-                          const isRebirthIncomeLoading = !rebirthIncomeByUserId[row.userId];
-
-                          return (
-                            <article
-                              key={`rebirth-${row.rebirthId}`}
-                              className="rebirth-id-card premium"
-                              style={{ cursor: "pointer" }}
-                              onClick={() => { setRebirthNavStack([]); navigateToRebirth(Number(row.rebirthId)); }}
-                            >
-                              <div className="rebirth-id-card-top">
-                                <div className="rebirth-id-copy">
-                                  <div className="rebirth-id-header">
-                                    <span className="rebirth-id-badge">{`Rebirth ID #${row.rebirthId}`}</span>
-                                    <span className="rebirth-package-chip">{row.packageLabel}</span>
-                                  </div>
-                                  <p className="rebirth-id-wallet" title={row.wallet}>
-                                    {row.wallet === "Same wallet" ? row.wallet : `${row.wallet.slice(0, 6)}...${row.wallet.slice(-4)}`}
-                                  </p>
-                                </div>
-                                <span className="rebirth-live-pill">
-                                  {row.status}
-                                </span>
-                              </div>
-
-                              <div className="rebirth-id-body">
-                                <div className="rebirth-income-stack">
-                                  <span className="rebirth-income-label">Total Earned</span>
-                                  <p className="rebirth-income-value">
-                                    {isRebirthIncomeLoading ? (
-                                      <span className="text-gray-500">Loading...</span>
-                                    ) : (
-                                      <>
-                                        <span className="rebirth-currency">$</span>
-                                        {(
-                                          parseFloat(row.directIncome ?? "0") +
-                                          parseFloat(row.levelIncome ?? "0")
-                                        ).toFixed(2)}
-                                      </>
-                                    )}
-                                  </p>
-                                </div>
-                                <div className="rebirth-link-shell">
-                                  <p className="rebirth-link-label">Referral Link</p>
-                                  <div className="rebirth-link-row">
-                                    <input
-                                      className="referral-link-input flex-1"
-                                      value={rebirthReferralLink}
-                                      readOnly
-                                      aria-label={`Rebirth referral link for user ${row.rebirthId}`}
-                                      title={rebirthReferralLink}
-                                    />
-                                    <button
-                                      type="button"
-                                      className="rebirth-link-copy-btn"
-                                      onClick={() =>
-                                        void handleCopyRebirthReferralLink(String(row.userId))
-                                      }
-                                    >
-                                      Copy
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="rebirth-id-actions">
-                                <button
-                                  type="button"
-                                  className="rebirth-id-view-btn"
-                                  onClick={() => {
-                                    setRebirthNavStack([]);
-                                    navigateToRebirth(Number(row.rebirthId));
-                                  }}
-                                >
-                                  View Details
-                                </button>
-                              </div>
-                            </article>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-gray-700 bg-gray-800/40 px-6 py-10 text-center">
-                        <p className="text-lg font-semibold text-yellow-400">No rebirth IDs yet</p>
-                        <p className="mt-2 text-sm text-gray-300">Complete the Package 1 five-cycle journey to unlock your next rebirth.</p>
-                      </div>
-                    )}
-                  </div>
-                </article>
-
-                <article className="section-card border border-gray-700 bg-gray-900/90 shadow-[0_20px_45px_rgba(0,0,0,0.35)]">
-                  <div className="section-card-header border-b border-gray-800">
-                    <h3 className="section-card-title text-yellow-400">How Rebirth Works</h3>
-                  </div>
-                  <div className="section-card-body">
-                    <ul className="space-y-3 text-sm text-gray-200">
-                      <li><span className="text-cyan-400">�</span> Rebirth triggers after completing the Package 1 five-cycle journey.</li>
-                      <li><span className="text-cyan-400">�</span> Your rebirth ID uses the same wallet but starts fresh as a new earning identity.</li>
-                      <li><span className="text-cyan-400">�</span> Original and rebirth IDs continue earning independently inside the same ecosystem.</li>
-                      <li><span className="text-cyan-400">�</span> Use the tree viewer above to inspect each rebirth ID�s placement and live income progress.</li>
-                    </ul>
-                  </div>
-                </article>
-              </div>
-            </section>
-          ) : null}
-
-          {dashboardView === "wallet" ? (
-            <section className="panel dashboard-view w-full max-w-full">
-              <p className="section-label">Wallet</p>
-                            {walletSubView === "transfer" ? (
-                <div className="transfer-container">
-                  <div className="transfer-header">
-                    <button type="button" className="btn-back" onClick={() => setWalletSubView("main")}>
-                      &larr; Back
-                    </button>
-                    <h3>Transfer</h3>
-                  </div>
-
-                  <div className="transfer-section">
-                    <label className="transfer-label">FROM</label>
-                    <div className="transfer-source">
-                      <div className="source-icon">MGX</div>
-                      <div className="source-info">
-                        <span className="source-name">{transferFromLabel}</span>
-                        <span className="source-balance">Balance: {transferFromBalance} MGX</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="transfer-arrow">→</div>
-
-                  <div className="transfer-section">
-                    <label className="transfer-label">TO</label>
-                    <div className="transfer-destination">
-                      <div className="dest-icon">WAL</div>
-                      <div className="dest-info">
-                        <span className="dest-name">{transferToLabel}</span>
-                        <span className="dest-address">{shortWalletAddress}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="transfer-section">
-                    <label className="transfer-label">AMOUNT</label>
-                    <div className="amount-input-row">
-                      <input
-                        type="number"
-                        className="amount-input"
-                        placeholder="0"
-                        value={walletMoveAmount}
-                        onChange={(event) => setWalletMoveAmount(event.target.value)}
-                        inputMode="decimal"
-                      />
-                      <button
-                        type="button"
-                        className="btn-max"
-                        onClick={() => setWalletMoveAmount(displayedMgxAllocated)}
-                      >MAX</button>
-                    </div>
-                    <span className="transfer-token-label">MGX</span>
-                    <span className="source-balance">Balance: {displayedMgxAllocated} MGX</span>
-                  </div>
-
-                    <button
-                      type="button"
-                      className="btn-transfer-submit"
-                      disabled={
-                        isLoading ||
-                        !snapshot.walletAddress ||
-                        !snapshot.userId ||
-                        Number(walletMoveAmount) <= 0
-                      }
-                      onClick={() => {
-                        setStatus("Withdraw is not available in this deployment yet.");
-                        setActionFeedback({
-                          title: "Withdraw action is not live yet",
-                          detail: "This UI is ready, but the current deployment does not expose a public internal-wallet withdraw function."
-                        });
-                      }}
-                    >
-                      Transfer Now
-                    </button>
-                </div>
-              ) : walletSubView === "mgxboxes" ? (
-                <div className="wallet-screen">
-                  <div className="wallet-screen-header">
-                    <button type="button" className="secondary-button" onClick={() => setWalletSubView("main")}>
-                      &larr; Back
-                    </button>
-                    <h2>MGX Allocation</h2>
-                  </div>
-
-                  <div className="wallet-total-balance mgx-allocation-hero">
-                    <div className="balance-label">Total Balance</div>
-                    <div className="mgx-allocation-hero-ring">
-                      <div className="balance-amount-large">{totalMgxAllocatedDisplay} MGX</div>
-                      <div className="balance-usd">{`� $${totalMgxAllocatedDisplay}`}</div>
-                    </div>
-                  </div>
-
-                  <div className="inner-balance-section mgx-allocation-grid">
-                    <div className="inner-balance-header">Inner Balance</div>
-                    {mgxAllocationRows.map((row) => (
-                      <div className="balance-row-item mgx-allocation-card" key={row.id}>
-                        <div className="token-icon-circle mgx">
-                          MGX
-                          <span className="box-number">{row.id}</span>
-                        </div>
-                        <div className="token-info">
-                          <span className="token-name">{`Box ${row.id}`}</span>
-                          <span className="token-sub">Available for withdrawal</span>
-                          <span className="mgx-allocation-status">Available</span>
-                        </div>
-                        <div className="token-amount-right">
-                          <span className="amount-main">{row.amount} MGX</span>
-                          <span className="amount-sub">{`� $${row.usdApprox}`}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="wallet-screen-button-stack">
-                    <button
-                      type="button"
-                      className="wallet-action-btn-full mgx-withdraw-btn"
-                      disabled={parseDisplayNumber(displayedMgxAllocated) <= 0}
-                      onClick={() => {
-                        setStatus("Withdraw is not available in this deployment yet.");
-                        setActionFeedback({
-                          title: "Withdraw action is not live yet",
-                          detail: "This UI is ready, but the current deployment does not expose a public internal-wallet withdraw function."
-                        });
-                      }}
-                    >
-                      Withdraw All MGX
-                    </button>
-                  </div>
-                </div>
-              ) : walletSubView === "stakingclaim" ? (
-                <div className="wallet-screen">
-                  <div className="wallet-screen-header">
-                    <button type="button" className="secondary-button" onClick={() => setWalletSubView("main")}>
-                      &larr; Back
-                    </button>
-                    <h2>Staking Rewards</h2>
-                  </div>
-
-                  <StakingSummary />
-
-                  <div className="wallet-staking-cards" style={{marginBottom:"1rem"}}>
-                    <article className="dashboard-card action-card wallet-staking-card wallet-staking-premium-card">
-                      <div className="section-header">
-                        <span className="section-badge purple">STAKING POSITION</span>
-                        <button type="button" className="btn-refresh-reward" onClick={handleRefreshRewards} disabled={isLoading || !snapshot.walletAddress}>
-                          Refresh
-                        </button>
-                      </div>
-                      {displayedStakePositions.length > 0 ? (
-                        <div className="stake-position-list compact wallet-staking-position-list">
-                          {displayedStakePositions.map((position) => (
-                            <article key={`rewards-position-${position.index}`} className="stake-position-item compact wallet-staking-position-card">
-                              <div className="stake-position-item-header">
-                                <strong>{`Position ${position.index + 1}`}</strong>
-                                <span>{position.lockDurationLabel}</span>
-                              </div>
-                              <div className="stake-position-inline">
-                                <span className="stake-position-inline-chip">{`Staked: ${position.amount} MGX`}</span>
-                                <span className="stake-position-inline-chip reward">{`Pending: ${position.pendingReward} MGX`}</span>
-                                <span className="stake-position-inline-chip">{`Started: ${position.startDateLabel}`}</span>
-                              </div>
-                            </article>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="no-stake-state wallet-staking-empty">
-                          <span>No staking positions yet</span>
-                        </div>
-                      )}
-                    </article>
-                  </div>
-
-                  <div className="wallet-screen-button-stack">
-                    <button
-                      type="button"
-                      className="wallet-action-btn-full green"
-                      disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
-                      onClick={() =>
-                        runWalletAction(
-                          () => metaguildx.claimReward(displayedPendingStakingReward, rewardWindowReady),
-                          "Claiming staking reward...",
-                          "Reward claimed",
-                          (_nextSnapshot, result) => ({
-                            title: "Reward claimed successfully",
-                            detail: `Successfully claimed ${result.claimedReward} MGX.`
-                          })
-                        )
-                      }
-                    >
-                      Claim Reward
-                    </button>
-                    <button
-                      type="button"
-                      className="wallet-action-btn-full blue"
-                      disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
-                      onClick={() =>
-                        runWalletAction(
-                          () => metaguildx.compoundReward(),
-                          "Compounding reward...",
-                          "Reward compounded",
-                          () => ({
-                            title: "Reward compounded",
-                            detail: "The available staking reward has been added back into your position."
-                          })
-                        )
-                      }
-                    >
-                      Compound Reward
-                    </button>
-                  </div>
-                </div>
-              ) : walletSubView === "stake" ? (
-                <div className="staking-container wallet-staking-layout">
-                  <div className="wallet-staking-header">
-                    <button type="button" className="secondary-button wallet-staking-back" onClick={() => setWalletSubView("main")}>
-                      &larr; Back to Wallet
-                    </button>
-                    <strong className="wallet-staking-title">Staking</strong>
-                  </div>
-
-                  <div className="wallet-staking-cards">
-                    <article className="dashboard-card action-card wallet-staking-card wallet-staking-premium-card">
-                      <div className="wallet-staking-action-grid">
-                        <button
-                          type="button"
-                          className="btn-stake-action wallet-staking-action-btn"
-                          onClick={() => setWalletSubView("stake")}
-                        >
-                          Add More Stake
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-stake-action wallet-staking-action-btn is-claim"
-                          disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
-                          onClick={() =>
-                            runWalletAction(
-                              () => metaguildx.claimReward(displayedPendingStakingReward, rewardWindowReady),
-                              "Claiming staking reward...",
-                              "Reward claimed",
-                              (_nextSnapshot, result) => ({
-                                title: "Reward claimed successfully",
-                                detail: `Successfully claimed ${result.claimedReward} MGX.`
-                              })
-                            )
-                          }
-                        >
-                          Claim Reward
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-stake-action wallet-staking-action-btn is-compound"
-                          disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
-                          onClick={() =>
-                            runWalletAction(
-                              () => metaguildx.compoundReward(),
-                              "Compounding reward...",
-                              "Reward compounded",
-                              () => ({
-                                title: "Reward compounded",
-                                detail: "The available staking reward has been added back into your position."
-                              })
-                            )
-                          }
-                        >
-                          Compound Reward
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-stake-action danger wallet-staking-action-btn"
-                          disabled={isLoading || !snapshot.walletAddress || !hasWithdrawableStake}
-                          onClick={() => setWalletSubView("myStake")}
-                        >
-                          Withdraw
-                        </button>
-                      </div>
-                    </article>
-
-                    <article className="dashboard-card action-card wallet-staking-card wallet-staking-premium-card">
-                      <div className="section-header">
-                        <span className="section-badge purple">STAKE MGX</span>
-                      </div>
-                      <div className="stake-position-card wallet-staking-form-card">
-                        <div className="stake-detail-row wallet-staking-available">
-                          <span>Available MGX</span>
-                          <span className="green">{stakeableMgxAllocated} MGX</span>
-                        </div>
-                        <div className="transfer-number-card">
-                          <span>AMOUNT</span>
-                          <div className="transfer-number-row">
-                            <input
-                              value={stakeForm.amount}
-                              onChange={(event) => setStakeForm((current) => ({ ...current, amount: event.target.value }))}
-                              inputMode="decimal"
-                            />
-                            <button
-                              type="button"
-                              className="transfer-max-button"
-                              onClick={() => setStakeForm((current) => ({ ...current, amount: stakeableMgxAllocated }))}
-                            >
-                              MAX
-                            </button>
-                            <div className="transfer-token-pill">MGX</div>
-                          </div>
-                          <p>BALANCE: {stakeableMgxAllocated} MGX</p>
-                        </div>
-                        <div className="stake-duration-inline premium-stake-duration-grid">
-                          {lockPeriods.map((period) => (
-                            <label key={period.key} className={`premium-stake-duration-card ${stakeForm.durationKey === period.key ? "selected" : ""}`}>
-                              <input
-                                type="radio"
-                                name="stake-duration-page"
-                                checked={stakeForm.durationKey === period.key}
-                                onChange={() => setStakeForm((current) => ({ ...current, durationKey: period.key }))}
-                              />
-                              <span className="premium-stake-duration-title">{period.label}</span>
-                              <span className="premium-stake-duration-bonus">{period.bonus}</span>
-                            </label>
-                          ))}
-                        </div>
-                        <label className="stake-auto-checkbox premium-stake-toggle">
-                          <input
-                            type="checkbox"
-                            checked={stakeForm.autoCompound}
-                            onChange={(event) => setStakeForm((current) => ({ ...current, autoCompound: event.target.checked }))}
-                          />
-                          <span className="premium-stake-toggle-switch" aria-hidden="true">
-                            <span className="premium-stake-toggle-knob" />
-                          </span>
-                          <span>Enable auto-compound</span>
-                        </label>
-                        <button
-                          type="button"
-                          className="btn-primary-large wallet-staking-submit"
-                          disabled={isLoading || !snapshot.walletAddress || availableStakeAmount <= 0}
-                          onClick={() => {
-                            if (!canSubmitStake) {
-                              setStatus("Staking could not start. Enter an amount within your available MGX allocation.");
-                              setActionFeedback({
-                                title: "Not enough available MGX",
-                                detail: `You can stake up to ${stakeableMgxAllocated} MGX right now. Reduce the amount and try again.`
-                              });
-                              return;
-                            }
-
-                            isStakePending.current = true;
-                            void runWalletAction(
-                              () =>
-                                metaguildx.stakeTokens({
-                                  amount: Number(stakeForm.amount),
-                                  durationKey: stakeForm.durationKey,
-                                  autoCompound: stakeForm.autoCompound
-                                }),
-                              "Submitting stake...",
-                              "Stake updated",
-                              () => ({
-                                title: "✅ Stake confirmed",
-                                detail: "Position updated"
-                              })
-                            )
-                              .finally(() => {
-                                isStakePending.current = false;
-                                setStakeForm((current) => ({ ...current }));
-                              });
-                          }}
-                        >
-                          Stake Now
-                        </button>
-                      </div>
-                    </article>
-                  </div>
-                </div>
-              ) : walletSubView === "myStake" ? (
-                <div className="staking-container">
-                  <div className="staking-header">
-                    <button type="button" className="btn-back" onClick={() => setWalletSubView("main")}>
-                      &larr; Back
-                    </button>
-                    <h3>My Staking</h3>
-                    <button type="button" className="btn-refresh-reward" onClick={handleRefreshRewards} disabled={isLoading || !snapshot.walletAddress}>
-                      Refresh
-                    </button>
-                  </div>
-
-                  <div className="stake-position-card stake-position-card-premium">
-                    <div className="stake-details">
-                      <div className="stake-detail-row">
-                        <span>Staking Positions</span>
-                        <span className="green">{displayedStakePositions.length}</span>
-                      </div>
-                      <div className="stake-detail-row">
-                        <span>Total Pool Staked</span>
-                        <span className="green">{asMgx(displayedTotalStaked)}</span>
-                      </div>
-                    </div>
-
-                    {displayedStakePositions.length > 0 ? (
-                      <div className="stake-position-list">
-                        {displayedStakePositions.map((position) => (
-                          <article key={`stake-position-${position.index}`} className="stake-position-item stake-position-item-premium">
-                            <div className="stake-position-item-header">
-                              <strong>{`Position ${position.index + 1}`}</strong>
-                              <span className="section-badge purple">{position.lockDurationLabel}</span>
-                            </div>
-                            <div className="stake-position-grid">
-                              <div className="stake-stat">
-                                <span className="stake-label">Staked</span>
-                                <span className="stake-value">{position.amount} MGX</span>
-                              </div>
-                              <div className="stake-stat">
-                                <span className="stake-label">Pending Reward</span>
-                                <span className="stake-value green">{position.pendingReward} MGX</span>
-                              </div>
-                              <div className="stake-stat">
-                                <span className="stake-label">Started</span>
-                                <span className="stake-value">{position.startDateLabel}</span>
-                              </div>
-                              <div className="stake-stat">
-                                <span className="stake-label">Locked Until</span>
-                                <span className="stake-value">{position.unlockDateLabel}</span>
-                              </div>
-                              <div className="stake-stat">
-                                <span className="stake-label">Auto-Compound</span>
-                                <span className={`stake-value ${position.autoCompound ? "green" : "dim"}`}>
-                                  {position.autoCompound ? "Enabled" : "Disabled"}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="stake-lock-progress">
-                              <div className="stake-lock-progress-header">
-                                <span>Lock Progress</span>
-                                <span>{position.lockProgressPercent.toFixed(3)}% complete</span>
-                              </div>
-                              <div className="upgrade-progress-bar">
-                                <span className="upgrade-progress-fill" style={{ width: `${position.lockProgressPercent}%` }} />
-                              </div>
-                            </div>
-                            <div className="stake-action-grid">
-                              <button
-                                type="button"
-                                className="btn-stake-action is-claim"
-                                title={canUseIndexedStakingActions ? undefined : "Indexed staking actions need Core contract wrappers before they can be sent from the dashboard."}
-                                disabled={isLoading || !snapshot.walletAddress || !canUseIndexedStakingActions || parseDisplayNumber(position.pendingReward) <= 0 || !rewardWindowReady}
-                                onClick={() =>
-                                  runWalletAction(
-                                    () => metaguildx.claimReward(position.pendingReward, rewardWindowReady),
-                                    "Claiming staking reward...",
-                                    "Reward claimed",
-                                    (_nextSnapshot, result) => ({
-                                      title: "Reward claimed successfully",
-                                      detail: `Successfully claimed ${result.claimedReward} MGX.`
-                                    })
-                                  )
-                                }
-                              >
-                                Claim Reward
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-stake-action is-compound"
-                                title={canUseIndexedStakingActions ? undefined : "Indexed staking actions need Core contract wrappers before they can be sent from the dashboard."}
-                                disabled={isLoading || !snapshot.walletAddress || !canUseIndexedStakingActions || parseDisplayNumber(position.pendingReward) <= 0}
-                                onClick={() =>
-                                  runWalletAction(
-                                    () => metaguildx.compoundReward(),
-                                    "Compounding reward...",
-                                    "Reward compounded",
-                                    () => ({
-                                      title: "Reward compounded",
-                                      detail: "The available staking reward has been added back into your position."
-                                    })
-                                  )
-                                }
-                              >
-                                Compound Reward
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-stake-action danger"
-                                title={
-                                  position.isLocked
-                                    ? `Locked until ${position.unlockDateLabel}`
-                                    : canUseIndexedStakingActions
-                                    ? undefined
-                                    : "Indexed staking actions need Core contract wrappers before they can be sent from the dashboard."
-                                }
-                                disabled={
-                                  isLoading ||
-                                  !snapshot.walletAddress ||
-                                  !canUseIndexedStakingActions ||
-                                  position.isLocked ||
-                                  parseDisplayNumber(position.amount) <= 0
-                                }
-                                onClick={() =>
-                                  runWalletAction(
-                                    () => metaguildx.withdrawStakeTokens({ amount: parseDisplayNumber(position.amount) }),
-                                    "Withdrawing staked MGX...",
-                                    "Stake withdrawn",
-                                    () => ({
-                                      title: "Stake withdrawn successfully",
-                                      detail: "Your staked MGX has been returned to your available allocation."
-                                    })
-                                  )
-                                }
-                              >
-                                Withdraw
-                              </button>
-                            </div>
-                            {position.isLocked ? <p className="warning-text">{`This stake is locked until ${position.unlockDateLabel}.`}</p> : null}
-                          </article>
-                        ))}
-                        {!canUseIndexedStakingActions ? (
-                          <p className="warning-text">
-                            Position-specific claim, compound, and withdraw actions need indexed Core wrappers. The dashboard now shows every position, but on-chain action routing still supports only the legacy combined flow.
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="no-stake-state">
-                        <span>No active stake</span>
-                        <button type="button" className="btn-start-stake" onClick={() => setWalletSubView("stake")}>
-                          Start Staking
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : walletSubView === "cashback" ? (
-                <div className="staking-container">
-                  <div className="staking-header">
-                    <button type="button" className="btn-back" onClick={() => setWalletSubView("main")}>
-                      &larr; Back to Wallet
-                    </button>
-                    <h3>Cashback Pool</h3>
-                    <button type="button" className="btn-refresh-reward" onClick={() => void handleRefreshSection("Cashback")} disabled={isLoading}>
-                      Refresh
-                    </button>
-                  </div>
-
-                  <article className="dashboard-card action-card cashback-panel">
-                    <div className="section-header">
-                      <span className="section-badge orange">CASHBACK POOL</span>
-                    </div>
-                    <div className="cashback-status-card">
-                      <div className="cashback-status-icon">CB</div>
-                      <div className="cashback-status-copy">
-                        <span className="token-name">Cashback Status</span>
-                        <span className="cashback-status-badge">Available after surrender window</span>
-                      </div>
-                      <div className="token-amount cashback-status-amount">
-                        <span className="amount-main">${parseDisplayNumber(snapshot.pendingCashback).toFixed(2)}</span>
-                        <span className="amount-sub">{parseDisplayNumber(snapshot.pendingCashback) > 0 ? "Ready" : "No cashback"}</span>
-                      </div>
-                    </div>
-                    <div className="cashback-info-grid">
-                      <div className="cashback-info-row">
-                        <span>Pool Balance</span>
-                        <strong>{`$${snapshot.cashbackPoolBalance}`}</strong>
-                      </div>
-                      <div className="cashback-info-row">
-                        <span>Status</span>
-                        <strong>{snapshot.surrenderStatus}</strong>
-                      </div>
-                      <div className="cashback-info-row">
-                        <span>Surrender Rule</span>
-                        <strong>3 to 6 month window</strong>
-                      </div>
-                    </div>
-                    <div className="cashback-notice-banner">
-                      Claim is disabled in the current live deployment.
-                    </div>
-                    <div className="flex justify-center sm:justify-start">
-                      <button type="button" className="btn-primary-large cashback-view-btn w-full sm:w-auto" title="Available after mainnet launch" disabled>
-                        View Cashback ?
-                      </button>
-                    </div>
-                    {parseDisplayNumber(snapshot.pendingCashback) === 0 ? (
-                      <p className="status-text text-center">No cashback yet</p>
-                    ) : null}
-                  </article>
-                </div>
-              ) : (
-              <div className="wallet-container">
-                <div className="wallet-section balance-section">
-                  <div className="section-header">
-                    <span className="section-badge blue">CONNECTED WALLET</span>
-                    <button type="button" className="btn-refresh-reward" onClick={() => void handleRefreshSection("Wallet")} disabled={isLoading}>
-                      ? Refresh
-                    </button>
-                  </div>
-                <div className="wallet-address-row">
-                    <div className="wallet-address premium-wallet-address" title={snapshot.walletAddress ?? "Wallet pending"}>
-                      <div className="premium-wallet-address-copy">
-                        <span className="premium-wallet-address-label">Connected Wallet</span>
-                        <span>{shortWalletAddress}</span>
-                      </div>
-                      <button type="button" className="premium-wallet-copy-btn" onClick={handleCopyWalletAddress} disabled={!snapshot.walletAddress}>Copy</button>
-                    </div>
-                    <button type="button" className="btn-disconnect" onClick={handleLogout} disabled={isLoading}>
-                      Disconnect
-                    </button>
-                  </div>
-                  <div className="wallet-total-balance wallet-total-balance-premium">
-                    <span className="balance-label">Total Balance</span>
-                    <span className={`balance-amount ${parseFloat(connectedWalletTotalDisplay) > 0 ? "is-positive" : ""}`}>${connectedWalletTotalDisplay}</span>
-                  </div>
-                  <div className="wallet-action-buttons premium-action-grid" style={{gridTemplateColumns:"repeat(2,1fr)",maxWidth:500,margin:"0 auto",gap:12}}>
-                    <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("mgxboxes"); }}>
-                      <span className="premium-action-icon">💎</span>
-                      <span className="premium-action-title">Inner Wallet</span>
-                      <span className="premium-action-subtitle">Transfer earnings to wallet</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-action premium-action-card"
-                      onClick={() => {
-                        setDashboardView("wallet");
-                        setWalletSubView("stakingclaim");
-                      }}
-                    >
-                      <span className="premium-action-icon">🎁</span>
-                      <span className="premium-action-title">Reward Wallet</span>
-                      <span className="premium-action-subtitle">Claim platform rewards</span>
-                    </button>
-                    <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("stake"); }}>
-                      <span className="premium-action-icon">🔒</span>
-                      <span className="premium-action-title">Staking</span>
-                      <span className="premium-action-subtitle">Stake MGX tokens</span>
-                      {parseDisplayNumber(displayedPersonalStaked) > 0 ? (
-                        <span className="premium-action-badge">{`${displayedPersonalStaked} MGX staked`}</span>
-                      ) : null}
-                    </button>
-                    <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("cashback"); }}>
-                      <span className="premium-action-icon">💰</span>
-                      <span className="premium-action-title">Cashback Pool</span>
-                      <span className="premium-action-subtitle">View cashback status</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="wallet-section balance-section premium-balance-section">
-                  <div className="section-header">
-                    <span className="section-badge orange">INNER BALANCE</span>
-                    <span className="section-sub">Platform earnings and managed balances</span>
-                  </div>
-                  <div className="balance-row premium-balance-row">
-                    <div className="token-icon">ESC</div>
-                    <div className="token-info">
-                      <span className="token-name">Frozen (Auto-Upgrade)</span>
-                      <span className="token-sub">Current package escrow</span>
-                    </div>
-                    <div className="token-amount">
-                      <span className="amount-main">${frozenEscrowDisplay}</span>
-                    </div>
-                  </div>
-                  <div className="balance-row premium-balance-row">
-                    <div className="token-icon mgx-icon">MGX</div>
-                    <div className="token-info">
-                      <span className="token-name">MGX Staked</span>
-                      <span className="token-sub">Active staking positions</span>
-                    </div>
-                    <div className="token-amount">
-                      <span className="amount-main">{displayedPersonalStaked}</span>
-                      <span className="amount-sub">MGX</span>
-                    </div>
-                  </div>
-                  <div className="balance-row premium-balance-row">
-                    <div className="token-icon mgx-icon">MGX</div>
-                    <div className="token-info">
-                      <span className="token-name">MGX Allocated (Total)</span>
-                      <span className="token-sub">Primary + rebirth allocations</span>
-                    </div>
-                    <div className="token-amount">
-                      <span className="amount-main">{displayedTotalMgxAllocated}</span>
-                      <span className="amount-sub">MGX</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="wallet-section escrow-section premium-balance-section">
-                  <div className="section-header">
-                    <span className="section-badge blue">WALLET BALANCE</span>
-                    <span className="section-sub">{shortWalletAddress}</span>
-                  </div>
-                  {isConnectedWalletLoading ? <p className="status-text">Loading connected wallet assets...</p> : null}
-                  {snapshot.connectedWalletAssetsError ? (
-                    <p className="warning-text">Unable to load wallet assets right now. Please try again.</p>
-                  ) : null}
-                  <div className="balance-row premium-balance-row">
-                    <div className="token-icon">USDT</div>
-                    <div className="token-info">
-                      <span className="token-name">USDT</span>
-                      <span className="token-sub">External wallet balance</span>
-                    </div>
-                    <div className="token-amount">
-                      <span className="amount-main amount-main-highlight">{outerUsdtBalanceDisplay}</span>
-                      <span className="amount-sub">USDT</span>
-                    </div>
-                  </div>
-                  <div className="balance-row premium-balance-row">
-                    <div className="token-icon">BNB</div>
-                    <div className="token-info">
-                      <span className="token-name">opBNB Gas</span>
-                      <span className="token-sub">Native gas balance</span>
-                    </div>
-                    <div className="token-amount">
-                      <span className="amount-main">{opBnbGasDisplay}</span>
-                      <span className="amount-sub">BNB</span>
-                    </div>
-                  </div>
-                  <div className="balance-row premium-balance-row">
-                    <div className="token-icon mgx-icon">MGX</div>
-                    <div className="token-info">
-                      <span className="token-name">MGX</span>
-                      <span className="token-sub">Available MGX</span>
-                    </div>
-                    <div className="token-amount">
-                      <span className="amount-main">{mgxAvailableDisplay}</span>
-                      <span className="amount-sub">MGX</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="wallet-section balance-section">
-                  <div className="section-header" style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1rem"}}>
-                    <span className="section-badge blue">Recent Wallet Activity</span>
-                    <button type="button" className="btn-refresh-reward" onClick={() => void handleLoadMoreHistory()} disabled={isConnectedWalletHistoryLoading}>
-                      {isConnectedWalletHistoryLoading ? "Loading..." : "↻ Refresh"}
-                    </button>
-                  </div>
-                  <div className="space-y-3">
-                    {connectedWalletHistoryRows.length > 0 ? (
-                      connectedWalletHistoryRows.slice(0, 10).map((row) => (
-                        <div key={row.hash} className="tx-row">
-                          <div>
-                            <div className="income-label">{row.type}</div>
-                            <div className="income-sublabel">{row.date}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="token-amount">{row.amount}</div>
-                            <div className="token-usd">{row.status}</div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="empty-state">
-                        <p className="empty-state-text">No transaction history available yet.</p>
-                      </div>
-                    )}
-                    {snapshot.connectedWalletHistoryError ? <p className="warning-text">{snapshot.connectedWalletHistoryError}</p> : null}
-                  </div>
-                </div>
-              </div>
-              )}
-            </section>
-          ) : null}
-
-          {dashboardView === "upgrade" ? (
-            <section className="panel dashboard-view w-full max-w-full">
-              <p className="section-label">Upgrade</p>
-              <div className="dashboard-card action-card upgrade-premium-card upgrade-journey-shell">
-                <div className="upgrade-card-header">
-                  <span className="upgrade-card-icon">↑</span>
-                  <div>
-                    <h3>Package Upgrade</h3>
-                    <p className="upgrade-card-path">
-                      {snapshot.packageLevel ? `Pkg ${snapshot.packageLevel}` : "Not active"} <span>→</span> {nextUpgradeLevel ? `Pkg ${nextUpgradeLevel}` : "Maximum"}
-                    </p>
-                  </div>
-                </div>
-                <div className="upgrade-journey-summary">
-                  <span className="upgrade-journey-label">Your Upgrade Journey</span>
-                  <p className="upgrade-journey-copy">
-                    Track every milestone from Pkg 1 through Pkg 10 and see exactly where your next upgrade unlock sits.
-                  </p>
-                </div>
-                <div className="upgrade-journey-grid">
-                  {upgradeMilestones.map((milestone) => {
-                    const isCompleted = milestone.fromPkg < userPackageLevel;
-                    const isActive = milestone.fromPkg === userPackageLevel;
-                    const isLocked = milestone.fromPkg > userPackageLevel;
-                    const isMaxMilestone = milestone.toPkg === "MAX";
-                    const milestoneCostLabel = isMaxMilestone ? "Final tier" : `$${milestone.cost.toFixed(2)}`;
-
-                    return (
-                      <article
-                        key={`upgrade-milestone-${milestone.fromPkg}`}
-                        className={`upgrade-milestone-card ${isCompleted ? "completed" : ""} ${isActive ? "active" : ""} ${isLocked ? "locked" : ""} ${isMaxMilestone ? "max-milestone" : ""}`}
-                      >
-                        <div className="upgrade-milestone-head">
-                          <div className="upgrade-milestone-title-wrap">
-                            <span className="upgrade-milestone-icon" aria-hidden="true">
-                              {isCompleted ? "✅" : isActive ? "⚡" : "🔒"}
-                            </span>
-                            <div>
-                              <h4>{`Pkg ${milestone.fromPkg} → ${typeof milestone.toPkg === "number" ? `Pkg ${milestone.toPkg}` : milestone.toPkg}`}</h4>
-                              {isCompleted ? <p className="upgrade-milestone-subtitle success">Completed</p> : null}
-                              {isLocked ? (
-                                <>
-                                  <p className="upgrade-milestone-subtitle muted">Complete previous to unlock</p>
-                                  <p className="upgrade-milestone-cost">{`Cost: ${milestoneCostLabel}`}</p>
-                                </>
-                              ) : null}
-                              {isActive && isMaxMilestone ? <p className="upgrade-milestone-subtitle success">You are already at the highest package tier.</p> : null}
-                            </div>
-                          </div>
-                          <span className={`upgrade-milestone-badge ${isCompleted ? "done" : ""} ${isActive ? "active" : ""} ${isLocked ? "locked" : ""}`}>
-                            {isCompleted ? "✅ DONE" : isActive ? "⚡ Active" : "🔒 LOCKED"}
-                          </span>
-                        </div>
-
-                        {isCompleted ? (
-                          <div className="upgrade-milestone-complete">
-                            <div className="upgrade-milestone-meta">
-                              <span className="upgrade-milestone-meta-label">✅ Upgraded</span>
-                              <span className="upgrade-milestone-cost">{`Cost Paid: ${milestoneCostLabel}`}</span>
-                            </div>
-                            <div className="upgrade-milestone-progress" aria-hidden="true">
-                              <span className="upgrade-milestone-progress-fill" style={{ width: "100%" }} />
-                            </div>
-                            <div className="upgrade-milestone-meta">
-                              <span className="upgrade-milestone-complete-copy">Milestone Complete! 🎉</span>
-                              <span className="upgrade-milestone-percent">100%</span>
-                            </div>
-                          </div>
-                        ) : null}
-
-                        {isActive && !isMaxMilestone ? (
-                          <>
-                            <div className="info-card upgrade-progress-card premium-upgrade-progress-card">
-                              <div className="upgrade-progress-bar" aria-hidden="true">
-                                <span className="upgrade-progress-fill" style={{ width: `${upgradeProgressPercent.toFixed(0)}%` }} />
-                              </div>
-                              <span className="upgrade-progress-percent">Progress: {upgradeProgressPercent.toFixed(0)}%</span>
-                              <div className="upgrade-progress-stats premium-upgrade-stats">
-                                <div className="premium-upgrade-stat">
-                                  <span>Frozen</span>
-                                  <strong>${frozenEscrowDisplay}</strong>
-                                </div>
-                                <div className="premium-upgrade-stat">
-                                  <span>Need</span>
-                                  <strong>${upgradeNeedDisplay}</strong>
-                                </div>
-                                <div className="premium-upgrade-stat">
-                                  <span>Left</span>
-                                  <strong>${upgradeRemainingDisplay}</strong>
-                                </div>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="btn-primary-large premium-upgrade-btn"
-                              disabled={isLoading || !canUpgradeCurrentPackage}
-                              onClick={() =>
-                                runWalletAction(
-                                  () =>
-                                    metaguildx.upgradeUserPackage({
-                                      userId: snapshot.userId ?? 0,
-                                      newPackageLevel: nextUpgradeLevel ?? 0
-                                    }),
-                                  "Upgrading package...",
-                                  "Package upgraded",
-                                  (nextSnapshot) => ({
-                                    title: `Package ${nextUpgradeLevel ?? "-"} upgraded successfully`,
-                                    detail: `Your current package is now ${nextSnapshot.packageLevel ? `Package ${nextSnapshot.packageLevel}` : "updated"}. Running box: Box ${nextSnapshot.currentBoxId} at $${nextSnapshot.currentBoxPrice}.`
-                                  })
-                                )
-                              }
-                            >
-                              ⬆ Upgrade Now
-                            </button>
-                          </>
-                        ) : null}
-
-                        {isActive && isMaxMilestone ? <div className="upgrade-max-state">🏆 You're at Maximum Package Level!</div> : null}
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          {dashboardView === "cashback" ? (
-            <section className="panel dashboard-view w-full max-w-full">
-              <p className="section-label">Cashback</p>
-              <div className="summary-strip flex flex-wrap gap-2 w-full max-w-full">
-                <article className="summary-chip">
-                  <span>Surrender Status</span>
-                  <strong>{snapshot.surrenderStatus}</strong>
-                </article>
-                <article className="summary-chip">
-                  <span>Pending Cashback</span>
-                  <strong>${snapshot.pendingCashback}</strong>
-                </article>
-                <article className="summary-chip">
-                  <span>Cashback Earned</span>
-                  <strong>${snapshot.cashbackIncome}</strong>
-                </article>
-                <article className="summary-chip">
-                  <span>Auto Settlement</span>
-                  <strong>{snapshot.pendingCashback !== "0" ? "Ready" : "Waiting"}</strong>
-                </article>
-              </div>
-
-              <div className="dashboard-grid detailed grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-full">
-                <article className="dashboard-card action-card">
-                  <h3>Surrender</h3>
-                  <div className="info-card">
-                    <strong>Pool Status</strong>
-                    <span>Pool Balance: ${snapshot.cashbackPoolBalance}</span>
-                    <span>Your Share: ${snapshot.pendingCashback}</span>
-                    <span>Status: {snapshot.surrenderStatus}</span>
-                    <span>Cashback is reserved for surrendered IDs after the full cycle.</span>
-                  </div>
-                  <button
-                    type="button"
-                    title="Available after mainnet launch"
-                    disabled
-                  >
-                    Surrender
-                  </button>
-                </article>
-
-                <article className="dashboard-card action-card">
-                  <h3>Claim Cashback</h3>
-                  <ul className="metric-list">
-                    <li>Pending cashback: ${snapshot.pendingCashback}</li>
-                    <li>Claim status: Available after mainnet launch</li>
-                    <li>Escrow balance: ${escrowBalance}</li>
-                    <li>Connected wallet value: ${snapshot.connectedWalletValue}</li>
-                  </ul>
-                  <button
-                    type="button"
-                    title="Available after mainnet launch"
-                    disabled
-                  >
-                    Claim Cashback
-                  </button>
-                </article>
-
-                <article className="dashboard-card action-card">
-                  <h3>Cashback Notes</h3>
-                  <ul className="metric-list">
-                    <li>Pool Balance: ${snapshot.cashbackPoolBalance}</li>
-                    <li>Surrender Status: {snapshot.surrenderStatus}</li>
-                    <li>Surrender window follows 3 to 6 month rules.</li>
-                    <li>Claim and surrender buttons are disabled until mainnet launch.</li>
-                  </ul>
-                </article>
-              </div>
-            </section>
-          ) : null}
-
-          {dashboardView === "profile" && (
-            <div className="dashboard-page" style={{ padding: "24px" }}>
-
-              {/* Profile Header Card */}
-              <div className="dashboard-card" style={{
-                padding: "32px",
-                marginBottom: "24px",
-                background: "linear-gradient(135deg, rgba(46,111,216,0.15) 0%, rgba(201,168,76,0.08) 100%)",
-                border: "1px solid rgba(201,168,76,0.3)",
-                borderRadius: "20px",
-                display: "flex",
-                alignItems: "center",
-                gap: "24px",
-                flexWrap: "wrap",
-                position: "relative",
-                width: "100%"
-              }}>
-                {/* Avatar */}
-                <img
-                  src="/mgx-logo.png"
-                  alt="MGX"
-                  style={{
-                    width: "88px", height: "88px", objectFit: "contain",
-                    flexShrink: 0,
-                    filter: "drop-shadow(0 0 12px rgba(201,168,76,0.5))"
-                  }}
-                  onError={e => { e.currentTarget.style.display="none"; }}
-                />
-
-                {/* User Info */}
-                <div style={{ flex: 1, minWidth: "200px" }}>
-                  <div style={{ fontSize: "24px", fontWeight: 700, color: "#EEF4FF", marginBottom: "4px" }}>
-                    {profileMeta.displayName || `User #${snapshot?.userId || "—"}`}
-                  </div>
-                  {profileMeta.nickname && (
-                    <div style={{ fontSize: "13px", color: "#8899BB", marginBottom: "6px" }}>
-                      @{profileMeta.nickname}
-                    </div>
-                  )}
-                  <div style={{
-                    fontSize: "12px", color: "#7EB3FF", marginBottom: "10px",
-                    fontFamily: "monospace", display: "flex", alignItems: "center", gap: "6px"
-                  }}>
-                    {snapshot?.walletAddress
-                      ? `${snapshot.walletAddress.slice(0,6)}...${snapshot.walletAddress.slice(-4)}`
-                      : "—"}
-                    <button
-                      id="wallet-copy-btn"
-                      onClick={() => {
-                        navigator.clipboard.writeText(snapshot?.walletAddress || "");
-                        const btn = document.getElementById("wallet-copy-btn");
-                        if (btn) { btn.textContent = "✅"; setTimeout(() => { btn.textContent = "📋"; }, 2000); }
-                      }}
-                      style={{
-                        background: "none", border: "none", cursor: "pointer",
-                        color: "#C9A84C", fontSize: "13px", padding: "0"
-                      }}
-                      title="Copy wallet address"
-                    >📋</button>
-                  </div>
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                    <span style={{
-                      background: "rgba(76,175,130,0.15)", border: "1px solid rgba(76,175,130,0.4)",
-                      borderRadius: "20px", padding: "3px 12px", fontSize: "11px", color: "#4CAF82", fontWeight: 600
-                    }}>✅ Verified Member</span>
-                    <span style={{
-                      background: "rgba(46,111,216,0.15)", border: "1px solid rgba(46,111,216,0.4)",
-                      borderRadius: "20px", padding: "3px 12px", fontSize: "11px", color: "#7EB3FF", fontWeight: 600
-                    }}>📦 Package {snapshot?.packageLevel || 0}</span>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-end" }}>
-                  <button
-                    className="btn-primary"
-                    style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "10px", whiteSpace: "nowrap" }}
-                    onClick={() => {
-                      const link = `${window.location.origin}?ref=${snapshot?.userId}`;
-                      navigator.clipboard.writeText(link);
-                    }}
-                  >
-                    🔗 Copy Referral Link
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    style={{
-                      padding: "10px 20px", fontSize: "13px", borderRadius: "10px",
-                      background: "rgba(220,53,69,0.12)", border: "1px solid rgba(220,53,69,0.35)",
-                      color: "#FF6B7A", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap",
-                      transition: "all 0.2s"
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "rgba(220,53,69,0.22)")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "rgba(220,53,69,0.12)")}
-                  >
-                    🚪 Logout
-                  </button>
-                </div>
-              </div>
-
-              {/* Stats Grid — 2×2 */}
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: "16px",
-                marginBottom: "24px"
-              }}>
-                {[
-                  { icon: "👥", label: "Direct Referrals", value: String(snapshot?.directReferrals ?? "—"), color: "#7EB3FF" },
-                  { icon: "🌐", label: "Total Team", value: String(totalTeamMembers), color: "#7EB3FF" },
-                  {
-                    icon: "💰", label: "Total Earnings",
-                    value: privacySettings.earnings === "all" ? `$${snapshot?.totalEarnings ?? "0"}` : "🔒 Hidden",
-                    color: "#C9A84C"
-                  },
-                  {
-                    icon: "📦", label: "Package Level",
-                    value: privacySettings.packageLevel === "all" ? `Level ${snapshot?.packageLevel ?? 0}` : "🔒 Hidden",
-                    color: "#C9A84C"
-                  }
-                ].map((stat, i) => (
-                  <div key={i} className="stat-card" style={{
-                    textAlign: "center", padding: "24px 16px", borderRadius: "16px"
-                  }}>
-                    <div style={{ fontSize: "30px", marginBottom: "10px" }}>{stat.icon}</div>
-                    <div style={{ fontSize: "22px", fontWeight: 700, color: stat.color, marginBottom: "4px" }}>
-                      {stat.value}
-                    </div>
-                    <div style={{ fontSize: "12px", color: "#8899BB" }}>{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Personal Info Card */}
-              <div className="dashboard-card" style={{ padding: "28px", borderRadius: "16px", width: "100%" }}>
-                <h3 style={{ color: "#C9A84C", marginBottom: "20px", fontSize: "15px", fontWeight: 600 }}>
-                  📋 Personal Info
-                </h3>
-                {[
-                  { label: "User ID", value: `#${snapshot?.userId || "—"}` },
-                  { label: "Sponsor ID", value: `#${snapshot?.sponsorId || "—"}` },
-                  {
-                    label: "Wallet",
-                    value: privacySettings.walletAddress === "all"
-                      ? snapshot?.walletAddress || "—"
-                      : `${(snapshot?.walletAddress || "").slice(0,6)}...••••`
-                  },
-                  {
-                    label: "Joined",
-                    value: snapshot?.joinedAt
-                      ? new Date(Number(snapshot.joinedAt) * 1000).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })
-                      : "—"
-                  }
-                ].map((row, i) => (
-                  <div key={i} style={{
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "14px 0",
-                    borderBottom: i < 3 ? "1px solid rgba(46,111,216,0.12)" : "none"
-                  }}>
-                    <span style={{ fontSize: "13px", color: "#8899BB" }}>{row.label}</span>
-                    <span style={{ fontSize: "13px", color: "#EEF4FF", fontFamily: "monospace" }}>{row.value}</span>
-                  </div>
-                ))}
-              </div>
-
-            </div>
-          )}
-
-          {dashboardView === "settings" && (
-            <div className="dashboard-page" style={{ padding: "24px" }}>
-              <h2 style={{ color: "#EEF4FF", fontSize: "20px", fontWeight: 700, marginBottom: "24px" }}>
-                ⚙️ Settings
-              </h2>
-
-              <div style={{ display: "flex", gap: "24px", alignItems: "flex-start", flexWrap: "wrap" }}>
-              {/* === PROFILE SECTION === */}
-              <div className="dashboard-card" style={{ padding: "28px", borderRadius: "16px", marginBottom: "20px", flex: "1 1 340px" }}>
-                <h3 style={{ color: "#C9A84C", fontSize: "15px", fontWeight: 600, marginBottom: "6px" }}>
-                  👤 Profile
-                </h3>
-                <p style={{ color: "#8899BB", fontSize: "13px", marginBottom: "24px" }}>
-                  Customize how you appear to others
-                </p>
-
-                {/* Avatar Upload — Coming Soon */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: "20px",
-                  padding: "16px 0", borderBottom: "1px solid rgba(46,111,216,0.12)",
-                  marginBottom: "20px"
-                }}>
-                  <img
-                    src="/mgx-logo.png"
-                    alt="MGX"
-                    style={{
-                      width: "72px", height: "72px", objectFit: "contain",
-                      flexShrink: 0,
-                      filter: "drop-shadow(0 0 8px rgba(201,168,76,0.4))"
-                    }}
-                    onError={e => { e.currentTarget.style.display="none"; }}
-                  />
-                  <div>
-                    <div style={{ fontSize: "13px", color: "#EEF4FF", marginBottom: "4px", fontWeight: 500 }}>
-                      Profile Photo
-                    </div>
-                    <div style={{
-                      fontSize: "11px", color: "#8899BB", marginBottom: "8px"
-                    }}>
-                      Permanent storage — backend integration coming soon
-                    </div>
-                    <button style={{
-                      padding: "7px 16px", borderRadius: "8px", fontSize: "12px",
-                      background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.25)",
-                      color: "#C9A84C", cursor: "not-allowed", fontWeight: 500
-                    }} disabled>
-                      📷 Upload Photo (Coming Soon)
-                    </button>
-                  </div>
-                </div>
-
-                {/* Nickname Input */}
-                <div style={{ marginBottom: "16px" }}>
-                  <label style={{ display: "block", fontSize: "13px", color: "#8899BB", marginBottom: "6px" }}>
-                    Username / Nickname
-                  </label>
-                  <input
-                    type="text"
-                    value={profileMeta.nickname}
-                    onChange={e => setProfileMeta({ ...profileMeta, nickname: e.target.value })}
-                    placeholder="e.g. cryptoking"
-                    maxLength={30}
-                    style={{
-                      width: "100%", padding: "10px 14px", borderRadius: "10px",
-                      background: "rgba(46,111,216,0.08)", border: "1px solid rgba(46,111,216,0.25)",
-                      color: "#EEF4FF", fontSize: "14px", outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit"
-                    }}
-                  />
-                </div>
-
-                {/* Display Name Input */}
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={{ display: "block", fontSize: "13px", color: "#8899BB", marginBottom: "6px" }}>
-                    Display Name
-                  </label>
-                  <input
-                    type="text"
-                    value={profileMeta.displayName}
-                    onChange={e => setProfileMeta({ ...profileMeta, displayName: e.target.value })}
-                    placeholder="e.g. John Smith"
-                    maxLength={40}
-                    style={{
-                      width: "100%", padding: "10px 14px", borderRadius: "10px",
-                      background: "rgba(46,111,216,0.08)", border: "1px solid rgba(46,111,216,0.25)",
-                      color: "#EEF4FF", fontSize: "14px", outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit"
-                    }}
-                  />
-                </div>
-
-                {/* Save Button */}
-                <button
-                  className="btn-primary"
-                  style={{ padding: "11px 28px", borderRadius: "10px", fontSize: "14px", fontWeight: 600 }}
-                  onClick={() => {
-                    saveProfileMeta(profileMeta);
-                    setProfileSaved(true);
-                    setTimeout(() => setProfileSaved(false), 2500);
-                  }}
-                >
-                  {profileSaved ? "✅ Saved!" : "💾 Save Changes"}
-                </button>
-              </div>
-
-              {/* === PRIVACY SECTION === */}
-              <div className="dashboard-card" style={{ padding: "28px", borderRadius: "16px", marginBottom: "20px", flex: "1 1 340px" }}>
-                <h3 style={{ color: "#C9A84C", fontSize: "15px", fontWeight: 600, marginBottom: "6px" }}>
-                  🔒 Privacy Controls
-                </h3>
-                <p style={{ color: "#8899BB", fontSize: "13px", marginBottom: "24px" }}>
-                  Control what others can see on your public profile
-                </p>
-
-                {([
-                  { key: "earnings",      label: "💰 Income / Earnings",  desc: "Your total and breakdown earnings" },
-                  { key: "referralTree",  label: "🌳 Referral Tree",       desc: "Your downline and network tree" },
-                  { key: "packageLevel",  label: "📦 Package Level",       desc: "Your current active package" },
-                  { key: "walletAddress", label: "👛 Wallet Address",      desc: "Your full wallet address" }
-                ] as const).map((item, i, arr) => (
-                  <div key={item.key} style={{
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "16px 0",
-                    borderBottom: i < arr.length - 1 ? "1px solid rgba(46,111,216,0.12)" : "none"
-                  }}>
-                    <div>
-                      <div style={{ fontSize: "14px", color: "#EEF4FF", marginBottom: "3px" }}>{item.label}</div>
-                      <div style={{ fontSize: "12px", color: "#8899BB" }}>{item.desc}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
-                      {(["all", "only_me"] as const).map(opt => (
-                        <button
-                          key={opt}
-                          onClick={() => savePrivacy({ ...privacySettings, [item.key]: opt })}
-                          style={{
-                            padding: "6px 14px", borderRadius: "20px", fontSize: "12px",
-                            fontWeight: 500, cursor: "pointer",
-                            border: privacySettings[item.key] === opt
-                              ? "1px solid #C9A84C"
-                              : "1px solid rgba(255,255,255,0.1)",
-                            background: privacySettings[item.key] === opt
-                              ? "rgba(201,168,76,0.2)"
-                              : "rgba(255,255,255,0.04)",
-                            color: privacySettings[item.key] === opt ? "#C9A84C" : "#8899BB",
-                            transition: "all 0.2s"
-                          }}
-                        >
-                          {opt === "all" ? "🌐 All Users" : "🔒 Only Me"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              </div>
-
-              {/* Auto-save note */}
-              <div style={{
-                textAlign: "center", fontSize: "12px", color: "#4CAF82",
-                padding: "10px", background: "rgba(76,175,130,0.08)",
-                borderRadius: "8px", border: "1px solid rgba(76,175,130,0.2)"
-              }}>
-                ✅ Privacy settings auto-saved • Profile saved manually
-              </div>
-
-            </div>
-          )}
+          {dashboardView === "usersearch" && <UserSearchPage {...dashboardPageProps} />}
 
           {dashboardView === "support" ? (
             <SupportPage
@@ -6406,266 +4283,7 @@ function App() {
             />
           ) : null}
 
-          {dashboardView === "register" ? (
-            <section className="panel dashboard-view w-full max-w-full">
-              <p className="section-label">Register</p>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                gap: "16px",
-                width: "100%"
-              }}>
-                <div className="dashboard-card" style={{ padding: "24px", borderRadius: "16px" }}>
-                  <h3 style={{
-                    fontSize: "15px", fontWeight: 700, color: "#C9A84C",
-                    marginBottom: "6px", display: "flex", alignItems: "center", gap: "8px"
-                  }}>
-                    👤 Sponsor Details
-                  </h3>
-                  <p style={{ fontSize: "13px", color: "#8899BB", marginBottom: "20px" }}>
-                    Enter your sponsor's ID to join their network
-                  </p>
-                  <div style={{ marginBottom: "16px" }}>
-                    <label style={{ display: "block", fontSize: "13px", color: "#8899BB", marginBottom: "6px" }}>
-                      Sponsor ID
-                    </label>
-                    {referralSponsorId !== null ? (
-                      <div style={{
-                        padding: "12px 16px", borderRadius: "10px",
-                        background: "rgba(201,168,76,0.08)",
-                        border: "1px solid rgba(201,168,76,0.25)",
-                        display: "flex", alignItems: "center", gap: "10px"
-                      }}>
-                        <span style={{ fontSize: "20px" }}>🔒</span>
-                        <div>
-                          <div style={{ fontSize: "14px", fontWeight: 700, color: "#C9A84C" }}>
-                            Sponsor #{referralSponsorId} Locked
-                          </div>
-                          <div style={{ fontSize: "12px", color: "#8899BB" }}>
-                            You were invited by this sponsor
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <input
-                        type="number"
-                        value={registerForm.sponsorId}
-                        onChange={(event) => setRegisterForm((current) => ({ ...current, sponsorId: event.target.value }))}
-                        placeholder="Enter Sponsor ID"
-                        min="1"
-                        style={{
-                          width: "100%", padding: "12px 14px", borderRadius: "10px",
-                          background: "rgba(46,111,216,0.08)",
-                          border: "1px solid rgba(46,111,216,0.25)",
-                          color: "#EEF4FF", fontSize: "14px", outline: "none",
-                          boxSizing: "border-box", fontFamily: "inherit"
-                        }}
-                      />
-                    )}
-                  </div>
-                  {referralSponsorId !== null && referralSponsorProfile ? (
-                    <div style={{
-                      padding: "12px 16px", borderRadius: "10px",
-                      background: "rgba(46,111,216,0.06)",
-                      border: "1px solid rgba(46,111,216,0.2)",
-                      display: "flex", alignItems: "center", gap: "12px"
-                    }}>
-                      <div style={{
-                        width: "40px", height: "40px", borderRadius: "50%",
-                        background: "linear-gradient(135deg,rgba(201,168,76,.3),rgba(46,111,216,.2))",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontWeight: 700, color: "#C9A84C", fontSize: "14px", flexShrink: 0
-                      }}>
-                        #{referralSponsorId}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: "13px", fontWeight: 600, color: "#EEF4FF" }}>
-                          User #{referralSponsorId}
-                        </div>
-                        <div style={{ fontSize: "11px", color: "#8899BB" }}>
-                          {referralSponsorProfile.directReferrals} partners · Pkg {referralSponsorProfile.packageLevel}
-                        </div>
-                        <div style={{
-                          marginTop: "4px", display: "inline-flex", alignItems: "center",
-                          gap: "4px", padding: "2px 8px",
-                          background: "rgba(46,196,143,.1)", border: "1px solid rgba(46,196,143,.2)",
-                          borderRadius: "4px", fontSize: "11px", color: "#2EC48F"
-                        }}>
-                          ✓ Verified
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="dashboard-card" style={{ padding: "24px", borderRadius: "16px" }}>
-                  <h3 style={{
-                    fontSize: "15px", fontWeight: 700, color: "#C9A84C",
-                    marginBottom: "6px", display: "flex", alignItems: "center", gap: "8px"
-                  }}>
-                    📦 Package Activation
-                  </h3>
-                  <p style={{ fontSize: "13px", color: "#8899BB", marginBottom: "20px" }}>
-                    Start with Package 1 — upgrade anytime
-                  </p>
-                  <div style={{
-                    padding: "16px", borderRadius: "12px", marginBottom: "16px",
-                    background: "linear-gradient(135deg,rgba(201,168,76,.1),rgba(46,111,216,.06))",
-                    border: "1px solid rgba(201,168,76,.25)",
-                    display: "flex", justifyContent: "space-between", alignItems: "center"
-                  }}>
-                    <div>
-                      <div style={{ fontSize: "13px", color: "#8899BB", marginBottom: "4px" }}>Package Level</div>
-                      <div style={{ fontSize: "22px", fontWeight: 800, color: "#C9A84C", fontFamily: "Syne,sans-serif" }}>
-                        Package 1
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#7EB3FF", marginTop: "2px" }}>
-                        Entry level · All features
-                      </div>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "13px", color: "#8899BB", marginBottom: "4px" }}>Amount</div>
-                      <div style={{ fontSize: "26px", fontWeight: 800, color: "#EEF4FF", fontFamily: "Syne,sans-serif" }}>
-                        ${snapshot.packagePrices[0] ?? 10}
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#8899BB" }}>USDT</div>
-                    </div>
-                  </div>
-                  <div style={{ marginBottom: "20px" }}>
-                    {[
-                      { label: "Direct income", value: "$4.60", color: "#C9A84C" },
-                      { label: "Level income", value: "$4.00", color: "#2EC48F" },
-                      { label: "Cashback pool", value: "$0.40", color: "#7EB3FF" },
-                      { label: "Royalty pool", value: "$1.00", color: "#8899BB" },
-                    ].map((row, index) => (
-                      <div key={row.label} style={{
-                        display: "flex", justifyContent: "space-between",
-                        padding: "8px 0",
-                        borderBottom: index < 3 ? "1px solid rgba(46,111,216,0.08)" : "none"
-                      }}>
-                        <span style={{ fontSize: "13px", color: "#8899BB" }}>{row.label}</span>
-                        <span style={{ fontSize: "13px", fontWeight: 600, color: row.color }}>{row.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {!registrationSummary ? (
-                    <button
-                      className="btn-primary"
-                      style={{
-                        width: "100%", padding: "14px",
-                        borderRadius: "12px", fontSize: "15px",
-                        fontWeight: 700, cursor: isLoading ? "not-allowed" : "pointer",
-                        opacity: isLoading ? 0.7 : 1
-                      }}
-                      onClick={() => setShowActivationConfirm(true)}
-                      disabled={isLoading || !snapshot.walletAddress}
-                    >
-                      {isLoading ? "⏳ Processing..." : "⚡ Activate Package 1 — $10 USDT"}
-                    </button>
-                  ) : (
-                    <div style={{
-                      padding: "14px", borderRadius: "12px", textAlign: "center",
-                      background: "rgba(46,196,143,0.1)", border: "1px solid rgba(46,196,143,0.3)",
-                      color: "#2EC48F", fontWeight: 700, fontSize: "15px"
-                    }}>
-                      ✅ Registration Complete!
-                    </div>
-                  )}
-                </div>
-
-                <div className="dashboard-card" style={{ padding: "24px", borderRadius: "16px" }}>
-                  <h3 style={{
-                    fontSize: "15px", fontWeight: 700, color: "#C9A84C",
-                    marginBottom: "6px", display: "flex", alignItems: "center", gap: "8px"
-                  }}>
-                    📋 How it works
-                  </h3>
-                  <p style={{ fontSize: "13px", color: "#8899BB", marginBottom: "20px" }}>
-                    Registration steps & rules
-                  </p>
-                  {isLoading && regStep > 0 ? (
-                    <div style={{ marginBottom: "20px" }}>
-                      {[
-                        { step: 1, label: "Approve USDT", icon: "✅" },
-                        { step: 2, label: "Confirm Registration", icon: "🔐" },
-                        { step: 3, label: "On-chain Processing", icon: "⛓️" },
-                        { step: 4, label: "Complete", icon: "🎉" },
-                      ].map(({ step, label, icon }) => (
-                        <div key={step} style={{
-                          display: "flex", alignItems: "center", gap: "12px",
-                          padding: "10px 0",
-                          borderBottom: step < 4 ? "1px solid rgba(46,111,216,0.08)" : "none",
-                          opacity: regStep >= step ? 1 : 0.4
-                        }}>
-                          <div style={{
-                            width: "32px", height: "32px", borderRadius: "50%", flexShrink: 0,
-                            background: regStep >= step ? "rgba(46,196,143,0.15)" : "rgba(46,111,216,0.08)",
-                            border: regStep >= step ? "1px solid rgba(46,196,143,0.4)" : "1px solid rgba(46,111,216,0.2)",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: "14px"
-                          }}>
-                            {regStep >= step ? icon : step}
-                          </div>
-                          <span style={{
-                            fontSize: "13px",
-                            color: regStep >= step ? "#EEF4FF" : "#8899BB",
-                            fontWeight: regStep >= step ? 600 : 400
-                          }}>
-                            {label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div style={{ marginBottom: "20px" }}>
-                      {[
-                        { icon: "🔗", text: "Connect MetaMask wallet" },
-                        { icon: "💵", text: "Have $10 USDT on opBNB network" },
-                        { icon: "✍️", text: "Approve USDT transaction" },
-                        { icon: "⛓️", text: "Confirm registration on-chain" },
-                        { icon: "🎉", text: "Welcome to MetaGuildX!" },
-                      ].map((item, index) => (
-                        <div key={item.text} style={{
-                          display: "flex", alignItems: "flex-start", gap: "12px",
-                          padding: "10px 0",
-                          borderBottom: index < 4 ? "1px solid rgba(46,111,216,0.08)" : "none"
-                        }}>
-                          <span style={{ fontSize: "18px", flexShrink: 0 }}>{item.icon}</span>
-                          <span style={{ fontSize: "13px", color: "#8899BB", lineHeight: 1.5 }}>
-                            {item.text}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {registrationSummary ? (
-                    <div style={{
-                      padding: "16px", borderRadius: "12px",
-                      background: "rgba(46,196,143,0.06)",
-                      border: "1px solid rgba(46,196,143,0.2)"
-                    }}>
-                      <div style={{ fontSize: "13px", color: "#2EC48F", fontWeight: 700, marginBottom: "8px" }}>
-                        🎉 Registration Complete
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#8899BB" }}>
-                        Tx: {registrationSummary.txHash?.slice(0, 10)}...
-                      </div>
-                      <div style={{ fontSize: "12px", color: "#8899BB", marginTop: "4px" }}>
-                        Paid: {registrationSummary.paid}
-                      </div>
-                      <button
-                        className="btn-primary"
-                        style={{ width: "100%", marginTop: "12px", padding: "10px", borderRadius: "10px" }}
-                        onClick={() => setDashboardView("overview")}
-                      >
-                        Go to Dashboard →
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </section>
-          ) : null}
+          {dashboardView === "register" ? <RegisterPage {...dashboardPageProps} /> : null}
 
             </>
           )}
@@ -6720,7 +4338,6 @@ function App() {
 }
 
 export default App;
-
 
 
 
