@@ -20,6 +20,13 @@ type SupportTicket = {
   respondedAt: number | null;
 };
 
+type UserProfile = {
+  wallet: string;
+  displayName: string;
+  nickname: string;
+  updatedAt: number;
+};
+
 // Self-load env file
 const envPath = path.resolve("/etc/metaguildx/signer.env");
 if (fs.existsSync(envPath)) {
@@ -46,6 +53,7 @@ const AUTH_TOKEN = process.env.SIGNER_AUTH_TOKEN;
 const ADMIN_TOKEN = process.env.SIGNER_TOKEN ?? AUTH_TOKEN;
 const SIGNER_KEY = process.env.SIGNER_PRIVATE_KEY;
 const TICKETS_FILE = "/etc/metaguildx/tickets.json";
+const PROFILES_FILE = "/etc/metaguildx/profiles.json";
 const redisClient = new Redis({
   host: process.env.REDIS_HOST ?? "localhost",
   port: parseInt(process.env.REDIS_PORT ?? "6379", 10),
@@ -85,6 +93,25 @@ function loadTicketsFromFile(): SupportTicket[] {
 function saveTicketsToFile(tickets: SupportTicket[]): void {
   fs.mkdirSync(path.dirname(TICKETS_FILE), { recursive: true });
   fs.writeFileSync(TICKETS_FILE, JSON.stringify(tickets, null, 2));
+}
+
+function loadProfilesFromFile(): Record<string, UserProfile> {
+  try {
+    if (!fs.existsSync(PROFILES_FILE)) {
+      return {};
+    }
+
+    const raw = fs.readFileSync(PROFILES_FILE, "utf-8");
+    const parsed = JSON.parse(raw) as Record<string, UserProfile>;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveProfilesToFile(profiles: Record<string, UserProfile>): void {
+  fs.mkdirSync(path.dirname(PROFILES_FILE), { recursive: true });
+  fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles, null, 2));
 }
 
 const inMemoryGlobalLimiter = rateLimit({
@@ -344,6 +371,63 @@ app.patch("/support/tickets/:id", (req, res) => {
   tickets[index].status = status ?? tickets[index].status;
   tickets[index].respondedAt = Date.now();
   saveTicketsToFile(tickets);
+  return res.json({ success: true });
+});
+
+app.get("/profile", (req, res) => {
+  const wallet = typeof req.query.wallet === "string" ? req.query.wallet.toLowerCase() : null;
+  if (!wallet) {
+    return res.status(400).json({ error: "Missing wallet" });
+  }
+
+  const profiles = loadProfilesFromFile();
+  const profile = profiles[wallet];
+  if (!profile) {
+    return res.json({ displayName: "", nickname: "" });
+  }
+
+  return res.json({
+    displayName: profile.displayName,
+    nickname: profile.nickname,
+  });
+});
+
+app.get("/profiles/batch", (req, res) => {
+  const walletsParam = typeof req.query.wallets === "string" ? req.query.wallets : "";
+  const wallets = walletsParam
+    .split(",")
+    .map((wallet) => wallet.trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 50);
+
+  const profiles = loadProfilesFromFile();
+  return res.json(
+    wallets.map((wallet) => ({
+      wallet,
+      displayName: profiles[wallet]?.displayName ?? "",
+      nickname: profiles[wallet]?.nickname ?? "",
+    }))
+  );
+});
+
+app.post("/profile", (req, res) => {
+  const wallet = typeof req.headers["x-wallet-address"] === "string"
+    ? req.headers["x-wallet-address"].toLowerCase()
+    : null;
+  if (!wallet) {
+    return res.status(401).json({ error: "Wallet header required" });
+  }
+
+  const displayName = typeof req.body.displayName === "string" ? req.body.displayName.trim().slice(0, 40) : "";
+  const nickname = typeof req.body.nickname === "string" ? req.body.nickname.trim().slice(0, 30) : "";
+  const profiles = loadProfilesFromFile();
+  profiles[wallet] = {
+    wallet,
+    displayName,
+    nickname,
+    updatedAt: Date.now(),
+  };
+  saveProfilesToFile(profiles);
   return res.json({ success: true });
 });
 
