@@ -540,18 +540,7 @@ contract MGXStaking is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaG
     }
 
     function adminCorrectStake(address account, uint256 amount) external onlyOwner nonReentrant {
-        // TODO: Remove before mainnet — migration only, no token transfer
-        require(account != address(0), "Invalid account");
-        require(amount > 0, "Amount must be positive");
-
-        MGXTypes.StakePosition storage position = positionsByAccount[account];
-        position.amount += amount;
-        if (position.rewardDebt == 0) {
-            position.rewardDebt = block.timestamp;
-        }
-        totalStaked += amount;
-
-        emit StakeCorrected(account, amount);
+        revert("Removed: migration only");
     }
 
     function pendingStakingReward(address account) external view returns (uint256) {

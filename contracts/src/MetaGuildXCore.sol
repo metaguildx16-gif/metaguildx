@@ -794,10 +794,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         uint256[] calldata userIds,
         uint256[] calldata sponsorIds
     ) external onlyOwner {
-        // TODO: Remove or timelock before mainnet
-        if (userIds.length != sponsorIds.length) revert LengthMismatch();
-        if (binaryTreeContract == address(0)) revert NoTree();
-        MetaGuildXPlacementLib.rebuildLevelTree(binaryTreeContract, userIds, sponsorIds, nextUserId > 0 ? nextUserId - 1 : 0);
+        revert("Removed: migration only");
     }
 
     function adminRetryDistribution(uint256 userId) external onlyOwner {

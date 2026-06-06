@@ -430,15 +430,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
     }
 
     function adminAddEscrow(uint256 userId, uint256 amount) external onlyOwner {
-        // Owner must approve this contract for `amount` on the payment token before reloading escrow.
-        address asset = defaultPaymentAsset;
-        IERC20(asset).transferFrom(msg.sender, address(this), amount);
-
-        IMetaGuildXIncomeCore core = IMetaGuildXIncomeCore(coreContract);
-        uint256 pkgLevel = core.getUserPackageLevel(userId);
-
-        escrowBalances[userId][pkgLevel] += amount;
-        emit AdminEscrowAdded(userId, amount);
+        revert("Removed: migration only");
     }
 
     function adminBackfillEarnings(
@@ -447,12 +439,7 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
         uint256 earningsAmount,
         uint256 rebirthAmount
     ) external onlyOwner {
-        // TODO: Remove or timelock before mainnet — migration only
-        totalEarnings[userId][pkgLevel] += earningsAmount;
-        if (rebirthAmount > 0) {
-            rebirthEscrow[userId] += rebirthAmount;
-        }
-        emit AdminEarningsBackfilled(userId, pkgLevel, earningsAmount, rebirthAmount);
+        revert("Removed: migration only");
     }
 
     function _updateStats(uint256 userId, uint256 amount, string calldata incomeType) internal {
