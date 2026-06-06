@@ -206,7 +206,7 @@ export function UserSearchPage(props: DashboardPageProps) {
           if (results.length === 0) {
             return (
               <div style={{ textAlign: "center", color: "#8899BB", padding: "30px 0" }}>
-                No users found. Try a different search term.
+                No users found in visible network ({snapshot.treePreview.length} nodes loaded). Try navigating the tree to load more nodes, then search again.
               </div>
             );
           }

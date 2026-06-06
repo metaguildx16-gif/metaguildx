@@ -168,8 +168,8 @@ export function TeamPage(props: DashboardPageProps) {
       {[
         { icon: "👥", label: "Direct Referrals", value: snapshot.directReferrals ?? 0, color: "#7EB3FF" },
         { icon: "🌐", label: "Total Team", value: totalTeamMembers, color: "#7EB3FF" },
-        { icon: "⬅️", label: "Left Branch", value: snapshot.leftBranchNodes ?? 0, color: "#2EC48F" },
-        { icon: "➡️", label: "Right Branch", value: snapshot.rightBranchNodes ?? 0, color: "#2EC48F" },
+        { icon: "⬅️", label: "Left Branch", value: snapshot.leftBranchNodes > 0 ? snapshot.leftBranchNodes : "—", color: "#2EC48F" },
+        { icon: "➡️", label: "Right Branch", value: snapshot.rightBranchNodes > 0 ? snapshot.rightBranchNodes : "—", color: "#2EC48F" },
       ].map((s, i) => (
         <div key={i} className="stat-card" style={{ textAlign: "center", padding: "20px 16px" }}>
           <div style={{ fontSize: "26px", marginBottom: "8px" }}>{s.icon}</div>

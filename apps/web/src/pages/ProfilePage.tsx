@@ -260,7 +260,9 @@ export function ProfilePage(props: DashboardPageProps) {
     }}>
       {[
         { icon: "👥", label: "Direct Referrals", value: String(snapshot?.directReferrals ?? "—"), color: "#7EB3FF" },
-        { icon: "🌐", label: "Total Team", value: String(totalTeamMembers), color: "#7EB3FF" },
+        { icon: "🌐", label: "Total Team", value: String(snapshot.leftBranchNodes + snapshot.rightBranchNodes > 0
+          ? snapshot.leftBranchNodes + snapshot.rightBranchNodes
+          : totalTeamMembers), color: "#7EB3FF" },
         {
           icon: "💰", label: "Total Earnings",
           value: privacySettings.earnings === "all" ? `$${snapshot?.totalEarnings ?? "0"}` : "🔒 Hidden",

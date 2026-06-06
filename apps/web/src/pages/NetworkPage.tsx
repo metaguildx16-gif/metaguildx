@@ -161,11 +161,11 @@ export function NetworkPage(props: DashboardPageProps) {
       </article>
       <article className="summary-chip premium-network-card" style={{minWidth:0,overflow:"hidden"}}>
         <span style={{fontSize:".68rem",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:4}}>Total Team</span>
-        <strong style={{fontFamily:"Syne,sans-serif",fontSize:"1.2rem",fontWeight:700,color:"var(--text-primary)",display:"block"}}>{totalTeamLabel}</strong>
+        <strong style={{fontFamily:"Syne,sans-serif",fontSize:"1.2rem",fontWeight:700,color:"var(--text-primary)",display:"block"}}>{totalTeamMembers}</strong>
       </article>
       <article className="summary-chip premium-network-card" style={{minWidth:0,overflow:"hidden"}}>
         <span style={{fontSize:".68rem",color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:".08em",display:"block",marginBottom:4}}>Left | Right</span>
-        <strong style={{fontFamily:"Syne,sans-serif",fontSize:"1.1rem",fontWeight:700,color:"var(--text-primary)",display:"block"}}>{snapshot.leftBranchNodes > 0 ? snapshot.leftBranchNodes : snapshot.levelTreeLeft ?? 0} | {snapshot.rightBranchNodes > 0 ? snapshot.rightBranchNodes : snapshot.levelTreeRight ?? 0}</strong>
+        <strong style={{fontFamily:"Syne,sans-serif",fontSize:"1.1rem",fontWeight:700,color:"var(--text-primary)",display:"block"}}>{snapshot.leftBranchNodes || "—"} | {snapshot.rightBranchNodes || "—"}</strong>
       </article>
       <article className="summary-chip premium-network-card team-business">
         <span>📊 Team Business</span>
