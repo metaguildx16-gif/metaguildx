@@ -16,8 +16,8 @@ type SupportTicket = {
   respondedAt: number | null;
 };
 
-const SIGNER_URL = "https://signer.metaguildx.net";
-const ADMIN_TOKEN = "mgxS1gn3rT0k3n2024";
+const SIGNER_URL = import.meta.env.VITE_PLACEMENT_SIGNER_URL ?? "https://signer.metaguildx.net";
+const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN ?? "";
 const categories: Array<TicketCategory | "all"> = ["all", "Income Issue", "Tree Issue", "Registration", "Upgrade", "Other"];
 const statuses: Array<TicketStatus | "all"> = ["all", "open", "in_review", "resolved"];
 
