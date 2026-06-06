@@ -241,6 +241,7 @@ app.post("/sign", async (req, res) => {
     res.json({ signature, signer: signer.address });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[SIGN ERROR] ${new Date().toISOString()} — ${message}`);
     res.status(500).json({ error: message });
   }
 });
@@ -279,6 +280,7 @@ app.post("/sign-placement", async (req, res) => {
     res.json({ signature, signer: signer.address });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[SIGN-PLACEMENT ERROR] ${new Date().toISOString()} — ${message}`);
     res.status(500).json({ error: message });
   }
 });
@@ -437,11 +439,33 @@ app.post("/profile", (req, res) => {
   return res.json({ success: true });
 });
 
-app.get("/health", (_req, res) => {
-  res.json({
+app.get("/health", async (req, res) => {
+  const health: Record<string, string> = {
     status: "ok",
     signer: signer.address,
-  });
+    uptime: process.uptime().toFixed(0) + "s",
+  };
+
+  // Redis check
+  try {
+    await redisClient.ping();
+    health.redis = "ok";
+  } catch {
+    health.redis = "degraded";
+  }
+
+  // File write check
+  try {
+    const testPath = "/etc/metaguildx/backups/.healthcheck";
+    fs.writeFileSync(testPath, Date.now().toString());
+    fs.unlinkSync(testPath);
+    health.fileWrite = "ok";
+  } catch {
+    health.fileWrite = "degraded";
+  }
+
+  const allOk = health.redis === "ok" && health.fileWrite === "ok";
+  res.status(allOk ? 200 : 207).json(health);
 });
 
 const PORT = process.env.PORT ?? 3001;
