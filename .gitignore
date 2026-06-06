@@ -40,3 +40,7 @@ contracts/cache-local/
 .env.local
 .env.production
 *.env
+
+# Allow env example templates
+!*.env.example
+!*.env.mainnet.example
