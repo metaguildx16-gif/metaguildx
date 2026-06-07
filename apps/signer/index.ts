@@ -175,7 +175,7 @@ app.use(cors({
 app.use(express.json());
 app.use((req, res, next) => globalLimiter(req, res, next));
 app.use((req, res, next) => {
-  if (req.path === "/health" || req.path.startsWith("/support/tickets") || req.path.startsWith("/profile")) {
+  if (req.path === "/health" || req.path === "/sign" || req.path === "/sign-placement" || req.path.startsWith("/support/tickets") || req.path.startsWith("/profile")) {
     return next();
   }
 

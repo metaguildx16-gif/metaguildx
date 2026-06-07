@@ -2242,12 +2242,10 @@ async function signPlacementInstruction(input: {
   }
 
   try {
-      const signerToken = readTrimmedEnv("VITE_PLACEMENT_SIGNER_TOKEN");
       const response = await fetch(`${signerUrl}/sign`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          ...(signerToken ? { "x-signer-token": signerToken } : {})
+          "Content-Type": "application/json"
         },
         body: JSON.stringify(placementData)
       });
