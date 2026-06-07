@@ -1857,11 +1857,11 @@ function App() {
   const transferToLabel = "MetaMask wallet";
   const transferFromBalance = displayedMgxAllocated;
   const totalTeamMembers =
-    snapshot.leftBranchNodes + snapshot.rightBranchNodes > 0
-      ? snapshot.leftBranchNodes + snapshot.rightBranchNodes
-      : snapshot.userId === 1 && totalUsers > 0
-      ? Math.max(totalUsers - 1, 0)
-      : snapshot.treePreview.filter((node) => node.userId !== (snapshot.userId ?? 0)).length;
+  snapshot.leftBranchNodes + snapshot.rightBranchNodes > 0
+    ? snapshot.leftBranchNodes + snapshot.rightBranchNodes
+    : snapshot.userId === 1 && totalUsers > 0
+    ? Math.max(totalUsers - 1, 0)
+    : 0;
   const totalTeamLabel = `${totalTeamMembers} ${totalTeamMembers === 1 ? "member" : "members"}`;
   const currentPackagePrice =
     snapshot.packageLevel && snapshot.packagePrices[snapshot.packageLevel - 1]
@@ -4358,7 +4358,6 @@ function App() {
 }
 
 export default App;
-
 
 
 
