@@ -1,25 +1,28 @@
-import { ethers, upgrades } from "hardhat";
+import { ethers } from "hardhat";
 import * as dotenv from "dotenv";
-
 dotenv.config();
 
 async function main() {
-  const TREE_PROXY = process.env.BINARY_TREE_ADDRESS!;
   const [deployer] = await ethers.getSigners();
+  console.log("Upgrading with:", deployer.address);
 
-  console.log("Upgrading BinaryTree...");
-  console.log("Proxy   :", TREE_PROXY);
-  console.log("Signer  :", deployer.address);
+  const TREE_PROXY = "0xf2aC2f87DFabf67EDAdCfFF8dbb9A1aAEB93c923";
 
-  const BinaryTree = await ethers.getContractFactory("BinaryTree");
-  const upgraded = await upgrades.upgradeProxy(TREE_PROXY, BinaryTree);
+  // Deploy new implementation directly
+  const TreeFactory = await ethers.getContractFactory("BinaryTree");
+  console.log("Deploying new BinaryTree implementation...");
+  const newImpl = await TreeFactory.deploy();
+  await newImpl.waitForDeployment();
+  const newImplAddress = await newImpl.getAddress();
+  console.log("New impl deployed:", newImplAddress);
 
-  await upgraded.waitForDeployment();
-  const newImpl = await upgrades.erc1967.getImplementationAddress(TREE_PROXY);
+  // Call upgradeTo directly on proxy
+  const proxy = await ethers.getContractAt("BinaryTree", TREE_PROXY, deployer);
+  console.log("Calling upgradeTo...");
+  const tx = await proxy.upgradeToAndCall(newImplAddress, "0x");
+  await tx.wait();
 
-  console.log("Proxy address (unchanged):", TREE_PROXY);
-  console.log("New implementation      :", newImpl);
-  console.log("BinaryTree upgrade complete ✅");
+  console.log("BinaryTree upgraded to:", newImplAddress);
 }
 
-main().catch(console.error);
+main().catch((e) => { console.error(e); process.exit(1); });

@@ -136,12 +136,12 @@ async function main() {
   if (!placementSignerKey) {
     throw new Error("PLACEMENT_SIGNER_PRIVATE_KEY is required for root registration");
   }
-
   const signerWallet = new ethers.Wallet(placementSignerKey, ethers.provider);
   const nonce = await core.nonces(deployer.address);
   const hash = ethers.solidityPackedKeccak256(
-    ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256"],
-    [network.chainId, addresses.Core, deployer.address, 0n, 0n, true, nonce]
+    ["uint256", "address", "address", "uint256", "uint256", "bool", "uint256", "uint256"],
+    [network.chainId, addresses.Core, deployer.address, 0n, 0n, true, nonce, 0n]
+
   );
   const signature = await signerWallet.signMessage(ethers.getBytes(hash));
 
@@ -182,7 +182,7 @@ async function main() {
   const nextUserId = await core.nextUserId();
   if (nextUserId <= 1n) {
     console.log("Registering root user with paid flow...");
-    const tx = await core.registerWithPlacement(0n, 0n, true, signature, nonce);
+    const tx = await core.registerWithPlacement(0n, 0n, true, signature, nonce, 0n);
     await tx.wait();
     console.log("Root user registered");
     console.log("Root registration TX:", tx.hash);

@@ -686,7 +686,7 @@ function App() {
           }, 0);
 
         if (isActive) {
-          setTotalUsers(Math.max(0, Number(nextId) - 2));
+          setTotalUsers(Math.max(0, Number(nextId) - 1));
           setTotalVolume(aggregateVolume);
         }
       } catch {
@@ -4129,6 +4129,26 @@ function App() {
             <button
               type="button"
               className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
+                dashboardView === "team" ? "ring-1 ring-blue-500 bg-gray-800" : ""
+              }`}
+              onClick={() => setDashboardView("team")}
+            >
+              <p className="text-lg font-semibold"><span className="nav-icon">👥</span> My Team</p>
+            </button>
+
+            <button
+              type="button"
+              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
+                dashboardView === "usersearch" ? "ring-1 ring-blue-500 bg-gray-800" : ""
+              }`}
+              onClick={() => setDashboardView("usersearch")}
+            >
+              <p className="text-lg font-semibold"><span className="nav-icon">🔍</span> Search</p>
+            </button>
+
+            <button
+              type="button"
+              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
                 dashboardView === "support" ? "ring-1 ring-blue-500 bg-gray-800" : ""
               }`}
               onClick={() => setDashboardView("support")}
@@ -4338,8 +4358,6 @@ function App() {
 }
 
 export default App;
-
-
 
 
 

@@ -3851,7 +3851,7 @@ export async function loadDashboardSnapshot(
       const [branchStats, levelBranchStats, levelSummary] = await Promise.all([
       withTimeout(
         loadBranchStats(contract, userId),
-        8000,
+        25000,
         {
           leftDirectChildId: 0,
           rightDirectChildId: 0,
