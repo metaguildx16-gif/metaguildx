@@ -204,10 +204,6 @@ app.post("/sign", async (req, res) => {
     if (!requestOrigin || !allowedOrigins.includes(requestOrigin)) {
       return res.status(403).json({ error: "Forbidden origin" });
     }
-    const signerToken = req.headers["x-signer-token"];
-    if (typeof signerToken !== "string" || signerToken !== AUTH_TOKEN) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
 
     const {
       account,
