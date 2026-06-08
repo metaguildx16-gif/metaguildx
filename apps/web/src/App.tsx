@@ -354,7 +354,7 @@ function App() {
 
     if (activeNetworkConfig.rpcUrl) {
       try {
-        console.time("provider.getBlockNumber [startup diagnostics]");
+        // timing disabled
         const provider = new JsonRpcProvider(activeNetworkConfig.rpcUrl);
         currentBlock = await Promise.race<number>([
           provider.getBlockNumber(),
@@ -365,7 +365,7 @@ function App() {
       } catch (error) {
         console.warn("Startup diagnostics block read failed", error);
       } finally {
-        console.timeEnd("provider.getBlockNumber [startup diagnostics]");
+        // timing disabled
       }
     }
 
