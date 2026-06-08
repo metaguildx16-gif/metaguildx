@@ -245,6 +245,21 @@ async function main() {
   console.log("Staking -> Core:", stakingCore);
   console.log("Staking -> Income:", stakingIncome);
 
+  // === Set Admin Address (EOA for emergency recovery) ===
+  console.log("\n=== Setting Admin Address ===");
+  try {
+    const coreAdmin = await ethers.getContractAt(
+      ["function setAdminAddress(address) external",
+       "function adminAddress() view returns (address)"],
+      addresses.Core, deployer
+    );
+    await (await coreAdmin.setAdminAddress(deployer.address)).wait();
+    const adminSet = await coreAdmin.adminAddress();
+    console.log("adminAddress set:", adminSet, adminSet.toLowerCase() === deployer.address.toLowerCase() ? "?" : "?");
+  } catch(e: any) {
+    console.log("setAdminAddress failed:", e.message);
+  }
+
   // === Ownership Transfer to Gnosis Safe ===
   console.log("\n=== Transferring Ownership to Gnosis Safe ===");
   const ownerAbi = [

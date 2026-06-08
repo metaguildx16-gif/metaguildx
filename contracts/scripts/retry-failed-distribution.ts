@@ -5,7 +5,7 @@ dotenv.config();
 async function main() {
   const [deployer] = await ethers.getSigners();
   const core = await ethers.getContractAt("MetaGuildXCore",
-    "0x19F72c5a287334086fD34D41ebe6bb534524D202", deployer);
+    "0x416c08F71c934f9D7B8a66B1AD982583CDbF0058", deployer);
 
   const failedIds = await core.getFailedUserIds();
   console.log("Failed distributions:", failedIds.length);

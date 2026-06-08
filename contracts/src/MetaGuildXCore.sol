@@ -214,6 +214,11 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         _;
     }
 
+    modifier onlyOwnerOrAdmin() {
+        if (msg.sender != owner() && msg.sender != adminAddress) revert Unauthorized();
+        _;
+    }
+
     modifier onlyUpgradeEngine() {
         if (msg.sender != upgradeEngineContract) revert OnlyUpgradeEngine();
         _;
@@ -759,6 +764,11 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         stakingContract = target;
     }
 
+    function setAdminAddress(address admin) external onlyOwner {
+        if (admin == address(0)) revert InvalidAddress();
+        adminAddress = admin;
+    }
+
     function setActiveUser(uint256 userId, bool active) external onlyOwner {
         if (usersById[userId].id == 0) revert UserNotFound(userId);
         activeUsers[userId] = active;
@@ -800,7 +810,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         revert("Removed: migration only");
     }
 
-    function adminRetryDistribution(uint256 userId) external onlyOwner {
+    function adminRetryDistribution(uint256 userId) external onlyOwnerOrAdmin {
         if (!failedDistribution[userId]) revert NotFailedDistribution(userId);
 
         address paymentAsset;
@@ -1175,5 +1185,6 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     mapping(uint256 => bool) public failedDistribution;
     uint256[] public failedUserIds;
     address public tokenEngineContract;
-    uint256[34] private __gap;
+    address public adminAddress;
+    uint256[33] private __gap;
 }
