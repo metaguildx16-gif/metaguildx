@@ -1974,7 +1974,7 @@ function App() {
     const m = Math.floor((nextCycleRemaining % 3600) / 60);
     const s = nextCycleRemaining % 60;
     if (elapsedCycles >= 1) {
-      return `Ready to claim · Next cycle in ${h}h ${m}m ${s}s`;
+      return `Ready to claim ï¿½ Next cycle in ${h}h ${m}m ${s}s`;
     }
     return `Next reward in ${h}h ${m}m ${s}s`;
   };
@@ -2780,7 +2780,7 @@ function App() {
                   MetaGuildX is a decentralized income distribution platform built on the opBNB blockchain.
                   Participants register with USDT and earn income through direct referrals,
                   level income across 10 levels, cashback pool distributions, and MGX token staking rewards.
-                  All transactions are executed by immutable smart contracts — no human intervention.
+                  All transactions are executed by immutable smart contracts ï¿½ no human intervention.
                 </p>
               </div>
 
@@ -3361,7 +3361,7 @@ function App() {
               <span className="lp-h1-gold">Decentralized</span>{" "}
               <span className="lp-h1-cyan">Income</span>
             </h1>
-            <p className="lp-sub">Every registration automatically distributes USDT across 10 levels of your network — instantly, transparently, and forever on-chain.</p>
+            <p className="lp-sub">Every registration automatically distributes USDT across 10 levels of your network ï¿½ instantly, transparently, and forever on-chain.</p>
             <div className="lp-acts">
               {referralSponsorId ? (
                 <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>
@@ -3392,7 +3392,7 @@ function App() {
               <span key={i} className="lp-ti">
                 <span className="lp-ti-l">{l}</span>
                 <span className="lp-ti-v">{v}</span>
-                <span style={{color:"rgba(46,111,216,.25)",margin:"0 .5rem"}}>·</span>
+                <span style={{color:"rgba(46,111,216,.25)",margin:"0 .5rem"}}>ï¿½</span>
               </span>
             ))}
           </div>
@@ -3408,9 +3408,9 @@ function App() {
             <div className="lp-steps">
               {[
                 ["01","Register with $10 USDT","Connect your wallet and pay a one-time $10 USDT fee. Instantly activates your Package 1 position in the MetaGuildX network."],
-                ["02","Build your downline","Invite others with your referral link. 46% of their registration goes directly to your wallet — instantly, on-chain."],
+                ["02","Build your downline","Invite others with your referral link. 46% of their registration goes directly to your wallet ï¿½ instantly, on-chain."],
                 ["03","Earn across 10 levels","Level income distributes 40% across your upline chain. As your network grows deeper, passive income compounds automatically."],
-                ["04","Auto-upgrade & rebirth","Escrow accumulates toward package upgrades. Hit the threshold — the contract automatically elevates your position."],
+                ["04","Auto-upgrade & rebirth","Escrow accumulates toward package upgrades. Hit the threshold ï¿½ the contract automatically elevates your position."],
               ].map(([n,t,d]) => (
                 <div key={n} className="lp-step">
                   <div className="lp-st-n">{n}</div>
@@ -3423,7 +3423,7 @@ function App() {
               <div className="lp-ibox-title">Income distribution per $10 registration</div>
               {[
                 ["#C9A84C","Direct sponsor income","46%"],
-                ["#2EC48F","Level income (L1–L10)","40%"],
+                ["#2EC48F","Level income (L1ï¿½L10)","40%"],
                 ["#5B8DEF","Cashback pool","4%"],
                 ["#3D5580","Royalty Pool","10%"],
               ].map(([c,n,p]) => (
@@ -3453,11 +3453,11 @@ function App() {
           <p className="lp-sdesc">10 package tiers with doubling rewards. Start at $10 and scale up to $5,120.</p>
           <div className="lp-pkg-grid">
             {[
-              {pkg:1,amt:10,desc:"Entry level · All features",feats:["$4.60 direct income","Level income eligible","Auto-upgrade enabled","MGX staking access"],hot:false},
-              {pkg:2,amt:20,desc:"2× income potential",feats:["$9.20 direct income","Higher level earnings","Rebirth eligible","Priority placement"],hot:true},
-              {pkg:3,amt:40,desc:"4× income potential",feats:["$18.40 direct income","Deep level penetration","Enhanced cashback","Bonus xSlot cycles"],hot:false},
-              {pkg:4,amt:80,desc:"8× income potential",feats:["$36.80 direct income","Network multiplier","Token engine bonus","Max level benefits"],hot:false},
-              {pkg:5,amt:160,desc:"Elite · $160–$5,120",feats:["Up to $2,355 direct","Elite network status","Maximum earnings","All bonuses unlocked"],hot:false},
+              {pkg:1,amt:10,desc:"Entry level ï¿½ All features",feats:["$4.60 direct income","Level income eligible","Auto-upgrade enabled","MGX staking access"],hot:false},
+              {pkg:2,amt:20,desc:"2ï¿½ income potential",feats:["$9.20 direct income","Higher level earnings","Rebirth eligible","Priority placement"],hot:true},
+              {pkg:3,amt:40,desc:"4ï¿½ income potential",feats:["$18.40 direct income","Deep level penetration","Enhanced cashback","Bonus xSlot cycles"],hot:false},
+              {pkg:4,amt:80,desc:"8ï¿½ income potential",feats:["$36.80 direct income","Network multiplier","Token engine bonus","Max level benefits"],hot:false},
+              {pkg:5,amt:160,desc:"Elite ï¿½ $160ï¿½$5,120",feats:["Up to $2,355 direct","Elite network status","Maximum earnings","All bonuses unlocked"],hot:false},
             ].map(({pkg,amt,desc,feats,hot}) => (
               <div key={pkg} className={`lp-pkg${hot?" hot":""}`}>
                 {hot && <div className="lp-pkg-badge">Popular</div>}
@@ -3496,7 +3496,7 @@ function App() {
           <div className="lp-rm-inner">
             <div className="lp-lbl">Roadmap</div>
             <h2 className="lp-stitle">Building the future of<br/>decentralized finance</h2>
-            <p className="lp-sdesc">MetaGuildX ecosystem expansion — from community platform to full metaverse.</p>
+            <p className="lp-sdesc">MetaGuildX ecosystem expansion ï¿½ from community platform to full metaverse.</p>
             <div className="lp-rm-track">
               <div className="lp-rm-line"></div>
               <div className="lp-rm-items">
@@ -3532,7 +3532,7 @@ function App() {
               ["?","UUPS Upgradeable Proxy","OpenZeppelin v5 with ERC-7201 namespaced storage. Contracts upgrade safely without disrupting user funds."],
               ["?","Binary placement tree","Smart queue of 1000 positions. Overflow users auto-place on the opposite side for balanced network growth."],
               ["?","Auto-upgrade engine","Escrow accumulates toward your next package. When threshold is hit, the contract upgrades automatically."],
-              ["?","Rebirth mechanism","Complete Package 1 cycle and re-enter the network on the opposite side — unlocking a fresh income cycle."],
+              ["?","Rebirth mechanism","Complete Package 1 cycle and re-enter the network on the opposite side ï¿½ unlocking a fresh income cycle."],
               ["?","MGX staking rewards","Stake MGX tokens and earn 10.95% APY. Rewards distribute every 24 hours from the 10.23M MGX reward pool."],
               ["?","Cashback pool","4% of every registration flows to the cashback pool, distributed proportionally to qualifying members."],
             ].map(([icon,name,desc]) => (
@@ -3625,7 +3625,7 @@ function App() {
             </div>
           </div>
           <div className="lp-ft-bot">
-            <span>© 2026 MetaGuildX. All rights reserved.</span>
+            <span>ï¿½ 2026 MetaGuildX. All rights reserved.</span>
             <div className="lp-socials">
               <a href="#" className="lp-soc">??</a>
               <a href="#" className="lp-soc">tg</a>
@@ -4215,8 +4215,8 @@ function App() {
               <div>
                 <h2>{snapshot.userId ? <>Welcome back, {profileMeta.displayName || `User #${snapshot.userId}`}</> : "Welcome back"}</h2>
                 <p>
-                  {snapshot.packageLevel ? `Package ${snapshot.packageLevel}` : "Package pending"}{" · "}
-                  {snapshot.isRegistered ? "Active member" : "Activation pending"}{" · Since "}{memberSinceLabel}
+                  {snapshot.packageLevel ? `Package ${snapshot.packageLevel}` : "Package pending"}{" ï¿½ "}
+                  {snapshot.isRegistered ? "Active member" : "Activation pending"}{" ï¿½ Since "}{memberSinceLabel}
                 </p>
                 {safeContractWarning ? <p className="warning-text">{safeContractWarning}</p> : null}
               </div>
@@ -4358,28 +4358,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
