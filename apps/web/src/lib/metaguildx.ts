@@ -3633,6 +3633,82 @@ export async function loadDashboardSnapshot(
   const rootUserId = Number(rootUserIdRaw);
   const nextUserIdRaw = await contract.nextUserId();
   const maxUserId = Math.max(0, Number(nextUserIdRaw) - 1);
+  if (!walletAddress) {
+    const snapshot = {
+      ...fallbackSnapshot,
+      walletAddress: null,
+      isConnected: false,
+      hasContractConfig: true,
+      packagePrices: packagePricesRaw.map((value) => Number(formatUnits(value, PLATFORM_DECIMALS))),
+      boxPrices: boxPricesRaw.map((value) => Number(value) / 100),
+      stakingRewardPool: formatTokenAmount(stakingRewardPool, 18),
+      totalStaked: formatTokenAmount(totalStaked, 18),
+      personalStaked: "0",
+      stakeLockDurationLabel: "Connect wallet to view",
+      stakeAutoCompound: false,
+      stakePositions: [],
+      cashbackPoolBalance: formatTokenAmount(cashbackPoolBalance),
+      totalTokenDistributed: formatTokenAmount(totalTokenDistributed, 18),
+      rootUserId,
+      featuredUsers: [],
+      treePreview: [],
+      activityFeed: [],
+      contractReady: true,
+      contractWarning: null,
+      currentBoxId: Number(currentBoxStatus.boxId),
+      currentBoxPrice: (Number(currentBoxStatus.priceCents) / 100).toFixed(2),
+      currentBoxDistributed: formatTokenAmount(currentBoxStatus.distributed, 18),
+      currentBoxCap: formatTokenAmount(currentBoxStatus.cap, 18),
+      currentBoxRemaining: formatTokenAmount(currentBoxStatus.remaining, 18),
+      sponsorId: null,
+      joinedAt: null,
+      withdrawablePlatformBalance: "0",
+      withdrawableSettlementBalance: "0",
+      externalWalletBalance: "0",
+      connectedWalletValue: "0",
+      mgxWalletBalance: "0",
+      connectedWalletAssets: [],
+      settlementAssetLabel: "Settlement asset",
+      settlementAssetAddress: null,
+      currentPackageEscrow: "0",
+      currentPackageBucketEarnings: "0",
+      packageOneBucketEarnings: "0",
+      mgxAllocated: "0",
+      userActiveBoxId: null,
+      pendingCashback: "0",
+      isSurrendered: false,
+      surrenderStatus: "Connect wallet to check"
+    };
+    snapshotCache.set(cacheKey, { data: snapshot, timestamp: Date.now() });
+    return snapshot;
+  }
+
+  const normalizedWalletAddress = normalizeAddress(walletAddress);
+
+  try {
+  const userId = Number(await contract.userIdByAddress(normalizedWalletAddress));
+
+  if (userId === 0) {
+    const snapshot = await buildUnregisteredSnapshot({
+      contract,
+      provider,
+      walletAddress: normalizedWalletAddress,
+      packagePricesRaw,
+      boxPricesRaw,
+      stakingRewardPool,
+      totalStaked,
+      cashbackPoolBalance,
+      totalTokenDistributed,
+      rootUserId,
+      registeredFeaturedUsers: [],
+      registeredTreePreview: [],
+      activityFeed: [],
+      currentBoxStatus
+    });
+    snapshotCache.set(cacheKey, { data: snapshot, timestamp: Date.now() });
+    return snapshot;
+  }
+
   const previewUserIds = Array.from({ length: Math.min(maxUserId, 10) }, (_, index) => index + 1);
   const featuredUserIds = [rootUserId, rootUserId + 1, rootUserId + 2].filter((value, index, array) => value > 0 && array.indexOf(value) === index);
   const previewDataByUserId = await loadPreviewUsers(contract, treeContract, [...featuredUserIds, ...previewUserIds]);
@@ -3725,81 +3801,6 @@ export async function loadDashboardSnapshot(
   ]
     .sort((left, right) => right.blockNumber - left.blockNumber)
     .slice(0, 20);
-  if (!walletAddress) {
-    const snapshot = {
-      ...fallbackSnapshot,
-      walletAddress: null,
-      isConnected: false,
-      hasContractConfig: true,
-      packagePrices: packagePricesRaw.map((value) => Number(formatUnits(value, PLATFORM_DECIMALS))),
-      boxPrices: boxPricesRaw.map((value) => Number(value) / 100),
-      stakingRewardPool: formatTokenAmount(stakingRewardPool, 18),
-      totalStaked: formatTokenAmount(totalStaked, 18),
-      personalStaked: "0",
-      stakeLockDurationLabel: "Connect wallet to view",
-      stakeAutoCompound: false,
-      stakePositions: [],
-      cashbackPoolBalance: formatTokenAmount(cashbackPoolBalance),
-      totalTokenDistributed: formatTokenAmount(totalTokenDistributed, 18),
-      rootUserId,
-      featuredUsers: registeredFeaturedUsers,
-      treePreview: registeredTreePreview,
-      activityFeed,
-      contractReady: true,
-      contractWarning: null,
-      currentBoxId: Number(currentBoxStatus.boxId),
-      currentBoxPrice: (Number(currentBoxStatus.priceCents) / 100).toFixed(2),
-      currentBoxDistributed: formatTokenAmount(currentBoxStatus.distributed, 18),
-      currentBoxCap: formatTokenAmount(currentBoxStatus.cap, 18),
-      currentBoxRemaining: formatTokenAmount(currentBoxStatus.remaining, 18),
-      sponsorId: null,
-      joinedAt: null,
-      withdrawablePlatformBalance: "0",
-      withdrawableSettlementBalance: "0",
-      externalWalletBalance: "0",
-      connectedWalletValue: "0",
-      mgxWalletBalance: "0",
-      connectedWalletAssets: [],
-      settlementAssetLabel: "Settlement asset",
-      settlementAssetAddress: null,
-      currentPackageEscrow: "0",
-      currentPackageBucketEarnings: "0",
-      packageOneBucketEarnings: "0",
-      mgxAllocated: "0",
-      userActiveBoxId: null,
-      pendingCashback: "0",
-      isSurrendered: false,
-      surrenderStatus: "Connect wallet to check"
-    };
-    snapshotCache.set(cacheKey, { data: snapshot, timestamp: Date.now() });
-    return snapshot;
-  }
-
-  const normalizedWalletAddress = normalizeAddress(walletAddress);
-
-  try {
-  const userId = Number(await contract.userIdByAddress(normalizedWalletAddress));
-
-  if (userId === 0) {
-    const snapshot = await buildUnregisteredSnapshot({
-      contract,
-      provider,
-      walletAddress: normalizedWalletAddress,
-      packagePricesRaw,
-      boxPricesRaw,
-      stakingRewardPool,
-      totalStaked,
-      cashbackPoolBalance,
-      totalTokenDistributed,
-      rootUserId,
-      registeredFeaturedUsers,
-      registeredTreePreview,
-      activityFeed,
-      currentBoxStatus
-    });
-    snapshotCache.set(cacheKey, { data: snapshot, timestamp: Date.now() });
-    return snapshot;
-  }
 
   const loadRegisteredSnapshot = async () => {
       const [profile, isRebirthUserRaw, incomes, totalIncomeRaw, internalWalletBalance, currentPackageEscrowRaw, currentPackageBucketEarningsFallbackRaw, pendingReward, pendingCashback, userTokenAllocation, userActiveBoxId, directReferralIdsRaw, rebirthIdsRaw, primaryAsset, defaultPaymentAsset, externalWalletBalanceRaw, stakePositionsRaw] = await Promise.all([
@@ -4063,9 +4064,9 @@ export async function loadDashboardSnapshot(
         cashbackPoolBalance,
         totalTokenDistributed,
         rootUserId,
-        registeredFeaturedUsers,
-        registeredTreePreview,
-        activityFeed,
+        registeredFeaturedUsers: [],
+        registeredTreePreview: [],
+        activityFeed: [],
         currentBoxStatus
       });
     }
@@ -4112,9 +4113,9 @@ export async function loadDashboardSnapshot(
         cashbackPoolBalance,
         totalTokenDistributed,
         rootUserId,
-        registeredFeaturedUsers,
-        registeredTreePreview,
-        activityFeed,
+        registeredFeaturedUsers: [],
+        registeredTreePreview: [],
+        activityFeed: [],
         currentBoxStatus
       });
     }
