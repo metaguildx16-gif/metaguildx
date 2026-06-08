@@ -1,4 +1,4 @@
-import { Contract, JsonRpcProvider, ethers, formatUnits } from "ethers";
+﻿import { Contract, JsonRpcProvider, ethers, formatUnits } from "ethers";
 import { Suspense, lazy, startTransition, useEffect, useRef, useState } from "react";
 import logoMark from "./assets/mgx logo.png";
 import { fallbackSnapshot } from "./appFallback";
@@ -334,7 +334,7 @@ function App() {
     setIsLoading(false);
   }
 
-    // timing disabled in production
+  async function withDashboardTimeout<T>(promise: Promise<T>, label: string) {
     // timing disabled
     try {
       return await Promise.race<T>([
@@ -344,7 +344,7 @@ function App() {
         )
       ]);
     } finally {
-    // timing disabled in production
+      // timing disabled
     }
   }
 
@@ -354,7 +354,7 @@ function App() {
 
     if (activeNetworkConfig.rpcUrl) {
       try {
-    // timing disabled in production
+        console.time("provider.getBlockNumber [startup diagnostics]");
         const provider = new JsonRpcProvider(activeNetworkConfig.rpcUrl);
         currentBlock = await Promise.race<number>([
           provider.getBlockNumber(),
@@ -365,7 +365,7 @@ function App() {
       } catch (error) {
         console.warn("Startup diagnostics block read failed", error);
       } finally {
-    // timing disabled in production
+        console.timeEnd("provider.getBlockNumber [startup diagnostics]");
       }
     }
 
@@ -1284,7 +1284,7 @@ function App() {
       );
       if (referralSponsorId && !nextSnapshot.isRegistered) {
         setActionFeedback({
-          title: `?? Sponsor detected: #${referralSponsorId}`,
+          title: `👤 Sponsor detected: #${referralSponsorId}`,
           detail: "Wallet connected only. No USDT approval has happened yet. Review the dashboard, then tap Activate Now for Package 1."
         });
       }
@@ -1974,7 +1974,7 @@ function App() {
     const m = Math.floor((nextCycleRemaining % 3600) / 60);
     const s = nextCycleRemaining % 60;
     if (elapsedCycles >= 1) {
-      return `Ready to claim � Next cycle in ${h}h ${m}m ${s}s`;
+      return `Ready to claim · Next cycle in ${h}h ${m}m ${s}s`;
     }
     return `Next reward in ${h}h ${m}m ${s}s`;
   };
@@ -2009,15 +2009,15 @@ function App() {
   const StakingSummary = () => (
     <div className="staking-summary-shell">
       <div className="staking-summary-hero-grid">
-        <StatCard title="Staked Amount" value={`${displayedPersonalStaked} MGX`} icon="??" accent="cyan" />
-        <StatCard title="Pending Reward" value={`${displayedPendingStakingReward} MGX`} icon="?" accent="gold" />
+        <StatCard title="Staked Amount" value={`${displayedPersonalStaked} MGX`} icon="🔒" accent="cyan" />
+        <StatCard title="Pending Reward" value={`${displayedPendingStakingReward} MGX`} icon="⭐" accent="gold" />
         <StatCard
           title="Daily Earnings"
           value={stakingDataLoading ? "Loading..." : `${calcDailyEarnings().toFixed(4)} MGX`}
-          icon="??"
+          icon="📈"
           accent="success"
         />
-        <StatCard title="Your Share" value={`${stakingSharePercent}%`} icon="??" accent="cyan" badge="LIVE" />
+        <StatCard title="Your Share" value={`${stakingSharePercent}%`} icon="🥧" accent="cyan" badge="LIVE" />
       </div>
 
       <div className="staking-countdown-card">
@@ -2780,7 +2780,7 @@ function App() {
                   MetaGuildX is a decentralized income distribution platform built on the opBNB blockchain.
                   Participants register with USDT and earn income through direct referrals,
                   level income across 10 levels, cashback pool distributions, and MGX token staking rewards.
-                  All transactions are executed by immutable smart contracts � no human intervention.
+                  All transactions are executed by immutable smart contracts — no human intervention.
                 </p>
               </div>
 
@@ -2792,7 +2792,7 @@ function App() {
                 <div style={{
                   fontFamily:"Syne,sans-serif",fontSize:".78rem",fontWeight:700,
                   color:"#F59E0B",textTransform:"uppercase",letterSpacing:".1em",marginBottom:".625rem"
-                }}>? Risk Disclaimer</div>
+                }}>⚠ Risk Disclaimer</div>
                 <p style={{fontSize:".835rem",color:"rgba(245,158,11,.8)",lineHeight:1.7,margin:0}}>
                   Participation involves financial risk. Earnings depend entirely on network activity
                   and are not guaranteed. Past performance does not indicate future results.
@@ -2838,7 +2838,7 @@ function App() {
                 background:"rgba(46,111,216,.06)",border:"1px solid rgba(46,111,216,.15)",borderRadius:10
               }}>
                 <div style={{fontSize:".8rem",color:"#5B9EF8",lineHeight:1.6}}>
-                  ?? All operations are governed by audited smart contracts on opBNB.
+                  🔗 All operations are governed by audited smart contracts on opBNB.
                   Contract addresses are publicly verifiable on-chain.
                 </div>
               </div>
@@ -2865,7 +2865,7 @@ function App() {
                   setDisclaimerAccepted(true);
                 }}
               >
-                I Understand & Agree ?
+                I Understand & Agree →
               </button>
               <button
                 type="button"
@@ -2899,7 +2899,7 @@ function App() {
         minHeight: '100vh',
       }}>
 
-        {/* -- STYLES -- */}
+        {/* ── STYLES ── */}
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
           :root{
@@ -3169,7 +3169,7 @@ function App() {
           }
         `}</style>
 
-        {/* -- NAV -- */}
+        {/* ── NAV ── */}
         <nav className="lp-nav">
           <a href="#" className="lp-logo">
             <img src={logoMark} alt="MGX" />
@@ -3183,11 +3183,11 @@ function App() {
           </ul>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             <button className="lp-btn-out" type="button" onClick={() => void handleConnectWallet()}>Sign in</button>
-            <button className="lp-btn-gold" type="button" onClick={() => void handleConnectWallet()}>Launch App ?</button>
+            <button className="lp-btn-gold" type="button" onClick={() => void handleConnectWallet()}>Launch App →</button>
           </div>
         </nav>
 
-        {/* -- HERO -- */}
+        {/* ── HERO ── */}
         <div className="lp-hero">
           <div className="lp-hero-bg"></div>
           <div className="lp-stars" id="lp-stars-container"></div>
@@ -3260,7 +3260,7 @@ function App() {
                         padding:"4px 10px",
                         background:"rgba(46,196,143,.12)",border:"1px solid rgba(46,196,143,.25)",
                         borderRadius:5,fontSize:".68rem",color:"#2EC48F",fontWeight:600
-                      }}>? Verified</div>
+                      }}>✓ Verified</div>
                     </div>
                   </div>
                 </div>
@@ -3350,7 +3350,7 @@ function App() {
                       void handleConnectWallet();
                     }}
                   >
-                    Register with Sponsor #{referralSponsorId} ?
+                    Register with Sponsor #{referralSponsorId} →
                   </button>
                 </div>
               </div>
@@ -3361,14 +3361,14 @@ function App() {
               <span className="lp-h1-gold">Decentralized</span>{" "}
               <span className="lp-h1-cyan">Income</span>
             </h1>
-            <p className="lp-sub">Every registration automatically distributes USDT across 10 levels of your network � instantly, transparently, and forever on-chain.</p>
+            <p className="lp-sub">Every registration automatically distributes USDT across 10 levels of your network — instantly, transparently, and forever on-chain.</p>
             <div className="lp-acts">
               {referralSponsorId ? (
                 <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>
-                  Register with Sponsor #{referralSponsorId} ?
+                  Register with Sponsor #{referralSponsorId} →
                 </button>
               ) : (
-                <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Start Earning ?</button>
+                <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Start Earning →</button>
               )}
               <a href="#lp-how" className="lp-btn-hero-out">How it works</a>
             </div>
@@ -3379,7 +3379,7 @@ function App() {
           </div>
         </div>
 
-        {/* -- TICKER -- */}
+        {/* ── TICKER ── */}
         <div className="lp-ticker">
           <div className="lp-ticker-track">
             {[["Registration","$10 USDT"],["Direct income","46%"],["Level income","40%"],
@@ -3392,14 +3392,14 @@ function App() {
               <span key={i} className="lp-ti">
                 <span className="lp-ti-l">{l}</span>
                 <span className="lp-ti-v">{v}</span>
-                <span style={{color:"rgba(46,111,216,.25)",margin:"0 .5rem"}}>�</span>
+                <span style={{color:"rgba(46,111,216,.25)",margin:"0 .5rem"}}>·</span>
               </span>
             ))}
           </div>
         </div>
         <div className="lp-sep"></div>
 
-        {/* -- HOW IT WORKS -- */}
+        {/* ── HOW IT WORKS ── */}
         <section className="lp-section" id="lp-how">
           <div className="lp-lbl">How it works</div>
           <h2 className="lp-stitle">Income flows automatically<br/>to your wallet</h2>
@@ -3408,9 +3408,9 @@ function App() {
             <div className="lp-steps">
               {[
                 ["01","Register with $10 USDT","Connect your wallet and pay a one-time $10 USDT fee. Instantly activates your Package 1 position in the MetaGuildX network."],
-                ["02","Build your downline","Invite others with your referral link. 46% of their registration goes directly to your wallet � instantly, on-chain."],
+                ["02","Build your downline","Invite others with your referral link. 46% of their registration goes directly to your wallet — instantly, on-chain."],
                 ["03","Earn across 10 levels","Level income distributes 40% across your upline chain. As your network grows deeper, passive income compounds automatically."],
-                ["04","Auto-upgrade & rebirth","Escrow accumulates toward package upgrades. Hit the threshold � the contract automatically elevates your position."],
+                ["04","Auto-upgrade & rebirth","Escrow accumulates toward package upgrades. Hit the threshold — the contract automatically elevates your position."],
               ].map(([n,t,d]) => (
                 <div key={n} className="lp-step">
                   <div className="lp-st-n">{n}</div>
@@ -3423,7 +3423,7 @@ function App() {
               <div className="lp-ibox-title">Income distribution per $10 registration</div>
               {[
                 ["#C9A84C","Direct sponsor income","46%"],
-                ["#2EC48F","Level income (L1�L10)","40%"],
+                ["#2EC48F","Level income (L1–L10)","40%"],
                 ["#5B8DEF","Cashback pool","4%"],
                 ["#3D5580","Royalty Pool","10%"],
               ].map(([c,n,p]) => (
@@ -3446,18 +3446,18 @@ function App() {
         </section>
         <div className="lp-sep"></div>
 
-        {/* -- PACKAGES -- */}
+        {/* ── PACKAGES ── */}
         <section className="lp-section" id="lp-packages">
           <div className="lp-lbl">Package tiers</div>
           <h2 className="lp-stitle">Choose your entry level</h2>
           <p className="lp-sdesc">10 package tiers with doubling rewards. Start at $10 and scale up to $5,120.</p>
           <div className="lp-pkg-grid">
             {[
-              {pkg:1,amt:10,desc:"Entry level � All features",feats:["$4.60 direct income","Level income eligible","Auto-upgrade enabled","MGX staking access"],hot:false},
-              {pkg:2,amt:20,desc:"2� income potential",feats:["$9.20 direct income","Higher level earnings","Rebirth eligible","Priority placement"],hot:true},
-              {pkg:3,amt:40,desc:"4� income potential",feats:["$18.40 direct income","Deep level penetration","Enhanced cashback","Bonus xSlot cycles"],hot:false},
-              {pkg:4,amt:80,desc:"8� income potential",feats:["$36.80 direct income","Network multiplier","Token engine bonus","Max level benefits"],hot:false},
-              {pkg:5,amt:160,desc:"Elite � $160�$5,120",feats:["Up to $2,355 direct","Elite network status","Maximum earnings","All bonuses unlocked"],hot:false},
+              {pkg:1,amt:10,desc:"Entry level · All features",feats:["$4.60 direct income","Level income eligible","Auto-upgrade enabled","MGX staking access"],hot:false},
+              {pkg:2,amt:20,desc:"2× income potential",feats:["$9.20 direct income","Higher level earnings","Rebirth eligible","Priority placement"],hot:true},
+              {pkg:3,amt:40,desc:"4× income potential",feats:["$18.40 direct income","Deep level penetration","Enhanced cashback","Bonus xSlot cycles"],hot:false},
+              {pkg:4,amt:80,desc:"8× income potential",feats:["$36.80 direct income","Network multiplier","Token engine bonus","Max level benefits"],hot:false},
+              {pkg:5,amt:160,desc:"Elite · $160–$5,120",feats:["Up to $2,355 direct","Elite network status","Maximum earnings","All bonuses unlocked"],hot:false},
             ].map(({pkg,amt,desc,feats,hot}) => (
               <div key={pkg} className={`lp-pkg${hot?" hot":""}`}>
                 {hot && <div className="lp-pkg-badge">Popular</div>}
@@ -3491,24 +3491,24 @@ function App() {
         </section>
         <div className="lp-sep"></div>
 
-        {/* -- ROADMAP -- */}
+        {/* ── ROADMAP ── */}
         <div className="lp-rm-wrap" id="lp-roadmap">
           <div className="lp-rm-inner">
             <div className="lp-lbl">Roadmap</div>
             <h2 className="lp-stitle">Building the future of<br/>decentralized finance</h2>
-            <p className="lp-sdesc">MetaGuildX ecosystem expansion � from community platform to full metaverse.</p>
+            <p className="lp-sdesc">MetaGuildX ecosystem expansion — from community platform to full metaverse.</p>
             <div className="lp-rm-track">
               <div className="lp-rm-line"></div>
               <div className="lp-rm-items">
                 {[
-                  {icon:"???",title:"C&B Platform",sub:"Community Building",tag:"done",label:"Live ?"},
-                  {icon:"??",title:"MGX Token",sub:"Token Launch",tag:"done",label:"Live ?"},
-                  {icon:"??",title:"MGX Staking",sub:"Stake & Earn Rewards",tag:"done",label:"Live ?"},
-                  {icon:"???",title:"NFT Creation",sub:"NFT Minting Platform",tag:"active",label:"In Progress"},
-                  {icon:"??",title:"NFT Marketplace",sub:"Buy, Sell & Trade",tag:"soon",label:"Coming Soon"},
-                  {icon:"?",title:"MGX DEX",sub:"Decentralized Exchange",tag:"soon",label:"Coming Soon"},
-                  {icon:"??",title:"Gaming Platform",sub:"Play-to-Earn Games",tag:"soon",label:"Coming Soon"},
-                  {icon:"??",title:"Metaverse",sub:"Virtual World & Helping",tag:"soon",label:"Future"},
+                  {icon:"🏗️",title:"C&B Platform",sub:"Community Building",tag:"done",label:"Live ✓"},
+                  {icon:"🪙",title:"MGX Token",sub:"Token Launch",tag:"done",label:"Live ✓"},
+                  {icon:"🏦",title:"MGX Staking",sub:"Stake & Earn Rewards",tag:"done",label:"Live ✓"},
+                  {icon:"🖼️",title:"NFT Creation",sub:"NFT Minting Platform",tag:"active",label:"In Progress"},
+                  {icon:"🏪",title:"NFT Marketplace",sub:"Buy, Sell & Trade",tag:"soon",label:"Coming Soon"},
+                  {icon:"⚡",title:"MGX DEX",sub:"Decentralized Exchange",tag:"soon",label:"Coming Soon"},
+                  {icon:"🎮",title:"Gaming Platform",sub:"Play-to-Earn Games",tag:"soon",label:"Coming Soon"},
+                  {icon:"🌐",title:"Metaverse",sub:"Virtual World & Helping",tag:"soon",label:"Future"},
                 ].map(({icon,title,sub,tag,label}) => (
                   <div key={title} className={`lp-rm-item ${tag==="done"?"done":tag==="active"?"active":""}`}>
                     <div className="lp-rm-dot">{icon}</div>
@@ -3523,18 +3523,18 @@ function App() {
         </div>
         <div className="lp-sep"></div>
 
-        {/* -- FEATURES -- */}
+        {/* ── FEATURES ── */}
         <section className="lp-section" id="lp-features">
           <div className="lp-lbl">Platform features</div>
           <h2 className="lp-stitle">Built for transparency<br/>and performance</h2>
           <div className="lp-feat-grid">
             {[
-              ["?","UUPS Upgradeable Proxy","OpenZeppelin v5 with ERC-7201 namespaced storage. Contracts upgrade safely without disrupting user funds."],
-              ["?","Binary placement tree","Smart queue of 1000 positions. Overflow users auto-place on the opposite side for balanced network growth."],
-              ["?","Auto-upgrade engine","Escrow accumulates toward your next package. When threshold is hit, the contract upgrades automatically."],
-              ["?","Rebirth mechanism","Complete Package 1 cycle and re-enter the network on the opposite side � unlocking a fresh income cycle."],
-              ["?","MGX staking rewards","Stake MGX tokens and earn 10.95% APY. Rewards distribute every 24 hours from the 10.23M MGX reward pool."],
-              ["?","Cashback pool","4% of every registration flows to the cashback pool, distributed proportionally to qualifying members."],
+              ["◈","UUPS Upgradeable Proxy","OpenZeppelin v5 with ERC-7201 namespaced storage. Contracts upgrade safely without disrupting user funds."],
+              ["⬡","Binary placement tree","Smart queue of 1000 positions. Overflow users auto-place on the opposite side for balanced network growth."],
+              ["⟳","Auto-upgrade engine","Escrow accumulates toward your next package. When threshold is hit, the contract upgrades automatically."],
+              ["✦","Rebirth mechanism","Complete Package 1 cycle and re-enter the network on the opposite side — unlocking a fresh income cycle."],
+              ["◎","MGX staking rewards","Stake MGX tokens and earn 10.95% APY. Rewards distribute every 24 hours from the 10.23M MGX reward pool."],
+              ["⊞","Cashback pool","4% of every registration flows to the cashback pool, distributed proportionally to qualifying members."],
             ].map(([icon,name,desc]) => (
               <div key={name} className="lp-feat">
                 <div className="lp-feat-icon">{icon}</div>
@@ -3546,7 +3546,7 @@ function App() {
         </section>
         <div className="lp-sep"></div>
 
-        {/* -- MGX TOKEN -- */}
+        {/* ── MGX TOKEN ── */}
         <section className="lp-section" id="lp-token">
           <div className="lp-lbl">MGX Token</div>
           <div className="lp-tok-grid">
@@ -3586,20 +3586,20 @@ function App() {
         </section>
         <div className="lp-sep"></div>
 
-        {/* -- CTA -- */}
+        {/* ── CTA ── */}
         <div className="lp-cta-outer">
           <div className="lp-cta-box">
             <img src={logoMark} alt="MetaGuildX" className="lp-cta-logo" />
             <h2>Ready to start earning?</h2>
             <p>Join the MetaGuildX network and build real passive income on-chain.</p>
             <div className="lp-cta-acts">
-              <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Connect Wallet ?</button>
+              <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Connect Wallet →</button>
               <a href="#lp-how" className="lp-btn-hero-out">Learn more</a>
             </div>
           </div>
         </div>
 
-        {/* -- FOOTER -- */}
+        {/* ── FOOTER ── */}
         <footer className="lp-footer">
           <div className="lp-ft-top">
             <div>
@@ -3625,9 +3625,9 @@ function App() {
             </div>
           </div>
           <div className="lp-ft-bot">
-            <span>� 2026 MetaGuildX. All rights reserved.</span>
+            <span>© 2026 MetaGuildX. All rights reserved.</span>
             <div className="lp-socials">
-              <a href="#" className="lp-soc">??</a>
+              <a href="#" className="lp-soc">𝕏</a>
               <a href="#" className="lp-soc">tg</a>
               <a href="#" className="lp-soc">dc</a>
               <a href="#" className="lp-soc">yt</a>
@@ -3635,7 +3635,7 @@ function App() {
           </div>
         </footer>
 
-        {/* -- STAR GENERATOR SCRIPT -- */}
+        {/* ── STAR GENERATOR SCRIPT ── */}
         <script dangerouslySetInnerHTML={{__html:`
           (function(){
             var c=document.getElementById("lp-stars-container");
@@ -3910,7 +3910,7 @@ function App() {
               aria-label="Toggle menu"
               style={{padding:"6px 12px",borderRadius:8,background:"rgba(46,111,216,.15)",border:"1px solid rgba(46,111,216,.25)",color:"var(--text-primary)",fontSize:".8rem",cursor:"pointer"}}
             >
-              {mobileNavOpen ? "?" : "?"}
+              {mobileNavOpen ? "✕" : "☰"}
             </button>
           </div>
         </div>
@@ -3950,12 +3950,12 @@ function App() {
             <nav className="dashboard-sidebar-nav">
               {/* Main nav items */}
               {[
-                { key: "overview",  icon: "??", label: "Home" },
-                { key: "income",    icon: "??", label: "Earnings" },
-                { key: "network",   icon: "??", label: "Network" },
-                { key: "upgrade",   icon: "??", label: "Upgrade" },
-                { key: "rebirth",   icon: "??", label: "Rebirth" },
-                { key: "wallet",    icon: "??", label: "Wallet" },
+                { key: "overview",  icon: "🏠", label: "Home" },
+                { key: "income",    icon: "💰", label: "Earnings" },
+                { key: "network",   icon: "🌐", label: "Network" },
+                { key: "upgrade",   icon: "⬆️", label: "Upgrade" },
+                { key: "rebirth",   icon: "♻️", label: "Rebirth" },
+                { key: "wallet",    icon: "👛", label: "Wallet" },
               ].map(item => (
                 <button
                   key={item.key}
@@ -3979,8 +3979,8 @@ function App() {
                 Community
               </div>
               {[
-                { key: "team",       icon: "??", label: "My Team" },
-                { key: "usersearch", icon: "??", label: "User Search" },
+                { key: "team",       icon: "👥", label: "My Team" },
+                { key: "usersearch", icon: "🔍", label: "User Search" },
               ].map(item => (
                 <button
                   key={item.key}
@@ -3994,9 +3994,9 @@ function App() {
 
               {/* Bottom items */}
               {[
-                { key: "support",  icon: "??", label: "Support" },
-                { key: "profile",  icon: "??", label: "My Profile" },
-                { key: "settings", icon: "??", label: "Settings" },
+                { key: "support",  icon: "🎧", label: "Support" },
+                { key: "profile",  icon: "👤", label: "My Profile" },
+                { key: "settings", icon: "⚙️", label: "Settings" },
               ].map(item => (
                 <button
                   key={item.key}
@@ -4016,7 +4016,7 @@ function App() {
                 onClick={handleLogout}
                 style={{ color: "#FF6B7A" }}
               >
-                <span className="nav-icon">??</span>
+                <span className="nav-icon">🚪</span>
                 <span>Logout</span>
               </button>
             </div>
@@ -4065,7 +4065,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("overview")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> Home</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🏠</span> Home</p>
             </button>
 
             <button
@@ -4075,7 +4075,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("income")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> Earnings</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">💰</span> Earnings</p>
             </button>
 
             <button
@@ -4090,7 +4090,7 @@ function App() {
                 setTreeMode("personal");
               }}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> Network</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🌐</span> Network</p>
             </button>
 
             <button
@@ -4100,7 +4100,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("upgrade")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> Upgrade</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">⬆️</span> Upgrade</p>
             </button>
 
             <button
@@ -4110,7 +4110,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("rebirth")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> Rebirth</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">♻️</span> Rebirth</p>
             </button>
 
             <button
@@ -4123,7 +4123,7 @@ function App() {
                 setWalletSubView("main");
               }}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> Wallet</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">👛</span> Wallet</p>
             </button>
 
             <button
@@ -4133,7 +4133,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("team")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> My Team</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">👥</span> My Team</p>
             </button>
 
             <button
@@ -4143,7 +4143,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("usersearch")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> Search</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🔍</span> Search</p>
             </button>
 
             <button
@@ -4153,7 +4153,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("support")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> Support</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🎧</span> Support</p>
             </button>
 
             <button
@@ -4163,7 +4163,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("profile")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> My Profile</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">👤</span> My Profile</p>
             </button>
 
             <button
@@ -4173,7 +4173,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("settings")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">??</span> Settings</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">⚙️</span> Settings</p>
             </button>
               </>
             )}
@@ -4215,8 +4215,8 @@ function App() {
               <div>
                 <h2>{snapshot.userId ? <>Welcome back, {profileMeta.displayName || `User #${snapshot.userId}`}</> : "Welcome back"}</h2>
                 <p>
-                  {snapshot.packageLevel ? `Package ${snapshot.packageLevel}` : "Package pending"}{" � "}
-                  {snapshot.isRegistered ? "Active member" : "Activation pending"}{" � Since "}{memberSinceLabel}
+                  {snapshot.packageLevel ? `Package ${snapshot.packageLevel}` : "Package pending"}{" · "}
+                  {snapshot.isRegistered ? "Active member" : "Activation pending"}{" · Since "}{memberSinceLabel}
                 </p>
                 {safeContractWarning ? <p className="warning-text">{safeContractWarning}</p> : null}
               </div>
@@ -4246,7 +4246,7 @@ function App() {
                   <span>{actionFeedback.detail}</span>
                 </div>
                 <button type="button" className="toast-dismiss" onClick={() => setActionFeedback(null)} aria-label="Dismiss notification">
-                  ?
+                  ✕
                 </button>
               </div>
             ) : null}
@@ -4358,3 +4358,28 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
