@@ -583,6 +583,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         });
         activeUsers[newId] = true;
         userPrimaryAsset[newId] = paymentAsset;
+        rebirthOriginalUserId[newId] = originalUserId;
 
         (uint256 tokenAmount, uint8 appliedBoxId) = _allocateTokensForCurrentBox(newId, packageAmount);
         activeBoxByUser[newId] = appliedBoxId;
@@ -813,16 +814,18 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     function adminRetryDistribution(uint256 userId) external onlyOwnerOrAdmin {
         if (!failedDistribution[userId]) revert NotFailedDistribution(userId);
 
-        address paymentAsset;
-        if (productionMode) {
-            paymentAsset = userPrimaryAsset[userId];
-            if (paymentAsset == address(0)) {
-                paymentAsset = defaultPaymentAsset;
-            }
-        } else {
-            paymentAsset = address(0);
-        }
+        address paymentAsset = _resolveRetryPaymentAsset(userId);
         _retryDistributionForUser(userId, paymentAsset);
+    }
+
+    function adminRetryRebirthDistribution(uint256 rebirthUserId, uint256 originalUserId) external onlyOwnerOrAdmin {
+        if (!failedDistribution[rebirthUserId]) revert NotFailedDistribution(rebirthUserId);
+        if (!isRebirthUser(rebirthUserId)) revert UserNotFound(rebirthUserId);
+        if (usersById[originalUserId].id == 0) revert UserNotFound(originalUserId);
+
+        rebirthOriginalUserId[rebirthUserId] = originalUserId;
+        address paymentAsset = _resolveRetryPaymentAsset(rebirthUserId);
+        _retryDistributionForUser(rebirthUserId, paymentAsset);
     }
 
     function getFailedUserIds() external view returns (uint256[] memory) {
@@ -879,6 +882,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
 
         uint256 packageAmount = packagePricesArray[profile.packageLevel - 1];
         uint256 placedUnderId = IMetaGuildXBinaryTree(binaryTreeContract).getParent(userId);
+        uint256 originalUserId = isRebirthUser(userId) ? rebirthOriginalUserId[userId] : 0;
         uint256 settlementAmt = _platformToSettlement(paymentAsset, packageAmount);
         if (paymentAsset != address(0)) {
             uint256 coreBal = IERC20(paymentAsset).balanceOf(address(this));
@@ -891,7 +895,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
             placedUnderId,
             packageAmount,
             paymentAsset,
-            0
+            originalUserId
         ) {
             failedDistribution[userId] = false;
             _distributeCashbackAndCreator(packageAmount, paymentAsset);
@@ -899,6 +903,21 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         } catch (bytes memory reason) {
             emit DistributionRetried(userId, false);
             emit DistributionFailedReason(userId, reason);
+        }
+    }
+
+    function _resolveRetryPaymentAsset(uint256 userId) internal view returns (address paymentAsset) {
+        if (!productionMode) {
+            return address(0);
+        }
+
+        paymentAsset = userPrimaryAsset[userId];
+        uint256 originalUserId = rebirthOriginalUserId[userId];
+        if (paymentAsset == address(0) && originalUserId != 0) {
+            paymentAsset = userPrimaryAsset[originalUserId];
+        }
+        if (paymentAsset == address(0)) {
+            paymentAsset = defaultPaymentAsset;
         }
     }
 
@@ -1186,5 +1205,6 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     uint256[] public failedUserIds;
     address public tokenEngineContract;
     address public adminAddress;
-    uint256[33] private __gap;
+    mapping(uint256 => uint256) public rebirthOriginalUserId;
+    uint256[32] private __gap;
 }
