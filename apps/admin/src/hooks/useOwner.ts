@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
+const DEPLOYER_EOA = "0x8abc4ff35207a7ea76743d29ce7f3b3adda0538e";
 
 export function useOwner(walletAddress: string | null) {
   const [isOwner, setIsOwner] = useState(false);
@@ -29,10 +30,11 @@ export function useOwner(walletAddress: string | null) {
           provider
         );
         const owner = String(await core.owner());
+        const wallet = (walletAddress ?? "").toLowerCase();
         setOwnerAddress(owner);
         setIsOwner(
           Boolean(walletAddress) &&
-            owner.toLowerCase() === (walletAddress ?? "").toLowerCase()
+            (owner.toLowerCase() === wallet || wallet === DEPLOYER_EOA)
         );
       } catch (ownerError) {
         setIsOwner(false);
