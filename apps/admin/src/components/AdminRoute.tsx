@@ -12,7 +12,7 @@ export function AdminRoute({ children, walletAddress }: AdminRouteProps) {
   const [checkedWallet, setCheckedWallet] = useState(false);
 
   useEffect(() => {
-    if (walletAddress !== undefined) {
+    if (walletAddress !== undefined && walletAddress !== null && walletAddress !== "") {
       setCheckedWallet(true);
     }
   }, [walletAddress]);
