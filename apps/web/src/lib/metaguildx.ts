@@ -26,16 +26,8 @@ async function withTimeout<T>(
   }
 }
 
-function shouldTimeLabel(label: string) {
-  if (DEBUG_EVENTS) {
-    return true;
-  }
-
-  return !(
-    label.startsWith("queryFilter:") ||
-    label.startsWith("queryAllEvents:") ||
-    label.startsWith("provider.getLogs:")
-  );
+function shouldTimeLabel(_label: string) {
+  return false;
 }
 
 async function timedAsync<T>(label: string, action: () => Promise<T>): Promise<T> {
