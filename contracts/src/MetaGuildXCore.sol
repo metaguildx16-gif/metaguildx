@@ -613,10 +613,11 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
             originalUserId
         ) {
             _distributeCashbackAndCreator(packageAmount, paymentAsset);
-        } catch {
+        } catch (bytes memory reason) {
             failedDistribution[newId] = true;
             failedUserIds.push(newId);
             emit DistributionFailed(newId, block.timestamp);
+            emit DistributionFailedReason(newId, reason);
         }
 
         emit UserRegistered(newId, placementSponsorId, wallet, 1, packageAmount, placedUnderId, actualPlacedLeft);

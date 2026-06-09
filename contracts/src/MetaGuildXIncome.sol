@@ -55,6 +55,7 @@ contract MetaGuildXIncome is Initializable, UUPSUpgradeable, OwnableUpgradeable,
     event AdminEscrowAdded(uint256 indexed userId, uint256 amount);
     event StrandedEscrowReleased(uint256 indexed userId, uint256 pkgLevel, uint256 amount);
     event AutoUpgradeCheckFailed(uint256 indexed userId, uint256 packageIndex, bytes reason);
+    event AutoRebirthCheckFailed(uint256 indexed userId, address paymentAsset, bytes reason);
 event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
     event AdminEarningsBackfilled(
         uint256 indexed userId,
@@ -231,7 +232,11 @@ event IncomeReset(uint256 indexed userId, uint8 indexed pkgLevel);
         if (isRebirthEligible) {
             rebirthEscrow[userId] += amount;
             emit EscrowCredited(userId, amount, xSlot);
-            IMetaGuildXUpgradeEngine(upgradeEngineContract).checkAndTriggerRebirth(userId, paymentAsset);
+            try IMetaGuildXUpgradeEngine(upgradeEngineContract).checkAndTriggerRebirth(userId, paymentAsset) {
+                // success
+            } catch (bytes memory reason) {
+                emit AutoRebirthCheckFailed(userId, paymentAsset, reason);
+            }
             return;
         }
 
