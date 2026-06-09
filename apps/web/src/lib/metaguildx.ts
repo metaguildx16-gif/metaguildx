@@ -3182,17 +3182,22 @@ export async function upgradeUserPackage(input: { userId: number; newPackageLeve
     }
   }
 
+  let mined = false;
   try {
       const tx = await core.upgradePackage(input.userId, input.newPackageLevel, {
         gasLimit: 1_500_000n
       });
-      await tx.wait();
+      const receipt = await tx.wait();
+      mined = receipt?.status === 1;
       invalidateDashboardAnalytics();
       // Give the RPC a moment to reflect the upgrade before
       // the dashboard snapshot refresh reads the new package.
       await new Promise((resolve) => setTimeout(resolve, 3000));
-      await core.getUserPackageLevel(input.userId);
   } catch (error) {
+    if (mined) {
+      invalidateDashboardAnalytics();
+      return;
+    }
     console.error("MetaGuildX upgradePackage failed", {
       userId: input.userId,
       currentPackageLevel,
