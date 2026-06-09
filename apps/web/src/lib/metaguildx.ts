@@ -1,4 +1,4 @@
-import { BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEther, formatUnits, getAddress, getBytes, parseUnits, solidityPackedKeccak256, verifyMessage, type ContractRunner } from "ethers";
+﻿import { BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEther, formatUnits, getAddress, getBytes, parseUnits, solidityPackedKeccak256, verifyMessage, type ContractRunner } from "ethers";
 import { activeNetworkConfig, toHexChainId } from "../config/networks";
 
 const DEBUG_EVENTS = false;
@@ -82,7 +82,7 @@ const metaGuildXCoreAbi = [
   "function activeUsers(uint256) view returns (bool)",
   "function usersById(uint256) view returns (uint256 id, address account, uint256 sponsorId, uint8 packageLevel, uint8 originalPackageLevel, uint256 totalContribution, uint256 totalEarnings, uint256 directReferrals, uint256 totalTeamBusiness, uint256 rebirthCount, uint256 xCount, uint256 joinedAt, bool surrendered)",
   "function treeNodes(uint256) view returns (uint256 userId, uint256 parentId, uint256 leftChildId, uint256 rightChildId, uint8 depth)",
-  "function tokenAllocationsByUser(uint256) view returns (uint256)",
+  "function getTokenAllocation(uint256) view returns (uint256)",
   "function activeBoxByUser(uint256) view returns (uint8)",
   "function distributedTokensByBox(uint8) view returns (uint256)",
   "function userPrimaryAsset(uint256) view returns (address)",
@@ -2894,7 +2894,7 @@ export async function loadLevelTreePreview(connectedUserId: number | null): Prom
       treeContract.getLevelParent(BigInt(current.userId)),
       coreContract.usersById(BigInt(current.userId)),
       incomeContract ? incomeContract.getTotalEscrow(BigInt(current.userId)) : Promise.resolve(0n),
-      coreContract.tokenAllocationsByUser(BigInt(current.userId)),
+      coreContract.getTokenAllocation(BigInt(current.userId)),
       coreContract.activeBoxByUser(BigInt(current.userId))
     ]);
 
@@ -3258,7 +3258,7 @@ export async function loadTreeNodeDetails(userId: number): Promise<TreeNodeDetai
       ? income.incomesByUser(userId)
       : Promise.resolve({ direct: 0n, level: 0n, spillover: 0n, crossline: 0n }),
     income ? income.getTotalEscrow(userId) : Promise.resolve(0n),
-    contract.tokenAllocationsByUser(userId),
+    contract.getTokenAllocation(userId),
     contract.activeBoxByUser(userId),
     contract.getDirectReferralIds(userId),
     upgrade ? upgrade.getRebirthIds(userId) : Promise.resolve([])
@@ -3377,7 +3377,7 @@ async function loadPreviewUsers(contract: Contract, treeContract: Contract | nul
         configuredIncomeAddress && configuredIncomeAddress !== "0x0000000000000000000000000000000000000000"
           ? new Contract(configuredIncomeAddress, metaGuildXIncomeAbi, contract.runner).getTotalEscrow(id)
           : Promise.resolve(0n),
-        contract.tokenAllocationsByUser(id),
+        contract.getTokenAllocation(id),
         contract.activeBoxByUser(id)
       ]);
 
@@ -3499,7 +3499,7 @@ export async function loadLiveWalletStakeState(walletAddress?: string | null): P
 
   const [userTokenAllocation, userActiveBoxId, pendingReward, stakePositionsRaw, totalStaked, escrowBalance, pendingCashback, rebirthIdsRaw] =
     await Promise.all([
-      safeBigIntRead(() => contract.tokenAllocationsByUser(userId)),
+      safeBigIntRead(() => contract.getTokenAllocation(userId)),
       safeBigIntRead(() => contract.activeBoxByUser(userId)),
       stakingModule ? safeBigIntRead(() => stakingModule.pendingStakingReward(normalizedWalletAddress)) : Promise.resolve(0n),
       stakingModule
@@ -3519,7 +3519,7 @@ export async function loadLiveWalletStakeState(walletAddress?: string | null): P
   const totalPersonalStaked = sumStakePositionAmounts(stakePositionsRaw);
   const rebirthMgxAllocations = await Promise.all(
     rebirthIdsRaw.map((rebirthId: bigint) =>
-      safeBigIntRead(() => contract.tokenAllocationsByUser(rebirthId))
+      safeBigIntRead(() => contract.getTokenAllocation(rebirthId))
     )
   );
   const totalAllocation =
@@ -3833,7 +3833,7 @@ export async function loadDashboardSnapshot(
             userId
           })
         : Promise.resolve(0n),
-      contract.tokenAllocationsByUser(userId),
+      contract.getTokenAllocation(userId),
       contract.activeBoxByUser(userId),
       contract.getDirectReferralIds(userId),
       upgradeModule ? upgradeModule.getRebirthIds(userId) : Promise.resolve([]),
@@ -3902,7 +3902,7 @@ export async function loadDashboardSnapshot(
     const totalPersonalStaked = sumStakePositionAmounts(stakePositionsRaw);
     const rebirthMgxAllocations = await Promise.all(
       rebirthIdsRaw.map((rebirthId: bigint) =>
-        safeBigIntRead(() => contract.tokenAllocationsByUser(rebirthId))
+        safeBigIntRead(() => contract.getTokenAllocation(rebirthId))
       )
     );
     const totalMgxAllocation =
