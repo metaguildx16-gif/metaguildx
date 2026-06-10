@@ -1,8 +1,18 @@
-import { Contract, JsonRpcProvider, type EventLog } from "ethers";
+﻿import { Contract, JsonRpcProvider, type EventLog } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { getPackagePrice } from "../utils/packageUtils";
 
+
+async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 49000): Promise<EventLog[]> {
+  const results: EventLog[] = [];
+  for (let start = fromBlock; start <= toBlock; start += batchSize) {
+    const end = Math.min(start + batchSize - 1, toBlock);
+    const logs = await contract.queryFilter(filter, start, end);
+    results.push(...(logs as EventLog[]));
+  }
+  return results;
+}
 const PLATFORM_SCALE = 10;
 const REFRESH_INTERVAL_MS = 30_000;
 const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
@@ -381,7 +391,7 @@ async function getRegistrationEvents(provider: JsonRpcProvider) {
   );
   const currentBlock = await provider.getBlockNumber();
   const fromBlock = NETWORK.startBlock;
-  const logs = await core.queryFilter(core.filters.UserRegistered(), fromBlock, currentBlock);
+  const logs = await batchQueryFilter(core, core.filters.UserRegistered(), fromBlock, currentBlock);
 
   const blocks = await Promise.all(
     logs.map((log) => provider.getBlock(log.blockNumber))
@@ -674,10 +684,10 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
 
   const [directLogs, levelLogs, spilloverLogs, crosslineLogs, registrationEvents, platformReserveRaw, cashbackRaw, creatorFeeBps, nextUserId] =
     await Promise.all([
-      router.queryFilter(router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
-      router.queryFilter(router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
-      router.queryFilter(router.filters.SpilloverIncome(), fromBlock, currentBlock),
-      router.queryFilter(router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock),
+      batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
+      batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
+      batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock),
+      batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock),
       getRegistrationEvents(provider),
       router.platformReserve(),
       cashback.cashbackPoolBalance(),
@@ -894,7 +904,7 @@ export async function getPlacementEvents(): Promise<TransactionRecord[]> {
   const core = getCoreContract(provider);
   const currentBlock = await provider.getBlockNumber();
   const fromBlock = NETWORK.startBlock;
-  const logs = await tree.queryFilter(tree.filters.NodePlaced(), fromBlock, currentBlock);
+  const logs = await batchQueryFilter(tree, tree.filters.NodePlaced(), fromBlock, currentBlock);
   const blocks = await Promise.all(logs.map((log) => provider.getBlock(log.blockNumber)));
 
   const records: TransactionRecord[] = [];
@@ -932,8 +942,8 @@ export async function getCashbackEvents(): Promise<TransactionRecord[]> {
   const currentBlock = await provider.getBlockNumber();
   const fromBlock = NETWORK.startBlock;
   const [claimLogs, surrenderLogs] = await Promise.all([
-    cashback.queryFilter(cashback.filters.CashbackClaimed(), fromBlock, currentBlock),
-    cashback.queryFilter(cashback.filters.UserSurrendered(), fromBlock, currentBlock)
+    batchQueryFilter(cashback, cashback.filters.CashbackClaimed(), fromBlock, currentBlock),
+    batchQueryFilter(cashback, cashback.filters.UserSurrendered(), fromBlock, currentBlock)
   ]);
   const allLogs = [...claimLogs, ...surrenderLogs];
   const blocks = await Promise.all(allLogs.map((log) => provider.getBlock(log.blockNumber)));
@@ -978,7 +988,7 @@ export async function getSurrenderedUsers(): Promise<SurrenderedUserRecord[]> {
   const fromBlock = NETWORK.startBlock;
 
   const [surrenderLogs, claimHistory] = await Promise.all([
-    cashback.queryFilter(cashback.filters.UserSurrendered(), fromBlock, currentBlock),
+    batchQueryFilter(cashback, cashback.filters.UserSurrendered(), fromBlock, currentBlock),
     getCashbackClaims()
   ]);
   const claimByUser = new Map<number, number>();
@@ -1023,7 +1033,7 @@ export async function getCashbackClaims(): Promise<CashbackClaimRecord[]> {
   const core = getCoreContract(provider);
   const currentBlock = await provider.getBlockNumber();
   const fromBlock = NETWORK.startBlock;
-  const logs = await cashback.queryFilter(cashback.filters.CashbackClaimed(), fromBlock, currentBlock);
+  const logs = await batchQueryFilter(cashback, cashback.filters.CashbackClaimed(), fromBlock, currentBlock);
   const blocks = await Promise.all(logs.map((log) => provider.getBlock(log.blockNumber)));
 
   const records: CashbackClaimRecord[] = [];
@@ -1155,10 +1165,10 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     nextUserId
   ] = await Promise.all([
     getRegistrationEvents(provider),
-    router.queryFilter(router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
-    router.queryFilter(router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
-    router.queryFilter(router.filters.SpilloverIncome(), fromBlock, currentBlock),
-    router.queryFilter(router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock),
+    batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
+    batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
+    batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock),
+    batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock),
     router.queryFilter(router.filters.ResidualSweptToCreator(), fromBlock, currentBlock),
     router.creatorWallet(),
     router.creatorFeeBps(),
