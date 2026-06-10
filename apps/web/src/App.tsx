@@ -579,8 +579,23 @@ function App() {
             setLoadStage("complete");
             finishLoadingSession("complete");
             return;
-          } catch {
-            clearWalletSession();
+          } catch (bootError) {
+            console.warn('[MGX-DEBUG] boot restore failed, retrying silent load', bootError);
+            try {
+              const retrySnapshot = await withDashboardTimeout(metaguildx.loadDashboardSnapshot(savedWallet), 'fetchDashboardData');
+              if (isActive) {
+                replaceAppPath('/dashboard');
+                setScreen('dashboard');
+                setDashboardView(retrySnapshot.isRegistered ? 'overview' : 'register');
+                setSelectedTreeUserId(retrySnapshot.userId ?? retrySnapshot.rootUserId ?? null);
+                setSnapshot(retrySnapshot);
+                setLoadStage('complete');
+                finishLoadingSession('complete');
+                return;
+              }
+            } catch {
+              clearWalletSession();
+            }
           }
         }
 
