@@ -3650,16 +3650,16 @@ export async function loadDashboardSnapshot(
       ? new Contract(configuredUpgradeAddress, metaGuildXUpgradeAbi, provider)
       : null;
 
-  const [stakingRewardPool, totalStaked, cashbackPoolBalance, totalTokenDistributed, rootUserIdRaw, currentBoxIdRaw, currentBoxDistributed] = await Promise.all([
+  const [stakingRewardPool, totalStaked, cashbackPoolBalance, totalTokenDistributed, rootUserIdRaw, currentBoxIdRaw] = await Promise.all([
     stakingModule ? stakingModule.rewardPool() : 0n,
     stakingModule ? stakingModule.totalStaked() : 0n,
     cashbackModule ? cashbackModule.cashbackPoolBalance() : 0n,
     contract.totalTokenDistributed(),
     contract.rootUserId(),
     contract.currentBoxId(),
-    contract.distributedTokensByBox(contract.currentBoxId())
   ]);
   const currentBoxIndex = Math.max(1, Number(currentBoxIdRaw));
+  const currentBoxDistributed = await contract.distributedTokensByBox(currentBoxIndex);
   const currentBoxStatus = {
     boxId: BigInt(currentBoxIndex),
     priceCents: boxPricesRaw[currentBoxIndex - 1] ?? 100n,
