@@ -3591,7 +3591,7 @@ export async function loadDashboardSnapshot(
   walletAddress?: string | null,
   options?: { forceRefresh?: boolean }
 ): Promise<DashboardSnapshot> {
-  return timedAsync("getDashboardSnapshot", async () => {
+  return timedAsync("getDashboardSnapshot", async (): Promise<DashboardSnapshot> => {
   try {
   syncAnalyticsCachesForDeployment();
   const cacheKey = `snapshot-${getDeploymentCacheNamespace()}-${walletAddress ?? "__guest__"}`;
@@ -4178,6 +4178,7 @@ export async function loadDashboardSnapshot(
       contractWarning: error instanceof Error ? error.message : "Could not load dashboard data. Refresh the app and try again."
     };
   }
+  throw new Error('unreachable');
   });
 }
 
