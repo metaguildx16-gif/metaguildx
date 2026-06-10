@@ -1,4 +1,4 @@
-import { BrowserProvider, verifyMessage, type Eip1193Provider } from "ethers";
+﻿import { BrowserProvider, verifyMessage, type Eip1193Provider } from "ethers";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { AdminRoute } from "./components/AdminRoute";
@@ -63,7 +63,7 @@ const titles: Record<string, string> = {
   "/control": "Settings"
 };
 
-const OWNER_ADDRESS = "0x8ABC4fF35207a7eA76743D29Ce7F3b3adda0538E";
+const OWNER_ADDRESS = "0xb1F4D1b91eE4159491652230A2d82EDBB9107ACe";
 const ADMIN_AUTH_WALLET_KEY = "mgx_admin_wallet";
 const ADMIN_AUTH_TIMESTAMP_KEY = "mgx_admin_auth_timestamp";
 const ADMIN_AUTH_EXPIRY_MS = 24 * 60 * 60 * 1000;

@@ -488,11 +488,7 @@ export async function getAllUsers(): Promise<UserSummary[]> {
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
   const currentBlock = await provider.getBlockNumber();
   const directIncomeLogs = isConfigured(CONTRACTS.IncomeRouter)
-    ? await router.queryFilter(
-        router.filters.DirectIncomeRecorded(),
-        NETWORK.startBlock,
-        currentBlock
-      )
+    ? await batchQueryFilter(router, router.filters.DirectIncomeRecorded(), NETWORK.startBlock, currentBlock)
     : [];
   const directIncomeByUserId = (directIncomeLogs as EventLog[]).reduce((map, log) => {
     const toUserId = Number(log.args.toUserId);
@@ -1170,7 +1166,7 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
     batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock),
     batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock),
-    router.queryFilter(router.filters.ResidualSweptToCreator(), fromBlock, currentBlock),
+    await batchQueryFilter(router, router.filters.ResidualSweptToCreator(), fromBlock, currentBlock),
     router.creatorWallet(),
     router.creatorFeeBps(),
     router.cashbackBps(),
@@ -1528,7 +1524,7 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
   const currentBlock = await provider.getBlockNumber();
   const fromBlock = NETWORK.startBlock;
-  const logs = await core.queryFilter(core.filters.RebirthUserCreated(), fromBlock, currentBlock);
+  const logs = await await batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock);
   const blocks = await Promise.all(logs.map((log) => provider.getBlock(log.blockNumber)));
 
   const recentRebirths = (
@@ -1545,21 +1541,9 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
       let income = 0;
 
       if (sponsorId > 0) {
-        const directLogs = await router.queryFilter(
-          router.filters.DirectIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)),
-          fromBlock,
-          currentBlock
-        );
-        const levelLogs = await router.queryFilter(
-          router.filters.LevelIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)),
-          fromBlock,
-          currentBlock
-        );
-        const crosslineLogs = await router.queryFilter(
-          router.filters.CrossLineIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)),
-          fromBlock,
-          currentBlock
-        );
+        const directLogs = await batchQueryFilter(router, router.filters.DirectIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock);
+        const levelLogs = await batchQueryFilter(router, router.filters.LevelIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock);
+        const crosslineLogs = await batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock);
 
         const directIncome = directLogs.reduce((sum, event) => {
           if (!("args" in event)) {
@@ -1742,10 +1726,10 @@ export async function getAllTransactions(): Promise<TransactionRecord[]> {
       getPlacementEvents(),
       getCashbackEvents(),
       isConfigured(CONTRACTS.IncomeRouter)
-        ? router.queryFilter(router.filters.DirectIncomeRecorded(), incomeFromBlock, currentBlock)
+        ? await batchQueryFilter(router, router.filters.DirectIncomeRecorded(), incomeFromBlock, currentBlock)
         : Promise.resolve([]),
       isConfigured(CONTRACTS.IncomeRouter)
-        ? router.queryFilter(router.filters.LevelIncomeRecorded(), incomeFromBlock, currentBlock)
+        ? await batchQueryFilter(router, router.filters.LevelIncomeRecorded(), incomeFromBlock, currentBlock)
         : Promise.resolve([])
     ]);
   const core = getCoreContract(provider);
