@@ -4107,7 +4107,7 @@ export async function loadDashboardSnapshot(
   };
 
   try {
-    return await loadRegisteredSnapshot();
+    const __snap = await loadRegisteredSnapshot(); console.log('[MGX-DEBUG] isRegistered:', __snap.isRegistered, 'pkg:', __snap.packageLevel, 'userId:', __snap.userId); return __snap;
   } catch (error) {
     console.error("MetaGuildX registered dashboard load failed", error);
 
