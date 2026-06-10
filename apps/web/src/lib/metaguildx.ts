@@ -780,6 +780,20 @@ const configuredIncomeAddress = readTrimmedEnv("VITE_INCOME_ENGINE_ADDRESS");
 const configuredUpgradeAddress = readTrimmedEnv("VITE_UPGRADE_ENGINE_ADDRESS");
 const configuredTokenEngineAddress = readTrimmedEnv("VITE_TOKEN_ENGINE_ADDRESS", "VITE_TOKEN_ENGINE_CONTRACT_ADDRESS");
 
+async function getAllRebirthIds(upgradeModule: Contract | null, rootUserId: number): Promise<bigint[]> {
+  if (!upgradeModule) return [];
+  const allIds: bigint[] = [];
+  const queue: number[] = [rootUserId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const children: bigint[] = await upgradeModule.getRebirthIds(current).catch(() => []);
+    for (const child of children) {
+      allIds.push(child);
+      queue.push(Number(child));
+    }
+  }
+  return allIds;
+}
 function createTokenEngineModule(runner: ContractRunner) {
   return configuredTokenEngineAddress && configuredTokenEngineAddress !== "0x0000000000000000000000000000000000000000"
     ? new Contract(configuredTokenEngineAddress, metaGuildXTokenEngineAbi, runner)
@@ -3559,7 +3573,7 @@ export async function loadLiveWalletStakeState(walletAddress?: string | null): P
             userId
           })
         : Promise.resolve(0n),
-      upgradeModule ? upgradeModule.getRebirthIds(userId) : Promise.resolve([])
+      getAllRebirthIds(upgradeModule, userId)
     ]);
   const totalPersonalStaked = sumStakePositionAmounts(stakePositionsRaw);
   const rebirthMgxAllocations = await Promise.all(
@@ -3904,7 +3918,7 @@ export async function loadDashboardSnapshot(
       tokenEngineModule ? tokenEngineModule.getTokenAllocation(userId) : Promise.resolve(0n),
       contract.activeBoxByUser(userId),
       contract.getDirectReferralIds(userId),
-      upgradeModule ? upgradeModule.getRebirthIds(userId) : Promise.resolve([]),
+      getAllRebirthIds(upgradeModule, userId),
       contract.userPrimaryAsset(userId),
       contract.defaultPaymentAsset(),
       provider.getBalance(normalizedWalletAddress),
