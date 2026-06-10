@@ -10,6 +10,7 @@ async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract[
     const end = Math.min(start + batchSize - 1, toBlock);
     const logs = await contract.queryFilter(filter, start, end);
     results.push(...(logs as EventLog[]));
+    if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 300));
   }
   return results;
 }
