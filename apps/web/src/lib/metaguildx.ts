@@ -82,7 +82,6 @@ const metaGuildXCoreAbi = [
   "function activeUsers(uint256) view returns (bool)",
   "function usersById(uint256) view returns (uint256 id, address account, uint256 sponsorId, uint8 packageLevel, uint8 originalPackageLevel, uint256 totalContribution, uint256 totalEarnings, uint256 directReferrals, uint256 totalTeamBusiness, uint256 rebirthCount, uint256 xCount, uint256 joinedAt, bool surrendered)",
   "function treeNodes(uint256) view returns (uint256 userId, uint256 parentId, uint256 leftChildId, uint256 rightChildId, uint8 depth)",
-  "function getTokenAllocation(uint256) view returns (uint256)",
   "function activeBoxByUser(uint256) view returns (uint8)",
   "function distributedTokensByBox(uint8) view returns (uint256)",
   "function userPrimaryAsset(uint256) view returns (address)",
@@ -148,6 +147,10 @@ const metaGuildXIncomeAbi = [
 
 const metaGuildXUpgradeAbi = [
   "function getRebirthIds(uint256) view returns (uint256[])"
+] as const;
+
+const metaGuildXTokenEngineAbi = [
+  "function getTokenAllocation(uint256) view returns (uint256)"
 ] as const;
 
 const cashbackPoolAbi = [
@@ -775,6 +778,13 @@ const configuredCashbackAddress =
 const configuredIncomeRouterAddress = configuredRouterAddress;
 const configuredIncomeAddress = readTrimmedEnv("VITE_INCOME_ENGINE_ADDRESS");
 const configuredUpgradeAddress = readTrimmedEnv("VITE_UPGRADE_ENGINE_ADDRESS");
+const configuredTokenEngineAddress = readTrimmedEnv("VITE_TOKEN_ENGINE_ADDRESS", "VITE_TOKEN_ENGINE_CONTRACT_ADDRESS");
+
+function createTokenEngineModule(runner: ContractRunner) {
+  return configuredTokenEngineAddress && configuredTokenEngineAddress !== "0x0000000000000000000000000000000000000000"
+    ? new Contract(configuredTokenEngineAddress, metaGuildXTokenEngineAbi, runner)
+    : null;
+}
 
 function isCallExceptionError(error: unknown) {
   if (!error || typeof error !== "object") {
@@ -2900,6 +2910,7 @@ export async function loadLevelTreePreview(connectedUserId: number | null): Prom
 
   const coreContract = new Contract(configuredCoreAddress, metaGuildXCoreAbi, provider);
   const treeContract = new Contract(configuredBinaryTreeAddress, binaryTreeAbi, provider);
+  const tokenEngineModule = createTokenEngineModule(provider);
   const incomeContract =
     configuredIncomeAddress && configuredIncomeAddress !== "0x0000000000000000000000000000000000000000"
       ? new Contract(configuredIncomeAddress, metaGuildXIncomeAbi, provider)
@@ -2927,7 +2938,7 @@ export async function loadLevelTreePreview(connectedUserId: number | null): Prom
       treeContract.getLevelParent(BigInt(current.userId)),
       coreContract.usersById(BigInt(current.userId)),
       incomeContract ? incomeContract.getTotalEscrow(BigInt(current.userId)) : Promise.resolve(0n),
-      coreContract.getTokenAllocation(BigInt(current.userId)),
+      tokenEngineModule ? tokenEngineModule.getTokenAllocation(BigInt(current.userId)) : Promise.resolve(0n),
       coreContract.activeBoxByUser(BigInt(current.userId))
     ]);
 
@@ -3284,6 +3295,7 @@ export async function loadTreeNodeDetails(userId: number): Promise<TreeNodeDetai
     configuredUpgradeAddress && configuredUpgradeAddress !== "0x0000000000000000000000000000000000000000"
       ? new Contract(configuredUpgradeAddress, metaGuildXUpgradeAbi, provider)
       : null;
+  const tokenEngine = createTokenEngineModule(provider);
   const [profile, treeNode, incomes, escrowBalance, userTokenAllocation, userActiveBoxId, directReferralIdsRaw, rebirthIdsRaw] = await Promise.all([
     contract.usersById(userId),
     Promise.all([treeContract.nodes(userId), treeContract.nodeDepth(userId)]),
@@ -3291,7 +3303,7 @@ export async function loadTreeNodeDetails(userId: number): Promise<TreeNodeDetai
       ? income.incomesByUser(userId)
       : Promise.resolve({ direct: 0n, level: 0n, spillover: 0n, crossline: 0n }),
     income ? income.getTotalEscrow(userId) : Promise.resolve(0n),
-    contract.getTokenAllocation(userId),
+    tokenEngine ? tokenEngine.getTokenAllocation(userId) : Promise.resolve(0n),
     contract.activeBoxByUser(userId),
     contract.getDirectReferralIds(userId),
     upgrade ? upgrade.getRebirthIds(userId) : Promise.resolve([])
@@ -3402,6 +3414,7 @@ async function loadPreviewUsers(contract: Contract, treeContract: Contract | nul
   if (!treeContract) {
     return new Map();
   }
+  const tokenEngineModule = createTokenEngineModule(contract.runner!);
   const previewEntries = await Promise.all(
     uniqueUserIds.map(async (id) => {
       const [[node, depth], profile, internalWalletBalance, userTokenAllocation, userActiveBoxId] = await Promise.all([
@@ -3410,7 +3423,7 @@ async function loadPreviewUsers(contract: Contract, treeContract: Contract | nul
         configuredIncomeAddress && configuredIncomeAddress !== "0x0000000000000000000000000000000000000000"
           ? new Contract(configuredIncomeAddress, metaGuildXIncomeAbi, contract.runner).getTotalEscrow(id)
           : Promise.resolve(0n),
-        contract.getTokenAllocation(id),
+        tokenEngineModule ? tokenEngineModule.getTokenAllocation(id) : Promise.resolve(0n),
         contract.activeBoxByUser(id)
       ]);
 
@@ -3512,6 +3525,7 @@ export async function loadLiveWalletStakeState(walletAddress?: string | null): P
     configuredUpgradeAddress && configuredUpgradeAddress !== "0x0000000000000000000000000000000000000000"
       ? new Contract(configuredUpgradeAddress, metaGuildXUpgradeAbi, provider)
       : null;
+  const tokenEngineModule = createTokenEngineModule(provider);
 
   const userId = Number(await contract.userIdByAddress(normalizedWalletAddress));
   if (userId <= 0) {
@@ -3532,7 +3546,7 @@ export async function loadLiveWalletStakeState(walletAddress?: string | null): P
 
   const [userTokenAllocation, userActiveBoxId, pendingReward, stakePositionsRaw, totalStaked, escrowBalance, pendingCashback, rebirthIdsRaw] =
     await Promise.all([
-      safeBigIntRead(() => contract.getTokenAllocation(userId)),
+      tokenEngineModule ? safeBigIntRead(() => tokenEngineModule.getTokenAllocation(userId)) : Promise.resolve(0n),
       safeBigIntRead(() => contract.activeBoxByUser(userId)),
       stakingModule ? safeBigIntRead(() => stakingModule.pendingStakingReward(normalizedWalletAddress)) : Promise.resolve(0n),
       stakingModule
@@ -3552,7 +3566,7 @@ export async function loadLiveWalletStakeState(walletAddress?: string | null): P
   const totalPersonalStaked = sumStakePositionAmounts(stakePositionsRaw);
   const rebirthMgxAllocations = await Promise.all(
     rebirthIdsRaw.map((rebirthId: bigint) =>
-      safeBigIntRead(() => contract.getTokenAllocation(rebirthId))
+      tokenEngineModule ? safeBigIntRead(() => tokenEngineModule.getTokenAllocation(rebirthId)) : Promise.resolve(0n)
     )
   );
   const totalAllocation =
@@ -3650,6 +3664,7 @@ export async function loadDashboardSnapshot(
     configuredUpgradeAddress && configuredUpgradeAddress !== "0x0000000000000000000000000000000000000000"
       ? new Contract(configuredUpgradeAddress, metaGuildXUpgradeAbi, provider)
       : null;
+  const tokenEngineModule = createTokenEngineModule(provider);
 
   const [stakingRewardPool, totalStaked, cashbackPoolBalance, totalTokenDistributed, rootUserIdRaw, currentBoxIdRaw] = await Promise.all([
     stakingModule ? stakingModule.rewardPool() : 0n,
@@ -3888,7 +3903,7 @@ export async function loadDashboardSnapshot(
             userId
           })
         : Promise.resolve(0n),
-      contract.getTokenAllocation(userId),
+      tokenEngineModule ? tokenEngineModule.getTokenAllocation(userId) : Promise.resolve(0n),
       contract.activeBoxByUser(userId),
       contract.getDirectReferralIds(userId),
       upgradeModule ? upgradeModule.getRebirthIds(userId) : Promise.resolve([]),
@@ -3957,7 +3972,7 @@ export async function loadDashboardSnapshot(
     const totalPersonalStaked = sumStakePositionAmounts(stakePositionsRaw);
     const rebirthMgxAllocations = await Promise.all(
       rebirthIdsRaw.map((rebirthId: bigint) =>
-        safeBigIntRead(() => contract.getTokenAllocation(rebirthId))
+        tokenEngineModule ? safeBigIntRead(() => tokenEngineModule.getTokenAllocation(rebirthId)) : Promise.resolve(0n)
       )
     );
     const totalMgxAllocation =
