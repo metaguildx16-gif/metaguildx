@@ -783,14 +783,19 @@ const configuredTokenEngineAddress = readTrimmedEnv("VITE_TOKEN_ENGINE_ADDRESS",
 async function getAllRebirthIds(upgradeModule: Contract | null, rootUserId: number): Promise<bigint[]> {
   if (!upgradeModule) return [];
   const allIds: bigint[] = [];
-  const queue: number[] = [rootUserId];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    const children: bigint[] = await upgradeModule.getRebirthIds(current).catch(() => []);
-    for (const child of children) {
-      allIds.push(child);
-      queue.push(Number(child));
+  let currentLevel: number[] = [rootUserId];
+  while (currentLevel.length > 0) {
+    const results = await Promise.all(
+      currentLevel.map((id) => (upgradeModule.getRebirthIds(id) as Promise<bigint[]>).catch(() => [] as bigint[]))
+    );
+    const nextLevel: number[] = [];
+    for (const children of results) {
+      for (const child of children) {
+        allIds.push(child);
+        nextLevel.push(Number(child));
+      }
     }
+    currentLevel = nextLevel;
   }
   return allIds;
 }
