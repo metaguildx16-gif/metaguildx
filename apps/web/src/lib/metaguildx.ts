@@ -3656,7 +3656,7 @@ export async function loadDashboardSnapshot(
       ? new Contract(configuredBinaryTreeAddress, binaryTreeAbi, provider)
       : null;
   const contractInterface = new Interface(metaGuildXCoreAbi);
-  const packagePricesRaw = (await contract.getPackagePrices()) as bigint[];
+  // packagePricesRaw loaded in Promise.all below
   const boxPricesRaw = fallbackBoxes.map((value) => BigInt(Math.round(value * 100)));
   const stakingContractAddress = configuredStakingAddress;
   const cashbackContractAddress = configuredCashbackAddress;
@@ -3678,13 +3678,15 @@ export async function loadDashboardSnapshot(
       : null;
   const tokenEngineModule = createTokenEngineModule(provider);
 
-  const [stakingRewardPool, totalStaked, cashbackPoolBalance, totalTokenDistributed, rootUserIdRaw, currentBoxIdRaw] = await Promise.all([
+  const [stakingRewardPool, totalStaked, cashbackPoolBalance, totalTokenDistributed, rootUserIdRaw, currentBoxIdRaw, packagePricesRaw, nextUserIdRaw] = await Promise.all([
     stakingModule ? stakingModule.rewardPool() : 0n,
     stakingModule ? stakingModule.totalStaked() : 0n,
     cashbackModule ? cashbackModule.cashbackPoolBalance() : 0n,
     contract.totalTokenDistributed(),
     contract.rootUserId(),
     contract.currentBoxId(),
+    contract.getPackagePrices(),
+    contract.nextUserId(),
   ]);
   const currentBoxIndex = Math.max(1, Number(currentBoxIdRaw));
   const currentBoxDistributed = await contract.distributedTokensByBox(currentBoxIndex);
@@ -3696,7 +3698,6 @@ export async function loadDashboardSnapshot(
     remaining: 0n
   };
   const rootUserId = Number(rootUserIdRaw);
-  const nextUserIdRaw = await contract.nextUserId();
   const maxUserId = Math.max(0, Number(nextUserIdRaw) - 1);
   if (!walletAddress) {
     const snapshot = {
@@ -3704,7 +3705,7 @@ export async function loadDashboardSnapshot(
       walletAddress: null,
       isConnected: false,
       hasContractConfig: true,
-      packagePrices: packagePricesRaw.map((value) => Number(formatUnits(value, PLATFORM_DECIMALS))),
+      packagePrices: (packagePricesRaw as bigint[]).map((value: bigint) => Number(formatUnits(value, PLATFORM_DECIMALS))),
       boxPrices: boxPricesRaw.map((value) => Number(value) / 100),
       stakingRewardPool: formatTokenAmount(stakingRewardPool, 18),
       totalStaked: formatTokenAmount(totalStaked, 18),
@@ -4095,7 +4096,7 @@ export async function loadDashboardSnapshot(
       crossLineIncome: formatTokenAmount(crosslineAmount),
       cashbackIncome: "0",
       stakingIncome: "0",
-      packagePrices: packagePricesRaw.map((value) => Number(formatUnits(value, PLATFORM_DECIMALS))),
+      packagePrices: (packagePricesRaw as bigint[]).map((value: bigint) => Number(formatUnits(value, PLATFORM_DECIMALS))),
       boxPrices: boxPricesRaw.map((value) => Number(value) / 100),
       rootUserId,
       isConnected: true,
