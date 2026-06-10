@@ -72,6 +72,13 @@ if (!SIGNER_KEY) {
   throw new Error("SIGNER_PRIVATE_KEY is required");
 }
 
+const MAX_USERS = 1500;
+const RPC_URL = process.env.VITE_TESTNET_RPC ?? "https://opbnb-testnet.publicnode.com";
+const CORE_ADDRESS = process.env.VITE_CORE_ADDRESS ?? "";
+const coreAbiMinimal = ["function nextUserId() view returns (uint256)"];
+const rpcProvider = new ethers.JsonRpcProvider(RPC_URL);
+const coreContract = new ethers.Contract(CORE_ADDRESS, coreAbiMinimal, rpcProvider);
+
 if (!AUTH_TOKEN) {
   throw new Error("SIGNER_AUTH_TOKEN is required");
 }
@@ -205,6 +212,16 @@ app.post("/sign", async (req, res) => {
       return res.status(403).json({ error: "Forbidden origin" });
     }
 
+        // User limit check
+    try {
+      const nextUserId = await coreContract.nextUserId();
+      if (Number(nextUserId) > MAX_USERS) {
+        return res.status(503).json({ error: "Registration closed: maximum users reached" });
+      }
+    } catch (limitErr) {
+      console.error("[LIMIT CHECK ERROR]", limitErr);
+      // Fail open â€” allow if RPC check fails
+    }
     const {
       account,
       sponsorId,
@@ -239,13 +256,22 @@ app.post("/sign", async (req, res) => {
     res.json({ signature, signer: signer.address, deadline });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[SIGN ERROR] ${new Date().toISOString()} — ${message}`);
+    console.error(`[SIGN ERROR] ${new Date().toISOString()} Ã¢â‚¬â€ ${message}`);
     res.status(500).json({ error: message });
   }
 });
 
 app.post("/sign-placement", async (req, res) => {
   try {
+        // User limit check
+    try {
+      const nextUserId = await coreContract.nextUserId();
+      if (Number(nextUserId) > MAX_USERS) {
+        return res.status(503).json({ error: "Registration closed: maximum users reached" });
+      }
+    } catch (limitErr) {
+      console.error("[LIMIT CHECK ERROR]", limitErr);
+    }
     const {
       account,
       sponsorId,
@@ -280,7 +306,7 @@ app.post("/sign-placement", async (req, res) => {
     res.json({ signature, signer: signer.address, deadline });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[SIGN-PLACEMENT ERROR] ${new Date().toISOString()} — ${message}`);
+    console.error(`[SIGN-PLACEMENT ERROR] ${new Date().toISOString()} Ã¢â‚¬â€ ${message}`);
     res.status(500).json({ error: message });
   }
 });
