@@ -1868,6 +1868,7 @@ async function getReadProvider() {
 
 async function getReadProviderWithFallback() {
   const rpcUrls = getReadRpcUrls().slice(0, 2);
+  console.log('[MGX-DEBUG] RPC urls:', rpcUrls);
   let lastError: unknown = null;
 
   for (const rpcUrl of rpcUrls) {
@@ -1877,7 +1878,7 @@ async function getReadProviderWithFallback() {
       return provider;
     } catch (error) {
       lastError = error;
-      console.warn("MetaGuildX dashboard RPC probe failed", { rpcUrl, error });
+      console.warn('[MGX-DEBUG] dashboard RPC probe FAILED', { rpcUrl, error: String(error).substring(0,100) });
     }
   }
 
