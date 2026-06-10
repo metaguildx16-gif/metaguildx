@@ -568,6 +568,7 @@ function App() {
             }
             replaceAppPath("/dashboard");
             setScreen("dashboard");
+            console.log('[MGX-DEBUG] restoredSnapshot isRegistered:', restoredSnapshot.isRegistered, 'pkg:', restoredSnapshot.packageLevel, 'userId:', restoredSnapshot.userId);
             setDashboardView(restoredSnapshot.isRegistered ? "overview" : "register");
             setSelectedTreeUserId(restoredSnapshot.userId ?? restoredSnapshot.rootUserId ?? null);
             setStatus("Wallet restored. Loading your dashboard now.");
