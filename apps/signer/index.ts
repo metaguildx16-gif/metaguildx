@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import express from "express";
-import cors from "cors";
 import rateLimit from "express-rate-limit";
 import Redis from "ioredis";
 import { RedisStore } from "rate-limit-redis";
@@ -169,16 +168,13 @@ app.use((req, res, next) => {
   }
   res.header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type,x-signer-token,x-admin-token,x-wallet-address");
+  res.header("Access-Control-Max-Age", "86400");
   if (req.method === "OPTIONS") {
     return res.sendStatus(204);
   }
   next();
 });
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ["GET", "POST", "PATCH"],
-  allowedHeaders: ["Content-Type", "x-signer-token", "x-admin-token", "x-wallet-address"],
-}));
+
 app.use(express.json());
 app.use((req, res, next) => globalLimiter(req, res, next));
 app.use((req, res, next) => {
@@ -220,7 +216,7 @@ app.post("/sign", async (req, res) => {
       }
     } catch (limitErr) {
       console.error("[LIMIT CHECK ERROR]", limitErr);
-      // Fail open â€” allow if RPC check fails
+      // Fail open ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â allow if RPC check fails
     }
     const {
       account,
@@ -256,7 +252,7 @@ app.post("/sign", async (req, res) => {
     res.json({ signature, signer: signer.address, deadline });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[SIGN ERROR] ${new Date().toISOString()} Ã¢â‚¬â€ ${message}`);
+    console.error(`[SIGN ERROR] ${new Date().toISOString()} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${message}`);
     res.status(500).json({ error: message });
   }
 });
@@ -306,7 +302,7 @@ app.post("/sign-placement", async (req, res) => {
     res.json({ signature, signer: signer.address, deadline });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[SIGN-PLACEMENT ERROR] ${new Date().toISOString()} Ã¢â‚¬â€ ${message}`);
+    console.error(`[SIGN-PLACEMENT ERROR] ${new Date().toISOString()} ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${message}`);
     res.status(500).json({ error: message });
   }
 });
