@@ -3591,7 +3591,7 @@ export async function loadDashboardSnapshot(
   walletAddress?: string | null,
   options?: { forceRefresh?: boolean }
 ): Promise<DashboardSnapshot> {
-  return timedAsync("getDashboardSnapshot", async (): Promise<DashboardSnapshot> => {
+  return timedAsync("getDashboardSnapshot", async () => {
   try {
   syncAnalyticsCachesForDeployment();
   const cacheKey = `snapshot-${getDeploymentCacheNamespace()}-${walletAddress ?? "__guest__"}`;
@@ -4121,7 +4121,7 @@ export async function loadDashboardSnapshot(
   };
 
   try {
-    const __snap = await loadRegisteredSnapshot();
+    return await loadRegisteredSnapshot();
   } catch (error) {
     console.error("MetaGuildX registered dashboard load failed", error);
 
@@ -4176,9 +4176,8 @@ export async function loadDashboardSnapshot(
       hasContractConfig: Boolean(configuredCoreAddress),
       contractReady: false,
       contractWarning: error instanceof Error ? error.message : "Could not load dashboard data. Refresh the app and try again."
-    };
+    } as DashboardSnapshot;
   }
-  throw new Error('unreachable');
   });
 }
 
