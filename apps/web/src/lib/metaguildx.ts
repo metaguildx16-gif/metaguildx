@@ -935,6 +935,38 @@ async function buildUnregisteredSnapshot(input: {
   } satisfies DashboardSnapshot;
 }
 
+type MinimalRegisteredProfile = {
+  sponsorId: bigint | number;
+  packageLevel: bigint | number;
+  totalContribution: bigint | number;
+  totalEarnings?: bigint | number;
+  directReferrals: bigint | number;
+  totalTeamBusiness?: bigint | number;
+  xCount: bigint | number;
+  joinedAt: bigint | number;
+  surrendered?: boolean;
+};
+
+async function buildMinimalRegisteredSnapshot(
+  input: Parameters<typeof buildUnregisteredSnapshot>[0] & {
+    profile: MinimalRegisteredProfile;
+    userId: number;
+  }
+) {
+  const snapshot = await buildUnregisteredSnapshot(input);
+
+  return {
+    ...snapshot,
+    isRegistered: true,
+    userId: input.userId,
+    sponsorId: input.profile.sponsorId === undefined ? snapshot.sponsorId : Number(input.profile.sponsorId),
+    packageLevel: Number(input.profile.packageLevel),
+    joinedAt: Number(input.profile.joinedAt),
+    isSurrendered: Boolean(input.profile.surrendered),
+    surrenderStatus: input.profile.surrendered ? "ID surrendered" : "Available after 3 months"
+  } satisfies DashboardSnapshot;
+}
+
 function formatStakeDurationLabel(lockDurationDaysRaw: bigint) {
   const lockDuration = Number(lockDurationDaysRaw);
   if (!lockDuration) {
@@ -3689,6 +3721,7 @@ export async function loadDashboardSnapshot(
   }
 
   const normalizedWalletAddress = normalizeAddress(walletAddress);
+  let buildRegisteredFallbackSnapshot: (() => Promise<DashboardSnapshot>) | null = null;
 
   try {
   const userId = Number(await contract.userIdByAddress(normalizedWalletAddress));
@@ -3714,6 +3747,7 @@ export async function loadDashboardSnapshot(
     return snapshot;
   }
 
+  const registeredProfile = (await contract.usersById(userId)) as MinimalRegisteredProfile;
   const previewUserIds = Array.from({ length: Math.min(maxUserId, 10) }, (_, index) => index + 1);
   const featuredUserIds = [rootUserId, rootUserId + 1, rootUserId + 2].filter((value, index, array) => value > 0 && array.indexOf(value) === index);
   const previewDataByUserId = await loadPreviewUsers(contract, treeContract, [...featuredUserIds, ...previewUserIds]);
@@ -3807,9 +3841,29 @@ export async function loadDashboardSnapshot(
     .sort((left, right) => right.blockNumber - left.blockNumber)
     .slice(0, 20);
 
+  buildRegisteredFallbackSnapshot = () =>
+    buildMinimalRegisteredSnapshot({
+      contract,
+      provider,
+      walletAddress: normalizedWalletAddress,
+      packagePricesRaw,
+      boxPricesRaw,
+      stakingRewardPool,
+      totalStaked,
+      cashbackPoolBalance,
+      totalTokenDistributed,
+      rootUserId,
+      registeredFeaturedUsers,
+      registeredTreePreview,
+      activityFeed,
+      currentBoxStatus,
+      profile: registeredProfile,
+      userId
+    });
+
   const loadRegisteredSnapshot = async () => {
       const [profile, isRebirthUserRaw, incomes, totalIncomeRaw, internalWalletBalance, currentPackageEscrowRaw, currentPackageBucketEarningsFallbackRaw, pendingReward, pendingCashback, userTokenAllocation, userActiveBoxId, directReferralIdsRaw, rebirthIdsRaw, primaryAsset, defaultPaymentAsset, externalWalletBalanceRaw, stakePositionsRaw] = await Promise.all([
-      contract.usersById(userId),
+      Promise.resolve(registeredProfile),
       contract.isRebirthUser(userId),
       incomeModule
         ? incomeModule.incomesByUser(userId)
@@ -3818,8 +3872,7 @@ export async function loadDashboardSnapshot(
       incomeModule ? incomeModule.getTotalEscrow(userId) : Promise.resolve(0n),
       incomeModule ? incomeModule.getEscrow(userId) : Promise.resolve(0n),
       incomeModule
-        ? contract
-            .usersById(userId)
+        ? Promise.resolve(registeredProfile)
             .then((value) => {
               const packageLevel = Number((value as { packageLevel: bigint }).packageLevel ?? 0n);
               return packageLevel > 0 ? incomeModule["totalEarnings(uint256,uint256)"](userId, packageLevel) : 0n;
@@ -3973,7 +4026,7 @@ export async function loadDashboardSnapshot(
       joinedAt: Number(profile.joinedAt),
       packageLevel: Number(profile.packageLevel),
       isRebirthUser: Boolean(isRebirthUserRaw),
-      totalContribution: platformToSettlementValue(profile.totalContribution, paymentUnitPrice, settlementAssetDecimals),
+      totalContribution: platformToSettlementValue(BigInt(profile.totalContribution), paymentUnitPrice, settlementAssetDecimals),
       totalEarnings: formatPlatformUsdValue(totalIncomeRaw),
       directReferrals: Number(profile.directReferrals),
       totalTeamBusiness: formatTokenAmount(actualDownlineBusiness),
@@ -4058,22 +4111,7 @@ export async function loadDashboardSnapshot(
     console.error("MetaGuildX registered dashboard load failed", error);
 
     if (isMissingUserCallException(error)) {
-      return buildUnregisteredSnapshot({
-        contract,
-        provider,
-        walletAddress: normalizedWalletAddress,
-        packagePricesRaw,
-        boxPricesRaw,
-        stakingRewardPool,
-        totalStaked,
-        cashbackPoolBalance,
-        totalTokenDistributed,
-        rootUserId,
-        registeredFeaturedUsers: [],
-        registeredTreePreview: [],
-        activityFeed: [],
-        currentBoxStatus
-      });
+      return buildRegisteredFallbackSnapshot();
     }
 
     if (isCallExceptionError(error)) {
@@ -4082,22 +4120,7 @@ export async function loadDashboardSnapshot(
       } catch (retryError) {
         console.error("MetaGuildX registered dashboard retry failed", retryError);
         if (isMissingUserCallException(retryError)) {
-          return buildUnregisteredSnapshot({
-            contract,
-            provider,
-            walletAddress: normalizedWalletAddress,
-            packagePricesRaw,
-            boxPricesRaw,
-            stakingRewardPool,
-            totalStaked,
-            cashbackPoolBalance,
-            totalTokenDistributed,
-            rootUserId,
-            registeredFeaturedUsers,
-            registeredTreePreview,
-            activityFeed,
-            currentBoxStatus
-          });
+          return buildRegisteredFallbackSnapshot();
         }
         throw retryError;
       }
@@ -4107,10 +4130,13 @@ export async function loadDashboardSnapshot(
   }
   } catch (error) {
     if (isCallExceptionError(error)) {
+      if (buildRegisteredFallbackSnapshot) {
+        return buildRegisteredFallbackSnapshot();
+      }
       return buildUnregisteredSnapshot({
         contract,
         provider,
-        walletAddress,
+        walletAddress: normalizedWalletAddress,
         packagePricesRaw,
         boxPricesRaw,
         stakingRewardPool,
