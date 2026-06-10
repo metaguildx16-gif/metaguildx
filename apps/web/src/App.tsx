@@ -568,7 +568,6 @@ function App() {
             }
             replaceAppPath("/dashboard");
             setScreen("dashboard");
-            console.log('[MGX-DEBUG] restoredSnapshot isRegistered:', restoredSnapshot.isRegistered, 'pkg:', restoredSnapshot.packageLevel, 'userId:', restoredSnapshot.userId);
             setDashboardView(restoredSnapshot.isRegistered ? "overview" : "register");
             setSelectedTreeUserId(restoredSnapshot.userId ?? restoredSnapshot.rootUserId ?? null);
             setStatus("Wallet restored. Loading your dashboard now.");
@@ -581,7 +580,7 @@ function App() {
             finishLoadingSession("complete");
             return;
           } catch (bootError) {
-            console.warn('[MGX-DEBUG] boot restore failed, retrying silent load', bootError);
+            console.warn('boot restore failed, retrying silent load', bootError);
             try {
               const retrySnapshot = await withDashboardTimeout(metaguildx.loadDashboardSnapshot(savedWallet), 'fetchDashboardData');
               if (isActive) {
