@@ -1,9 +1,10 @@
-import { Contract, JsonRpcProvider } from "ethers";
+﻿import { Contract, JsonRpcProvider } from "ethers";
 import { useEffect, useState } from "react";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
-const DEPLOYER_EOA = "0x8abc4ff35207a7ea76743d29ce7f3b3adda0538e";
+const DEPLOYER_EOA = "0xb1f4d1b91ee4159491652230a2d82edbb9107ace";
+const GNOSIS_SAFE = "0x6d01d1e9771193467b5fae47ce8463d7060098ea";
 
 export function useOwner(walletAddress: string | null) {
   const [isOwner, setIsOwner] = useState(false);
@@ -34,7 +35,7 @@ export function useOwner(walletAddress: string | null) {
         setOwnerAddress(owner);
         setIsOwner(
           Boolean(walletAddress) &&
-            (owner.toLowerCase() === wallet || wallet === DEPLOYER_EOA)
+            (owner.toLowerCase() === wallet || wallet === DEPLOYER_EOA || wallet === GNOSIS_SAFE)
         );
       } catch (ownerError) {
         setIsOwner(false);
