@@ -3722,9 +3722,10 @@ export async function loadDashboardSnapshot(
 
   const normalizedWalletAddress = normalizeAddress(walletAddress);
   let buildRegisteredFallbackSnapshot: (() => Promise<DashboardSnapshot>) | null = null;
-
+  let userId = 0;
+  let registeredProfile: MinimalRegisteredProfile | null = null;
   try {
-  const userId = Number(await contract.userIdByAddress(normalizedWalletAddress));
+  userId = Number(await contract.userIdByAddress(normalizedWalletAddress));
 
   if (userId === 0) {
     const snapshot = await buildUnregisteredSnapshot({
@@ -3747,7 +3748,7 @@ export async function loadDashboardSnapshot(
     return snapshot;
   }
 
-  const registeredProfile = (await contract.usersById(userId)) as MinimalRegisteredProfile;
+  registeredProfile = (await contract.usersById(userId)) as MinimalRegisteredProfile;
   const previewUserIds = Array.from({ length: Math.min(maxUserId, 10) }, (_, index) => index + 1);
   const featuredUserIds = [rootUserId, rootUserId + 1, rootUserId + 2].filter((value, index, array) => value > 0 && array.indexOf(value) === index);
   const previewDataByUserId = await loadPreviewUsers(contract, treeContract, [...featuredUserIds, ...previewUserIds]);
@@ -3857,13 +3858,13 @@ export async function loadDashboardSnapshot(
       registeredTreePreview,
       activityFeed,
       currentBoxStatus,
-      profile: registeredProfile,
+      profile: registeredProfile!,
       userId
     });
 
   const loadRegisteredSnapshot = async () => {
       const [profile, isRebirthUserRaw, incomes, totalIncomeRaw, internalWalletBalance, currentPackageEscrowRaw, currentPackageBucketEarningsFallbackRaw, pendingReward, pendingCashback, userTokenAllocation, userActiveBoxId, directReferralIdsRaw, rebirthIdsRaw, primaryAsset, defaultPaymentAsset, externalWalletBalanceRaw, stakePositionsRaw] = await Promise.all([
-      Promise.resolve(registeredProfile),
+      Promise.resolve(registeredProfile!),
       contract.isRebirthUser(userId),
       incomeModule
         ? incomeModule.incomesByUser(userId)
