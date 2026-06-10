@@ -1,27 +1,30 @@
-const ENV_CORE_ADDRESS = import.meta.env.VITE_CORE_ADDRESS || import.meta.env.VITE_SYSTEM_PROXY_ADDRESS;
+﻿const ENV_CORE_ADDRESS = import.meta.env.VITE_CORE_ADDRESS || import.meta.env.VITE_SYSTEM_PROXY_ADDRESS;
 const ENV_INCOME_ADDRESS = import.meta.env.VITE_INCOME_ADDRESS;
 const ENV_USDT_ADDRESS = import.meta.env.VITE_USDT_ADDRESS;
+const ENV_CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID) || 5611;
+const ENV_RPC = import.meta.env.VITE_TESTNET_RPC || "https://opbnb-testnet-rpc.bnbchain.org";
+const ENV_DEPLOY_BLOCK = Number(import.meta.env.VITE_DEPLOY_BLOCK) || 168685464;
+const IS_MAINNET = ENV_CHAIN_ID === 204;
 
 export const CONTRACTS = {
   MetaGuildXCore: ENV_CORE_ADDRESS || "0xb279B1F3EAe071b889520e91BE94288E23Df5731",
-  MetaGuildXIncome: ENV_INCOME_ADDRESS || "0x31aE6969E625c3c05296a2505b859DD949e202c7",
-  MetaGuildXUpgrade: "0xae0fad8D43372756a2FA4E0F9Cdf9D597151D300",
-  IncomeRouter: "0x0D0F6d6Bfb8e623E70e46b5543C417A6D496ae71",
-  BinaryTree: "0x6870B9486cc798730dbC8A296bDa847015354231",
-  CashbackPool: "0x963704e9A7C61265F9fff597732c584982bBc9eC",
-  MGXStaking: "0x17e52673eE1b11E46d35ABeb6E708CC40D34Ad42",
-  MGXToken: "0x2e858E1be0A2645Da9640A70d6aB5324be465419",
+  MetaGuildXIncome: ENV_INCOME_ADDRESS || import.meta.env.VITE_INCOME_ENGINE_ADDRESS || "0xe91831Cb38E9FF29CDd2bB83FC627729519c1A41",
+  MetaGuildXUpgrade: import.meta.env.VITE_UPGRADE_ADDRESS || "0xae0fad8D43372756a2FA4E0F9Cdf9D597151D300",
+  IncomeRouter: import.meta.env.VITE_ROUTER_ADDRESS || "0x0D0F6d6Bfb8e623E70e46b5543C417A6D496ae71",
+  BinaryTree: import.meta.env.VITE_BINARY_TREE_ADDRESS || "0x6870B9486cc798730dbC8A296bDa847015354231",
+  CashbackPool: import.meta.env.VITE_CASHBACK_POOL_ADDRESS || "0x963704e9A7C61265F9fff597732c584982bBc9eC",
+  MGXStaking: import.meta.env.VITE_MGX_STAKING_ADDRESS || "0x17e52673eE1b11E46d35ABeb6E708CC40D34Ad42",
+  MGXToken: import.meta.env.VITE_MGX_TOKEN_ADDRESS || "0x2e858E1be0A2645Da9640A70d6aB5324be465419",
   USDT: ENV_USDT_ADDRESS || "0xF4975eB104932bDBcA491A9Cb985439eA03863e0"
 } as const;
 
 export const NETWORK = {
-  chainId: 5611,
-  name: "OPBNB Testnet",
-  rpc: "https://opbnb-testnet-rpc.bnbchain.org",
-  explorer: "https://opbnb-testnet.bscscan.com",
-  startBlock: 168685464
+  chainId: ENV_CHAIN_ID,
+  name: IS_MAINNET ? "OPBNB Mainnet" : "OPBNB Testnet",
+  rpc: ENV_RPC,
+  explorer: IS_MAINNET ? "https://opbnb.bscscan.com" : "https://opbnb-testnet.bscscan.com",
+  startBlock: ENV_DEPLOY_BLOCK
 } as const;
-
 export const ABIS = {
   MetaGuildXCore: [
     "function owner() view returns (address)",
