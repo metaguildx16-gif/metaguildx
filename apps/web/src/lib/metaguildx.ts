@@ -1,4 +1,4 @@
-﻿import { BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEther, formatUnits, getAddress, getBytes, parseUnits, solidityPackedKeccak256, verifyMessage, type ContractRunner } from "ethers";
+import { BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEther, formatUnits, getAddress, getBytes, parseUnits, solidityPackedKeccak256, verifyMessage, type ContractRunner } from "ethers";
 import { activeNetworkConfig, toHexChainId } from "../config/networks";
 
 const DEBUG_EVENTS = false;
@@ -3819,7 +3819,7 @@ export async function loadDashboardSnapshot(
   const registeredTreePreview = treePreview.filter((node) => node.packageLevel > 0 && isRegisteredAccount(node.account));
   const latestBlock = await getBlockNumberWithDiagnostics(provider, "provider.getBlockNumber:getDashboardSnapshot");
   const deploymentStartBlock = getDeploymentAnalyticsStartBlock(latestBlock);
-  const ACTIVITY_START = Math.max(deploymentStartBlock, latestBlock - 50_000);
+  const ACTIVITY_START = Math.max(deploymentStartBlock, latestBlock - 5_000);
   const activityRebirthPromise =
     contract.filters.RebirthUserCreated
       ? queryFilterChunked(
