@@ -1,8 +1,19 @@
-import { BrowserProvider, Contract, JsonRpcProvider, type Eip1193Provider, type EventLog } from "ethers";
+﻿import { BrowserProvider, Contract, JsonRpcProvider, type Eip1193Provider, type EventLog } from "ethers";
 import { useEffect, useMemo, useState } from "react";
 import { ToastStack, type ToastMessage } from "../components/Toast";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { useOwner } from "../hooks/useOwner";
+
+async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 49000) {
+  const results = [];
+  for (let start = fromBlock; start <= toBlock; start += batchSize) {
+    const end = Math.min(start + batchSize - 1, toBlock);
+    const logs = await contract.queryFilter(filter, start, end);
+    results.push(...logs);
+    if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 300));
+  }
+  return results;
+}
 import { sendTransaction } from "../utils/txHelper";
 import { shortAddress } from "../utils/packageUtils";
 
@@ -68,13 +79,12 @@ async function loadRebirthEscrowData(): Promise<RebirthEscrowData> {
   const income = new Contract(CONTRACTS.MetaGuildXIncome, ABIS.MetaGuildXIncome, provider);
   const upgrade = new Contract(CONTRACTS.MetaGuildXUpgrade, ABIS.MetaGuildXUpgrade, provider);
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
+  const nextUserId = await core.nextUserId();
+  const currentBlock = await provider.getBlockNumber();
+  const fromBlock = Math.max(NETWORK.startBlock, 149800000);
+  const registrationLogs = await batchQueryFilter(core, core.filters.UserRegistered(), fromBlock, currentBlock);
+  const rebirthLogs = await batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock);
 
-  const [nextUserId, currentBlock, registrationLogs, rebirthLogs] = await Promise.all([
-    core.nextUserId(),
-    provider.getBlockNumber(),
-    core.queryFilter(core.filters.UserRegistered(), Math.max(NETWORK.startBlock, 149800000), "latest"),
-    core.queryFilter(core.filters.RebirthUserCreated(), Math.max(NETWORK.startBlock, 149800000), "latest")
-  ]);
 
   const registrationEvents = registrationLogs as EventLog[];
   const rebirthEvents = rebirthLogs as EventLog[];
