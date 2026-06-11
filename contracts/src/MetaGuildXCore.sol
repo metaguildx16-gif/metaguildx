@@ -208,6 +208,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     event DistributionFailed(uint256 indexed userId, uint256 timestamp);
     event DistributionFailedReason(uint256 indexed userId, bytes reason);
     event DistributionRetried(uint256 indexed userId, bool success);
+    event WalletMigrated(uint256 indexed userId, address indexed oldWallet, address indexed newWallet);
 
     modifier onlyIncomeEngine() {
         if (msg.sender != incomeEngineContract) revert OnlyIncomeEngine();
@@ -759,6 +760,34 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         if (parentId == 0) revert InvalidParentId();
         if (binaryTreeContract == address(0)) revert TreeNotSet();
         IMetaGuildXBinaryTree(binaryTreeContract).placeNodeExact(parentId, userId, isLeft);
+    }
+
+    function adminMigrateWallet(
+        address oldWallet,
+        address newWallet,
+        uint256[] calldata rebirthUserIds
+    ) external onlyOwner {
+        if (oldWallet == address(0) || newWallet == address(0)) revert InvalidAddress();
+        if (oldWallet == newWallet) revert InvalidAddress();
+        uint256 primaryUserId = userIdByAddress[oldWallet];
+        if (primaryUserId == 0) revert UserNotRegistered();
+        if (userIdByAddress[newWallet] != 0) revert AlreadyRegistered();
+        if (usersById[primaryUserId].account != oldWallet) revert Unauthorized();
+
+        usersById[primaryUserId].account = newWallet;
+        delete userIdByAddress[oldWallet];
+        userIdByAddress[newWallet] = primaryUserId;
+        delete nonces[oldWallet];
+
+        emit WalletMigrated(primaryUserId, oldWallet, newWallet);
+
+        for (uint256 i = 0; i < rebirthUserIds.length; i++) {
+            uint256 rebirthId = rebirthUserIds[i];
+            if (usersById[rebirthId].account == oldWallet) {
+                usersById[rebirthId].account = newWallet;
+                emit WalletMigrated(rebirthId, oldWallet, newWallet);
+            }
+        }
     }
 
     function setStakingContract(address target) external onlyOwner {

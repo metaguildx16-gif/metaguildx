@@ -6,7 +6,7 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Upgrading with:", deployer.address);
 
-  const CORE_PROXY = "0x416c08F71c934f9D7B8a66B1AD982583CDbF0058";
+  const CORE_PROXY = "0xE3cD200609E223c96987c9FEa41C6014e8625c2F";
 
   // Deploy fresh library instances (same bytecode, new addresses)
   console.log("Deploying libraries...");
