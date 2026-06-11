@@ -2211,7 +2211,7 @@ button:disabled {
   }
 
   .dashboard-page {
-    max-width: 1200px;
+    max-width: 100%;
   }
 
   .dashboard-nav,
@@ -2347,9 +2347,9 @@ button:disabled {
   }
 }
 
-/* ══════════════════════════════
-   WALLET TAB — PROFESSIONAL UI
-══════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   WALLET TAB â€” PROFESSIONAL UI
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 .wallet-container {
   width: 100%;
@@ -4795,7 +4795,7 @@ button:disabled {
   }
 }
 
-/* ── DASHBOARD GRID BG ── */
+/* â”€â”€ DASHBOARD GRID BG â”€â”€ */
 .dashboard-page::before {
   content: "";
   position: fixed;
@@ -4809,7 +4809,7 @@ button:disabled {
   z-index: 0;
 }
 
-/* ── TOPBAR LOGO ── */
+/* â”€â”€ TOPBAR LOGO â”€â”€ */
 .topbar-logo {
   font-family: "Syne", sans-serif;
   font-weight: 800;
@@ -4818,7 +4818,7 @@ button:disabled {
 }
 .topbar-logo span { color: #C9A84C; }
 
-/* ── HOME WELCOME ── */
+/* â”€â”€ HOME WELCOME â”€â”€ */
 .home-welcome-title {
   font-family: "Syne", sans-serif;
   font-size: 1.5rem;
@@ -4830,7 +4830,7 @@ button:disabled {
   font-size: 0.855rem;
 }
 
-/* ── OVERVIEW STAT CARDS ── */
+/* â”€â”€ OVERVIEW STAT CARDS â”€â”€ */
 .overview-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -4854,7 +4854,7 @@ button:disabled {
   .premium-action-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* ── SECTION LABELS ── */
+/* â”€â”€ SECTION LABELS â”€â”€ */
 .dash-section-label {
   font-size: 0.68rem;
   text-transform: uppercase;
@@ -4872,7 +4872,7 @@ button:disabled {
   background: #C9A84C;
 }
 
-/* ── BUTTONS ── */
+/* â”€â”€ BUTTONS â”€â”€ */
 .btn-primary {
   background: linear-gradient(135deg, #C9A84C, #E8C96A);
   color: #080604;
@@ -4905,7 +4905,7 @@ button:disabled {
   color: var(--text-primary);
 }
 
-/* ── INNER BALANCE SECTION ── */
+/* â”€â”€ INNER BALANCE SECTION â”€â”€ */
 .inner-balance-row {
   display: flex;
   justify-content: space-between;
@@ -4925,7 +4925,7 @@ button:disabled {
   color: var(--text-primary);
 }
 
-/* ── STAKING HERO ── */
+/* â”€â”€ STAKING HERO â”€â”€ */
 .staking-hero-icon {
   font-size: 1.5rem;
   display: block;
@@ -4937,7 +4937,7 @@ button:disabled {
   font-weight: 700;
 }
 
-/* ── TAGS / BADGES ── */
+/* â”€â”€ TAGS / BADGES â”€â”€ */
 .badge-active {
   padding: 3px 10px;
   background: rgba(46,196,143,.12);
