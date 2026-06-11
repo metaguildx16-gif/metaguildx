@@ -679,18 +679,15 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
   const currentBlock = await provider.getBlockNumber();
   const fromBlock = NETWORK.startBlock;
 
-  const [directLogs, levelLogs, spilloverLogs, crosslineLogs, registrationEvents, platformReserveRaw, cashbackRaw, creatorFeeBps, nextUserId] =
-    await Promise.all([
-      batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
-      batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
-      batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock),
-      batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock),
-      getRegistrationEvents(provider),
-      router.platformReserve(),
-      cashback.cashbackPoolBalance(),
-      router.creatorFeeBps(),
-      core.nextUserId()
-    ]);
+  const directLogs = await batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock);
+  const levelLogs = await batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock);
+  const spilloverLogs = await batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock);
+  const crosslineLogs = await batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock);
+  const registrationEvents = await getRegistrationEvents(provider);
+  const platformReserveRaw = await router.platformReserve();
+  const cashbackRaw = await cashback.cashbackPoolBalance();
+  const creatorFeeBps = await router.creatorFeeBps();
+  const nextUserId = await core.nextUserId();
 
   const levelByTransaction = new Map<string, number>();
   for (const log of levelLogs as EventLog[]) {
