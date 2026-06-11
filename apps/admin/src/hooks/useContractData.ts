@@ -1145,31 +1145,17 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
   const fromBlock = NETWORK.startBlock;
   const todayStart = startOfTodayUnix();
 
-  const [
-    registrations,
-    directLogs,
-    levelLogs,
-    spilloverLogs,
-    crosslineLogs,
-    residualLogs,
-    creatorWallet,
-    creatorFeeBps,
-    cashbackBps,
-    routerBalanceRaw,
-    nextUserId
-  ] = await Promise.all([
-    getRegistrationEvents(provider),
-    batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
-    batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
-    batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock),
-    batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock),
-    await batchQueryFilter(router, router.filters.ResidualSweptToCreator(), fromBlock, currentBlock),
-    router.creatorWallet(),
-    router.creatorFeeBps(),
-    router.cashbackBps(),
-    usdt.balanceOf(CONTRACTS.IncomeRouter),
-    core.nextUserId()
-  ]);
+  const registrations = await getRegistrationEvents(provider);
+  const directLogs = await batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock);
+  const levelLogs = await batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock);
+  const spilloverLogs = await batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock);
+  const crosslineLogs = await batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock);
+  const residualLogs = await batchQueryFilter(router, router.filters.ResidualSweptToCreator(), fromBlock, currentBlock);
+  const creatorWallet = await router.creatorWallet();
+  const creatorFeeBps = await router.creatorFeeBps();
+  const cashbackBps = await router.cashbackBps();
+  const routerBalanceRaw = await usdt.balanceOf(CONTRACTS.IncomeRouter);
+  const nextUserId = await core.nextUserId();
 
   const blocks = new Map<number, number>();
   for (const log of [
