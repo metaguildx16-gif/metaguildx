@@ -194,7 +194,7 @@ export function ContractControl() {
       if (String(creatorWallet) !== ZERO && String(defaultPaymentAsset) !== ZERO) {
         const usdt = new Contract(String(defaultPaymentAsset), ERC20_ABI, provider);
         const balance = await usdt.balanceOf(String(creatorWallet));
-        setCreatorWalletBalance(Number(balance) / 1e6);
+        setCreatorWalletBalance(Number(balance) / 1e18);
       } else {
         setCreatorWalletBalance(null);
       }
