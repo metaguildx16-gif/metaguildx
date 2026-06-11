@@ -1,4 +1,4 @@
-﻿import { BrowserProvider, verifyMessage, type Eip1193Provider } from "ethers";
+import { BrowserProvider, verifyMessage, type Eip1193Provider } from "ethers";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { AdminRoute } from "./components/AdminRoute";
@@ -18,6 +18,7 @@ import { StakingMonitor } from "./pages/StakingMonitor";
 import { SupportTicketsPage } from "./pages/SupportTickets";
 import { TransactionsPage } from "./pages/Transactions";
 import { UpgradeEscrowPage } from "./pages/UpgradeEscrow";
+import { WalletMigration } from "./pages/WalletMigration";
 import { UpgradeMonitor } from "./pages/UpgradeMonitor";
 import { Users } from "./pages/Users";
 
@@ -31,6 +32,7 @@ const navigation = [
   { to: "/rebirth-escrow", label: "Rebirth Escrow", icon: "RE" },
   { to: "/upgrades", label: "Upgrade", icon: "UP" },
   { to: "/upgrade-escrow", label: "Upgrade Escrow", icon: "UE" },
+  { to: "/wallet-migration", label: "Wallet Migration", icon: "WM" },
   { to: "/escrow", label: "Escrow", icon: "ES" },
   { to: "/staking", label: "Staking", icon: "ST" },
   { to: "/cashback", label: "Cashback", icon: "CA" },
@@ -379,6 +381,10 @@ export default function App() {
           path="/upgrade-escrow"
           element={<UpgradeEscrowPage />}
         />
+          <Route
+            path="/wallet-migration"
+            element={<WalletMigration />}
+          />
         <Route
           path="/escrow"
           element={<UpgradeMonitor />}

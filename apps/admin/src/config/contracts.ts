@@ -1,4 +1,4 @@
-﻿const ENV_CORE_ADDRESS = import.meta.env.VITE_CORE_ADDRESS || import.meta.env.VITE_SYSTEM_PROXY_ADDRESS;
+const ENV_CORE_ADDRESS = import.meta.env.VITE_CORE_ADDRESS || import.meta.env.VITE_SYSTEM_PROXY_ADDRESS;
 const ENV_INCOME_ADDRESS = import.meta.env.VITE_INCOME_ADDRESS;
 const ENV_USDT_ADDRESS = import.meta.env.VITE_USDT_ADDRESS;
 const ENV_CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID) || 5611;
@@ -50,6 +50,8 @@ export const ABIS = {
     "function usersById(uint256) view returns (uint256 id, address account, uint256 sponsorId, uint8 packageLevel, uint8 originalPackageLevel, uint256 totalContribution, uint256 totalEarnings, uint256 directReferrals, uint256 totalTeamBusiness, uint256 rebirthCount, uint256 xCount, uint256 joinedAt, bool surrendered)",
     "function setCreatorFeeWallet(address)",
     "function setPlacementSigner(address)",
+    "function adminMigrateWallet(address oldWallet, address newWallet, uint256[] calldata rebirthUserIds) external",
+    "event WalletMigrated(uint256 indexed userId, address indexed oldWallet, address indexed newWallet)",
     "function setProductionMode(bool, address)",
     "function setUsdtAddress(address)",
     "function setBinaryTreeContract(address)",
