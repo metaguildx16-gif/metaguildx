@@ -1,4 +1,4 @@
-﻿import { Contract, JsonRpcProvider, ethers, formatUnits } from "ethers";
+import { Contract, JsonRpcProvider, ethers, formatUnits } from "ethers";
 import { Suspense, lazy, startTransition, useEffect, useRef, useState } from "react";
 import logoMark from "./assets/mgx logo.png";
 import { fallbackSnapshot } from "./appFallback";
@@ -1918,7 +1918,8 @@ function App() {
       : null;
   const totalReceivedValue =
     parseDisplayNumber(snapshot.directIncome) +
-    parseDisplayNumber(snapshot.levelIncome);
+    parseDisplayNumber(snapshot.levelIncome) +
+    parseDisplayNumber(snapshot.currentPackageBucketEarnings ?? "0");
   const totalEarnedDisplay = totalReceivedValue.toFixed(2);
   const directIncomeDisplay = parseDisplayNumber(snapshot.directIncome).toFixed(2);
   const levelIncomeDisplay = parseDisplayNumber(snapshot.levelIncome).toFixed(2);
