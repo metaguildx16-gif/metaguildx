@@ -286,83 +286,14 @@ export function WalletPage(props: DashboardPageProps) {
     ) : walletSubView === "stakingclaim" ? (
       <div className="wallet-screen">
         <div className="wallet-screen-header">
-          <button type="button" className="secondary-button" onClick={() => setWalletSubView("main")}>
-            &larr; Back
-          </button>
+          <button type="button" className="secondary-button" onClick={() => setWalletSubView('main')}>&larr; Back</button>
           <h2>Staking Rewards</h2>
         </div>
-
-        <StakingSummary />
-
-        <div className="wallet-staking-cards" style={{marginBottom:"1rem"}}>
-          <article className="dashboard-card action-card wallet-staking-card wallet-staking-premium-card">
-            <div className="section-header">
-              <span className="section-badge purple">STAKING POSITION</span>
-              <button type="button" className="btn-refresh-reward" onClick={handleRefreshRewards} disabled={isLoading || !snapshot.walletAddress}>
-                Refresh
-              </button>
-            </div>
-            {displayedStakePositions.length > 0 ? (
-              <div className="stake-position-list compact wallet-staking-position-list">
-                {displayedStakePositions.map((position: any) => (
-                  <article key={`rewards-position-${position.index}`} className="stake-position-item compact wallet-staking-position-card">
-                    <div className="stake-position-item-header">
-                      <strong>{`Position ${position.index + 1}`}</strong>
-                      <span>{position.lockDurationLabel}</span>
-                    </div>
-                    <div className="stake-position-inline">
-                      <span className="stake-position-inline-chip">{`Staked: ${position.amount} MGX`}</span>
-                      <span className="stake-position-inline-chip reward">{`Pending: ${position.pendingReward} MGX`}</span>
-                      <span className="stake-position-inline-chip">{`Started: ${position.startDateLabel}`}</span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="no-stake-state wallet-staking-empty">
-                <span>No staking positions yet</span>
-              </div>
-            )}
-          </article>
-        </div>
-
-        <div className="wallet-screen-button-stack">
-          <button
-            type="button"
-            className="wallet-action-btn-full green"
-            disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
-            onClick={() =>
-              runWalletAction(
-                () => metaguildx.claimReward(displayedPendingStakingReward, rewardWindowReady),
-                "Claiming staking reward...",
-                "Reward claimed",
-                (_nextSnapshot: any, result: any) => ({
-                  title: "Reward claimed successfully",
-                  detail: `Successfully claimed ${result.claimedReward} MGX.`
-                })
-              )
-            }
-          >
-            Claim Reward
-          </button>
-          <button
-            type="button"
-            className="wallet-action-btn-full blue"
-            disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
-            onClick={() =>
-              runWalletAction(
-                () => metaguildx.compoundReward(),
-                "Compounding reward...",
-                "Reward compounded",
-                () => ({
-                  title: "Reward compounded",
-                  detail: "The available staking reward has been added back into your position."
-                })
-              )
-            }
-          >
-            Compound Reward
-          </button>
+        <div style={{textAlign:'center', padding:'48px 16px'}}>
+          <div style={{fontSize:'2.5rem', marginBottom:'12px'}}>🔒</div>
+          <h3 style={{color:'#a78bfa', marginBottom:'8px'}}>Staking — Coming Soon</h3>
+          <p style={{color:'#94a3b8', fontSize:'0.9rem'}}>MGX community distribution is in progress.</p>
+          <p style={{color:'#94a3b8', fontSize:'0.9rem'}}>Staking rewards will be available after distribution completes.</p>
         </div>
       </div>
     ) : walletSubView === "stake" ? (
