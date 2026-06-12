@@ -3819,7 +3819,7 @@ export async function loadDashboardSnapshot(
   const registeredTreePreview = treePreview.filter((node) => node.packageLevel > 0 && isRegisteredAccount(node.account));
   const latestBlock = await getBlockNumberWithDiagnostics(provider, "provider.getBlockNumber:getDashboardSnapshot");
   const deploymentStartBlock = getDeploymentAnalyticsStartBlock(latestBlock);
-  const ACTIVITY_START = Math.max(deploymentStartBlock, latestBlock - 5_000);
+  const ACTIVITY_START = deploymentStartBlock;
   const activityRebirthPromise =
     contract.filters.RebirthUserCreated
       ? queryFilterChunked(
