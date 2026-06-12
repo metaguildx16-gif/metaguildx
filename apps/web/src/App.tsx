@@ -1864,8 +1864,8 @@ function App() {
   const walletQuickActions = [
     { id: "move", label: "Transfer", symbol: "TR" },
     { id: "swap", label: "MGX-DEX", symbol: "DX" },
-    { id: "stake", label: "Stake", symbol: "ST" },
-    { id: "myStake", label: "My Stake", symbol: "MS" },
+    { id: "stake", label: "Staking", symbol: "ST", comingSoon: true },
+    { id: "myStake", label: "My Stake", symbol: "MS", comingSoon: true },
   ];
 
   const transferFromLabel = "MGX Allocated (Free)";

@@ -1,4 +1,4 @@
-import type { DashboardPageProps } from "./DashboardPageTypes";
+﻿import type { DashboardPageProps } from "./DashboardPageTypes";
 
 export function WalletPage(props: DashboardPageProps) {
   const {
@@ -435,92 +435,11 @@ export function WalletPage(props: DashboardPageProps) {
             <div className="section-header">
               <span className="section-badge purple">STAKE MGX</span>
             </div>
-            <div className="stake-position-card wallet-staking-form-card">
-              <div className="stake-detail-row wallet-staking-available">
-                <span>Available MGX</span>
-                <span className="green">{stakeableMgxAllocated} MGX</span>
-              </div>
-              <div className="transfer-number-card">
-                <span>AMOUNT</span>
-                <div className="transfer-number-row">
-                  <input
-                    value={stakeForm.amount}
-                    onChange={(event) => setStakeForm((current: any) => ({ ...current, amount: event.target.value }))}
-                    inputMode="decimal"
-                  />
-                  <button
-                    type="button"
-                    className="transfer-max-button"
-                    onClick={() => setStakeForm((current: any) => ({ ...current, amount: stakeableMgxAllocated }))}
-                  >
-                    MAX
-                  </button>
-                  <div className="transfer-token-pill">MGX</div>
-                </div>
-                <p>BALANCE: {stakeableMgxAllocated} MGX</p>
-              </div>
-              <div className="stake-duration-inline premium-stake-duration-grid">
-                {lockPeriods.map((period: any) => (
-                  <label key={period.key} className={`premium-stake-duration-card ${stakeForm.durationKey === period.key ? "selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="stake-duration-page"
-                      checked={stakeForm.durationKey === period.key}
-                      onChange={() => setStakeForm((current: any) => ({ ...current, durationKey: period.key }))}
-                    />
-                    <span className="premium-stake-duration-title">{period.label}</span>
-                    <span className="premium-stake-duration-bonus">{period.bonus}</span>
-                  </label>
-                ))}
-              </div>
-              <label className="stake-auto-checkbox premium-stake-toggle">
-                <input
-                  type="checkbox"
-                  checked={stakeForm.autoCompound}
-                  onChange={(event) => setStakeForm((current: any) => ({ ...current, autoCompound: event.target.checked }))}
-                />
-                <span className="premium-stake-toggle-switch" aria-hidden="true">
-                  <span className="premium-stake-toggle-knob" />
-                </span>
-                <span>Enable auto-compound</span>
-              </label>
-              <button
-                type="button"
-                className="btn-primary-large wallet-staking-submit"
-                disabled={isLoading || !snapshot.walletAddress || availableStakeAmount <= 0}
-                onClick={() => {
-                  if (!canSubmitStake) {
-                    setStatus("Staking could not start. Enter an amount within your available MGX allocation.");
-                    setActionFeedback({
-                      title: "Not enough available MGX",
-                      detail: `You can stake up to ${stakeableMgxAllocated} MGX right now. Reduce the amount and try again.`
-                    });
-                    return;
-                  }
-
-                  isStakePending.current = true;
-                  void runWalletAction(
-                    () =>
-                      metaguildx.stakeTokens({
-                        amount: Number(stakeForm.amount),
-                        durationKey: stakeForm.durationKey,
-                        autoCompound: stakeForm.autoCompound
-                      }),
-                    "Submitting stake...",
-                    "Stake updated",
-                    () => ({
-                      title: "✅ Stake confirmed",
-                      detail: "Position updated"
-                    })
-                  )
-                    .finally(() => {
-                      isStakePending.current = false;
-                      setStakeForm((current: any) => ({ ...current }));
-                    });
-                }}
-              >
-                Stake Now
-              </button>
+            <div className="stake-position-card wallet-staking-form-card" style={{textAlign:'center', padding:'32px 16px'}}>
+              <div style={{fontSize:'2.5rem', marginBottom:'12px'}}>🔒</div>
+              <h3 style={{color:'#a78bfa', marginBottom:'8px'}}>Staking — Coming Soon</h3>
+              <p style={{color:'#94a3b8', fontSize:'0.9rem'}}>MGX community distribution is in progress.</p>
+              <p style={{color:'#94a3b8', fontSize:'0.9rem'}}>Staking program will launch after distribution completes.</p>
             </div>
           </article>
         </div>
