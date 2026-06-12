@@ -4047,7 +4047,7 @@ export async function loadDashboardSnapshot(
         incomeModule,
         routerContract: null,
         userId,
-        deployBlock: OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
+        deployBlock: getDeploymentAnalyticsStartBlock(),
         provider
       });
       const currentPackageLevel = Number(profile.packageLevel);
