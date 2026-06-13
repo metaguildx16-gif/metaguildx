@@ -4043,8 +4043,8 @@ function App() {
                 Community
               </div>
               {[
-                { key: "team",       icon: "", label: "My Team" },
-                { key: "usersearch", icon: "", label: "User Search" },
+                { key: "team",       icon: "👥", label: "My Team" },
+                { key: "usersearch", icon: "🔍", label: "User Search" },
               ].map(item => (
                 <button
                   key={item.key}
@@ -4060,7 +4060,7 @@ function App() {
               {[
                 { key: "support",  icon: "🎧", label: "Support" },
                 { key: "profile",  icon: "👤", label: "My Profile" },
-                { key: "settings", icon: "", label: "Settings" },
+                { key: "settings", icon: "✔️", label: "Settings" },
               ].map(item => (
                 <button
                   key={item.key}
@@ -4197,7 +4197,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("team")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon"></span> My Team</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">👥</span> My Team</p>
             </button>
 
             <button
@@ -4237,7 +4237,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("settings")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon"></span> Settings</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">✔️</span> Settings</p>
             </button>
               </>
             )}
