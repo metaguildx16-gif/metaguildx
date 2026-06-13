@@ -799,7 +799,7 @@ function App() {
 
       isDashboardPolling.current = true;
       Promise.resolve(metaguildx.loadDashboardSnapshot(snapshot.walletAddress))
-        .then(setSnapshot)
+        .then((newSnap) => setSnapshot((prev) => ({ ...newSnap, packageOneBucketEarnings: newSnap.packageOneBucketEarnings !== "0" ? newSnap.packageOneBucketEarnings : prev.packageOneBucketEarnings, currentPackageBucketEarnings: newSnap.currentPackageBucketEarnings !== "0" ? newSnap.currentPackageBucketEarnings : prev.currentPackageBucketEarnings })))
         .catch(() => undefined)
         .finally(() => {
           isDashboardPolling.current = false;

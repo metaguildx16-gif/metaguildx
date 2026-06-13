@@ -1,4 +1,4 @@
-import { BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEther, formatUnits, getAddress, getBytes, parseUnits, solidityPackedKeccak256, verifyMessage, type ContractRunner } from "ethers";
+﻿import { BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEther, formatUnits, getAddress, getBytes, parseUnits, solidityPackedKeccak256, verifyMessage, type ContractRunner } from "ethers";
 import { activeNetworkConfig, toHexChainId } from "../config/networks";
 
 const DEBUG_EVENTS = false;
@@ -601,7 +601,7 @@ const GENEALOGY_CACHE_TTL = 300_000;
 const tokenDecimalsCache = new Map<string, number>();
 
 function getConfiguredDeploymentStartBlockValue() {
-  const configuredBlock = Number(readTrimmedEnv("VITE_DEPLOY_BLOCK") || "161228800");
+  const configuredBlock = Number(readTrimmedEnv("VITE_DEPLOY_BLOCK") || "151879381");
   if (Number.isFinite(configuredBlock) && configuredBlock >= 0) {
     return configuredBlock;
   }
