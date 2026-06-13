@@ -2099,7 +2099,7 @@ function App() {
           icon="📆"
           accent="success"
         />
-        <StatCard title="Your Share" value={`${stakingSharePercent}%`} icon="ðŸ¥§" accent="cyan" badge="LIVE" />
+        <StatCard title="Your Share" value={`${stakingSharePercent}%`} icon="🥧" accent="cyan" badge="LIVE" />
       </div>
 
       <div className="staking-countdown-card">
@@ -3583,13 +3583,13 @@ function App() {
               <div className="lp-rm-line"></div>
               <div className="lp-rm-items">
                 {[
-                  {icon:"🏺️",title:"C&B Platform",sub:"Community Building",tag:"done",label:"Live"},
-                  {icon:"🪢",title:"MGX Token",sub:"Token Launch",tag:"done",label:"Live"},
-                  {icon:"ðŸ¦",title:"MGX Staking",sub:"Stake & Earn Rewards",tag:"active",label:"In Progress"},
-                  {icon:"ðŸŽ¨",title:"NFT Creation",sub:"NFT Minting Platform",tag:"soon",label:"Coming Soon"},
-                  {icon:"ðŸª",title:"NFT Marketplace",sub:"Buy, Sell & Trade",tag:"soon",label:"Coming Soon"},
-                  {icon:"âš¡",title:"MGX DEX",sub:"Decentralized Exchange",tag:"soon",label:"Coming Soon"},
-                  {icon:"ðŸŽ®",title:"Gaming Platform",sub:"Play-to-Earn Games",tag:"soon",label:"Coming Soon"},
+                  {icon:"🏛️",title:"C&B Platform",sub:"Community Building",tag:"done",label:"Live"},
+                  {icon:"🪙",title:"MGX Token",sub:"Token Launch",tag:"done",label:"Live"},
+                  {icon:"🏦",title:"MGX Staking",sub:"Stake & Earn Rewards",tag:"active",label:"In Progress"},
+                  {icon:"🎨",title:"NFT Creation",sub:"NFT Minting Platform",tag:"soon",label:"Coming Soon"},
+                  {icon:"🏪",title:"NFT Marketplace",sub:"Buy, Sell & Trade",tag:"soon",label:"Coming Soon"},
+                  {icon:"⚡",title:"MGX DEX",sub:"Decentralized Exchange",tag:"soon",label:"Coming Soon"},
+                  {icon:"🎮",title:"Gaming Platform",sub:"Play-to-Earn Games",tag:"soon",label:"Coming Soon"},
                   {icon:"🌐",title:"Metaverse",sub:"Virtual World & Helping",tag:"soon",label:"Future"},
                 ].map(({icon,title,sub,tag,label}) => (
                   <div key={title} className={`lp-rm-item ${tag==="done"?"done":tag==="active"?"active":""}`}>
@@ -4032,7 +4032,7 @@ function App() {
             <nav className="dashboard-sidebar-nav">
               {/* Main nav items */}
               {[
-                { key: "overview",  icon: "ðŸ ", label: "Home" },
+                { key: "overview",  icon: "🏠", label: "Home" },
                 { key: "income",    icon: "💰", label: "Earnings" },
                 { key: "network",   icon: "🌐", label: "Network" },
                 { key: "upgrade",   icon: "⬆️", label: "Upgrade" },
@@ -4076,7 +4076,7 @@ function App() {
 
               {/* Bottom items */}
               {[
-                { key: "support",  icon: "ðŸŽ§", label: "Support" },
+                { key: "support",  icon: "🎧", label: "Support" },
                 { key: "profile",  icon: "👤", label: "My Profile" },
                 { key: "settings", icon: "✔️", label: "Settings" },
               ].map(item => (
@@ -4098,7 +4098,7 @@ function App() {
                 onClick={handleLogout}
                 style={{ color: "#FF6B7A" }}
               >
-                <span className="nav-icon">ðŸšª</span>
+                <span className="nav-icon">🚪</span>
                 <span>Logout</span>
               </button>
             </div>
@@ -4147,7 +4147,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("overview")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">ðŸ </span> Home</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🏠</span> Home</p>
             </button>
 
             <button
@@ -4235,7 +4235,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("support")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">ðŸŽ§</span> Support</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🎧</span> Support</p>
             </button>
 
             <button
