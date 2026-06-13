@@ -4095,12 +4095,7 @@ export async function loadDashboardSnapshot(
           {}
         )
       ]);
-      const boxEarningsByPackage = await loadBoxEarnings({
-        incomeModule,
-        routerContract: null,
-        userId,
-        deployBlock: getDeploymentAnalyticsStartBlock(),
-        provider
+      const boxEarningsByPackage: Record<number, bigint> = {};
       });
       const currentPackageLevel = Number(profile.packageLevel);
       const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;

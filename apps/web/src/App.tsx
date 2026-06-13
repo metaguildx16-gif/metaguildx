@@ -581,16 +581,12 @@ function App() {
                 provider: _boxProvider,
                 incomeAddress: metaguildx.getConfiguredIncomeAddress
               }).then((boxResult) => {
-                if (isActive) {
-                  setSnapshot((prev) => {
-                    if (!prev) return prev;
-                    if (boxResult.packageOneBucketEarnings === "0" && boxResult.currentPackageBucketEarnings === "0") return prev;
-                    return {
-                      ...prev,
-                      packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
-                      currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
-                    };
-                  });
+                if (boxResult.packageOneBucketEarnings !== "0" || boxResult.currentPackageBucketEarnings !== "0") {
+                  setSnapshot((prev) => prev ? {
+                    ...prev,
+                    packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
+                    currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
+                  } : prev);
                 }
               }).catch(() => {});
             }
@@ -617,15 +613,11 @@ function App() {
                     incomeAddress: metaguildx.getConfiguredIncomeAddress
                   }).then((boxResult) => {
                     if (isActive) {
-                  setSnapshot((prev) => {
-                    if (!prev) return prev;
-                    if (boxResult.packageOneBucketEarnings === "0" && boxResult.currentPackageBucketEarnings === "0") return prev;
-                    return {
-                      ...prev,
-                      packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
-                      currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
-                    };
-                  });
+                  setSnapshot((prev) => prev ? {
+                    ...prev,
+                    packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
+                    currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
+                  } : prev);
                 }
                   }).catch(() => {});
                 }
@@ -665,15 +657,11 @@ function App() {
             incomeAddress: metaguildx.getConfiguredIncomeAddress
           }).then((boxResult) => {
             if (isActive) {
-                  setSnapshot((prev) => {
-                    if (!prev) return prev;
-                    if (boxResult.packageOneBucketEarnings === "0" && boxResult.currentPackageBucketEarnings === "0") return prev;
-                    return {
-                      ...prev,
-                      packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
-                      currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
-                    };
-                  });
+                  setSnapshot((prev) => prev ? {
+                    ...prev,
+                    packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
+                    currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
+                  } : prev);
                 }
           }).catch(() => {});
         }
