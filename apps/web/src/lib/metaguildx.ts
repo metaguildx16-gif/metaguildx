@@ -1330,7 +1330,7 @@ async function loadBoxEarnings(input: {
 
   const cacheKey = `${input.userId}-${input.deployBlock}-${Math.floor(Date.now() / 300_000)}`;
   const cached = boxEarningsCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < SNAPSHOT_CACHE_TTL) {
+  if (cached && Object.keys(cached.data).length > 0 && Date.now() - cached.timestamp < SNAPSHOT_CACHE_TTL) {
     return cached.data;
   }
 
