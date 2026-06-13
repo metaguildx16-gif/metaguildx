@@ -777,6 +777,7 @@ const configuredCashbackAddress =
   readTrimmedEnv("VITE_CASHBACK_POOL_ADDRESS", "VITE_CASHBACK_ADDRESS") || (activeNetworkConfig.key === "testnet" ? TESTNET_CASHBACK_POOL_ADDRESS : "");
 const configuredIncomeRouterAddress = configuredRouterAddress;
 const configuredIncomeAddress = readTrimmedEnv("VITE_INCOME_ENGINE_ADDRESS");
+export { configuredIncomeAddress as getConfiguredIncomeAddress };
 const configuredUpgradeAddress = readTrimmedEnv("VITE_UPGRADE_ENGINE_ADDRESS");
 const configuredTokenEngineAddress = readTrimmedEnv("VITE_TOKEN_ENGINE_ADDRESS", "VITE_TOKEN_ENGINE_CONTRACT_ADDRESS");
 
@@ -1425,6 +1426,35 @@ export async function loadUserBoxEarnings(userId: number): Promise<Record<number
   return Object.fromEntries(
     Object.entries(boxEarnings).map(([pkg, amount]) => [Number(pkg), formatTokenAmount(amount)])
   );
+}
+
+export async function loadBoxEarningsForUser(input: {
+  userId: number;
+  provider: BrowserProvider | JsonRpcProvider;
+  incomeAddress: string | null;
+}): Promise<{ packageOneBucketEarnings: string; currentPackageBucketEarnings: string; packageLevel: number }> {
+  if (input.userId <= 0 || !input.incomeAddress || input.incomeAddress === "0x0000000000000000000000000000000000000000") {
+    return { packageOneBucketEarnings: "0", currentPackageBucketEarnings: "0", packageLevel: 0 };
+  }
+  const incomeModule = new Contract(input.incomeAddress, metaGuildXIncomeAbi, input.provider);
+  const coreAddress = configuredCoreAddress;
+  const contract = new Contract(coreAddress, metaGuildXCoreAbi, input.provider);
+  const profileRaw = await contract.usersById(input.userId);
+  const currentPackageLevel = Number(profileRaw.packageLevel ?? 0);
+  const boxEarningsByPackage = await loadBoxEarnings({
+    incomeModule,
+    routerContract: null,
+    userId: input.userId,
+    deployBlock: getDeploymentAnalyticsStartBlock(),
+    provider: input.provider
+  });
+  const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
+  const currentPackageBucketEarningsRaw = currentPackageLevel > 0 ? (boxEarningsByPackage[currentPackageLevel] ?? 0n) : 0n;
+  return {
+    packageOneBucketEarnings: formatTokenAmount(packageOneBucketEarningsRaw),
+    currentPackageBucketEarnings: formatTokenAmount(currentPackageBucketEarningsRaw),
+    packageLevel: currentPackageLevel
+  };
 }
 
 async function loadCrosslineDisplayIncome(input: {
@@ -4043,13 +4073,7 @@ export async function loadDashboardSnapshot(
           {}
         )
       ]);
-      const boxEarningsByPackage = await loadBoxEarnings({
-        incomeModule,
-        routerContract: null,
-        userId,
-        deployBlock: getDeploymentAnalyticsStartBlock(),
-        provider
-      });
+      const boxEarningsByPackage: Record<number, bigint> = {};
       const currentPackageLevel = Number(profile.packageLevel);
       const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
       const currentPackageBucketEarningsRaw =

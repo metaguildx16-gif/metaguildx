@@ -574,6 +574,22 @@ function App() {
             setLoadStage("income");
             beginLoadPhase("loading analytics", "Loading analytics...");
             setSnapshot(restoredSnapshot);
+            if (restoredSnapshot.isRegistered && restoredSnapshot.userId) {
+              const _boxProvider = new JsonRpcProvider(PUBLIC_TESTNET_RPC || activeNetworkConfig.rpcUrl);
+              metaguildx.loadBoxEarningsForUser({
+                userId: restoredSnapshot.userId,
+                provider: _boxProvider,
+                incomeAddress: metaguildx.getConfiguredIncomeAddress
+              }).then((boxResult) => {
+                if (isActive) {
+                  setSnapshot((prev) => prev ? {
+                    ...prev,
+                    packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
+                    currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
+                  } : prev);
+                }
+              }).catch(() => {});
+            }
             beginLoadPhase("loading tree", "Loading tree...");
             beginLoadPhase("loading earnings", "Loading earnings...");
             setLoadStage("complete");
@@ -589,6 +605,22 @@ function App() {
                 setDashboardView(retrySnapshot.isRegistered ? 'overview' : 'register');
                 setSelectedTreeUserId(retrySnapshot.userId ?? retrySnapshot.rootUserId ?? null);
                 setSnapshot(retrySnapshot);
+                if (retrySnapshot.isRegistered && retrySnapshot.userId) {
+                  const _boxProvider = new JsonRpcProvider(PUBLIC_TESTNET_RPC || activeNetworkConfig.rpcUrl);
+                  metaguildx.loadBoxEarningsForUser({
+                    userId: retrySnapshot.userId,
+                    provider: _boxProvider,
+                    incomeAddress: metaguildx.getConfiguredIncomeAddress
+                  }).then((boxResult) => {
+                    if (isActive) {
+                      setSnapshot((prev) => prev ? {
+                        ...prev,
+                        packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
+                        currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
+                      } : prev);
+                    }
+                  }).catch(() => {});
+                }
                 setLoadStage('complete');
                 finishLoadingSession('complete');
                 return;
@@ -617,6 +649,22 @@ function App() {
         setLoadStage("income");
         beginLoadPhase("loading analytics", "Loading analytics...");
         setSnapshot(nextSnapshot);
+        if (nextSnapshot.isRegistered && nextSnapshot.userId) {
+          const _boxProvider = new JsonRpcProvider(PUBLIC_TESTNET_RPC || activeNetworkConfig.rpcUrl);
+          metaguildx.loadBoxEarningsForUser({
+            userId: nextSnapshot.userId,
+            provider: _boxProvider,
+            incomeAddress: metaguildx.getConfiguredIncomeAddress
+          }).then((boxResult) => {
+            if (isActive) {
+              setSnapshot((prev) => prev ? {
+                ...prev,
+                packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
+                currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
+              } : prev);
+            }
+          }).catch(() => {});
+        }
         beginLoadPhase("loading tree", "Loading tree...");
         beginLoadPhase("loading earnings", "Loading earnings...");
         setLoadStage("complete");
@@ -4374,7 +4422,6 @@ function App() {
 }
 
 export default App;
-
 
 
 
