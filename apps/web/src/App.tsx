@@ -2092,7 +2092,7 @@ function App() {
     <div className="staking-summary-shell">
       <div className="staking-summary-hero-grid">
         <StatCard title="Staked Amount" value={`${displayedPersonalStaked} MGX`} icon="🔙" accent="cyan" />
-        <StatCard title="Pending Reward" value={`${displayedPendingStakingReward} MGX`} icon="â­" accent="gold" />
+        <StatCard title="Pending Reward" value={`${displayedPendingStakingReward} MGX`} icon="⭐" accent="gold" />
         <StatCard
           title="Daily Earnings"
           value={stakingDataLoading ? "Loading..." : `${calcDailyEarnings().toFixed(4)} MGX`}
@@ -2874,7 +2874,7 @@ function App() {
                 <div style={{
                   fontFamily:"Syne,sans-serif",fontSize:".78rem",fontWeight:700,
                   color:"#F59E0B",textTransform:"uppercase",letterSpacing:".1em",marginBottom:".625rem"
-                }}>âš¡ Risk Disclaimer</div>
+                }}>⚡ Risk Disclaimer</div>
                 <p style={{fontSize:".835rem",color:"rgba(245,158,11,.8)",lineHeight:1.7,margin:0}}>
                   Participation involves financial risk. Earnings depend entirely on network activity
                   and are not guaranteed. Past performance does not indicate future results.
@@ -3612,11 +3612,11 @@ function App() {
           <div className="lp-feat-grid">
             {[
               ["🔐","UUPS Upgradeable Proxy","OpenZeppelin v5 with ERC-7201 namespaced storage. Contracts upgrade safely without disrupting user funds."],
-              ["â¬¡","Binary placement tree","Smart queue of 1000 positions. Overflow users auto-place on the opposite side for balanced network growth."],
-              ["âŸ³","Auto-upgrade engine","Escrow accumulates toward your next package. When threshold is hit, the contract upgrades automatically."],
+              ["⬡","Binary placement tree","Smart queue of 1000 positions. Overflow users auto-place on the opposite side for balanced network growth."],
+              ["⟳","Auto-upgrade engine","Escrow accumulates toward your next package. When threshold is hit, the contract upgrades automatically."],
               ["♻️","Rebirth mechanism","Complete Package 1 cycle and re-enter the network on the opposite side — unlocking a fresh income cycle."],
               ["💎","MGX staking rewards","Stake MGX tokens and earn 10.95% APY. Rewards distribute every 24 hours from the 10.23M MGX reward pool."],
-              ["âŠž","Cashback pool","4% of every registration flows to the cashback pool, distributed proportionally to qualifying members."],
+              ["⊞","Cashback pool","4% of every registration flows to the cashback pool, distributed proportionally to qualifying members."],
             ].map(([icon,name,desc]) => (
               <div key={name} className="lp-feat">
                 <div className="lp-feat-icon">{icon}</div>
