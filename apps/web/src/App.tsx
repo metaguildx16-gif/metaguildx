@@ -584,9 +584,7 @@ function App() {
                 if (isActive) {
                   setSnapshot((prev) => {
                     if (!prev) return prev;
-                    const existingBox = parseFloat(prev.currentPackageBucketEarnings ?? "0");
-                    const newBox = parseFloat(boxResult.currentPackageBucketEarnings ?? "0");
-                    if (existingBox >= newBox && existingBox > 0) return prev;
+                    if (boxResult.packageOneBucketEarnings === "0" && boxResult.currentPackageBucketEarnings === "0") return prev;
                     return {
                       ...prev,
                       packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
@@ -621,9 +619,7 @@ function App() {
                     if (isActive) {
                   setSnapshot((prev) => {
                     if (!prev) return prev;
-                    const existingBox = parseFloat(prev.currentPackageBucketEarnings ?? "0");
-                    const newBox = parseFloat(boxResult.currentPackageBucketEarnings ?? "0");
-                    if (existingBox >= newBox && existingBox > 0) return prev;
+                    if (boxResult.packageOneBucketEarnings === "0" && boxResult.currentPackageBucketEarnings === "0") return prev;
                     return {
                       ...prev,
                       packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
@@ -671,9 +667,7 @@ function App() {
             if (isActive) {
                   setSnapshot((prev) => {
                     if (!prev) return prev;
-                    const existingBox = parseFloat(prev.currentPackageBucketEarnings ?? "0");
-                    const newBox = parseFloat(boxResult.currentPackageBucketEarnings ?? "0");
-                    if (existingBox >= newBox && existingBox > 0) return prev;
+                    if (boxResult.packageOneBucketEarnings === "0" && boxResult.currentPackageBucketEarnings === "0") return prev;
                     return {
                       ...prev,
                       packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
