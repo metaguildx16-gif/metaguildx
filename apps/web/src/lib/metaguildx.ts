@@ -588,6 +588,7 @@ export const fallbackSnapshot: DashboardSnapshot = {
 };
 
 const snapshotCache = new Map<string, { data: DashboardSnapshot; timestamp: number }>();
+const boxEarningsCache = new Map<string, { data: Record<number, bigint>; timestamp: number }>();
 const levelBreakdownCache = new Map<
   string,
   {
@@ -1327,6 +1328,12 @@ async function loadBoxEarnings(input: {
     return {} as Record<number, bigint>;
   }
 
+  const cacheKey = `${input.userId}-${input.deployBlock}`;
+  const cached = boxEarningsCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < SNAPSHOT_CACHE_TTL) {
+    return cached.data;
+  }
+
   const pkgEarnings: Record<number, bigint> = {};
   const maxPkg = input.maxPkg ?? 10;
   const routerAddress =
@@ -1355,15 +1362,25 @@ async function loadBoxEarnings(input: {
 
   for (let start = startBlock; start <= currentBlock; start += 49_000) {
     const end = Math.min(start + 48_999, currentBlock);
+    const isLastChunk = end >= currentBlock;
 
     try {
-      const [modernDirectLogs, modernLevelLogs, crosslineLogs, legacyDirectLogs, legacyLevelLogs] = await Promise.all([
+      let [modernDirectLogs, modernLevelLogs, crosslineLogs, legacyDirectLogs, legacyLevelLogs] = await Promise.all([
         getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: modernDirectTopics }, `provider.getLogs:modernDirect:${start}-${end}`),
         getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: modernLevelTopics }, `provider.getLogs:modernLevel:${start}-${end}`),
         getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: crosslineTopics }, `provider.getLogs:crossline:${start}-${end}`),
         getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: legacyDirectTopics }, `provider.getLogs:legacyDirect:${start}-${end}`),
         getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: legacyLevelTopics }, `provider.getLogs:legacyLevel:${start}-${end}`)
-      ]);
+      ]).catch(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return Promise.all([
+          getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: modernDirectTopics }, `provider.getLogs:modernDirect:retry:${start}-${end}`),
+          getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: modernLevelTopics }, `provider.getLogs:modernLevel:retry:${start}-${end}`),
+          getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: crosslineTopics }, `provider.getLogs:crossline:retry:${start}-${end}`),
+          getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: legacyDirectTopics }, `provider.getLogs:legacyDirect:retry:${start}-${end}`),
+          getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: legacyLevelTopics }, `provider.getLogs:legacyLevel:retry:${start}-${end}`)
+        ]);
+      });
 
       for (const log of modernDirectLogs) {
         const parsed = modernInterface.parseLog(log);
@@ -1397,10 +1414,15 @@ async function loadBoxEarnings(input: {
         pkgEarnings[1] = (pkgEarnings[1] ?? 0n) + amount;
       }
     } catch {
-      continue;
+      // Keep partial results from previous chunks if this range fails twice.
+    }
+
+    if (!isLastChunk) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
   }
 
+  boxEarningsCache.set(cacheKey, { data: pkgEarnings, timestamp: Date.now() });
   return pkgEarnings;
 }
 
