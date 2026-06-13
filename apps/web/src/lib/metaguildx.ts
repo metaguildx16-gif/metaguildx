@@ -4095,7 +4095,7 @@ export async function loadDashboardSnapshot(
           {}
         )
       ]);
-            const boxEarningsByPackage = await loadBoxEarnings({
+      const boxEarningsByPackage = await loadBoxEarnings({
         incomeModule,
         routerContract: null,
         userId,
