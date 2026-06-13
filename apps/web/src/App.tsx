@@ -575,7 +575,7 @@ function App() {
             beginLoadPhase("loading analytics", "Loading analytics...");
             setSnapshot(restoredSnapshot);
             if (restoredSnapshot.isRegistered && restoredSnapshot.userId) {
-              const _boxProvider = new JsonRpcProvider(PUBLIC_TESTNET_RPC || activeNetworkConfig.rpcUrl);
+              const _boxProvider = new JsonRpcProvider(activeNetworkConfig.rpcUrl || PUBLIC_TESTNET_RPC);
               metaguildx.loadBoxEarningsForUser({
                 userId: restoredSnapshot.userId,
                 provider: _boxProvider,
@@ -606,7 +606,7 @@ function App() {
                 setSelectedTreeUserId(retrySnapshot.userId ?? retrySnapshot.rootUserId ?? null);
                 setSnapshot(retrySnapshot);
                 if (retrySnapshot.isRegistered && retrySnapshot.userId) {
-                  const _boxProvider = new JsonRpcProvider(PUBLIC_TESTNET_RPC || activeNetworkConfig.rpcUrl);
+                  const _boxProvider = new JsonRpcProvider(activeNetworkConfig.rpcUrl || PUBLIC_TESTNET_RPC);
                   metaguildx.loadBoxEarningsForUser({
                     userId: retrySnapshot.userId,
                     provider: _boxProvider,
@@ -650,7 +650,7 @@ function App() {
         beginLoadPhase("loading analytics", "Loading analytics...");
         setSnapshot(nextSnapshot);
         if (nextSnapshot.isRegistered && nextSnapshot.userId) {
-          const _boxProvider = new JsonRpcProvider(PUBLIC_TESTNET_RPC || activeNetworkConfig.rpcUrl);
+          const _boxProvider = new JsonRpcProvider(activeNetworkConfig.rpcUrl || PUBLIC_TESTNET_RPC);
           metaguildx.loadBoxEarningsForUser({
             userId: nextSnapshot.userId,
             provider: _boxProvider,
@@ -4016,9 +4016,9 @@ function App() {
               {[
                 { key: "overview",  icon: "🏠", label: "Home" },
                 { key: "income",    icon: "💰", label: "Earnings" },
-                { key: "network",   icon: "", label: "Network" },
-                { key: "upgrade",   icon: "", label: "Upgrade" },
-                { key: "rebirth",   icon: "", label: "Rebirth" },
+                { key: "network",   icon: "🌐", label: "Network" },
+                { key: "upgrade",   icon: "⬆️", label: "Upgrade" },
+                { key: "rebirth",   icon: "♻️", label: "Rebirth" },
                 { key: "wallet",    icon: "👛", label: "Wallet" },
               ].map(item => (
                 <button
