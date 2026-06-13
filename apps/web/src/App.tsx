@@ -2026,14 +2026,14 @@ function App() {
     <div className="staking-summary-shell">
       <div className="staking-summary-hero-grid">
         <StatCard title="Staked Amount" value={`${displayedPersonalStaked} MGX`} icon="🔙" accent="cyan" />
-        <StatCard title="Pending Reward" value={`${displayedPendingStakingReward} MGX`} icon="â­" accent="gold" />
+        <StatCard title="Pending Reward" value={`${displayedPendingStakingReward} MGX`} icon="⭐" accent="gold" />
         <StatCard
           title="Daily Earnings"
           value={stakingDataLoading ? "Loading..." : `${calcDailyEarnings().toFixed(4)} MGX`}
           icon="📆"
           accent="success"
         />
-        <StatCard title="Your Share" value={`${stakingSharePercent}%`} icon="ðŸ¥§" accent="cyan" badge="LIVE" />
+        <StatCard title="Your Share" value={`${stakingSharePercent}%`} icon="🥧" accent="cyan" badge="LIVE" />
       </div>
 
       <div className="staking-countdown-card">
@@ -2808,7 +2808,7 @@ function App() {
                 <div style={{
                   fontFamily:"Syne,sans-serif",fontSize:".78rem",fontWeight:700,
                   color:"#F59E0B",textTransform:"uppercase",letterSpacing:".1em",marginBottom:".625rem"
-                }}>âš  Risk Disclaimer</div>
+                }}>⚡ Risk Disclaimer</div>
                 <p style={{fontSize:".835rem",color:"rgba(245,158,11,.8)",lineHeight:1.7,margin:0}}>
                   Participation involves financial risk. Earnings depend entirely on network activity
                   and are not guaranteed. Past performance does not indicate future results.
@@ -2881,7 +2881,7 @@ function App() {
                   setDisclaimerAccepted(true);
                 }}
               >
-                I Understand & Agree → â€™
+                I Understand & Agree →
               </button>
               <button
                 type="button"
@@ -2915,7 +2915,7 @@ function App() {
         minHeight: '100vh',
       }}>
 
-        {/* →â‚¬→â‚¬ STYLES →â‚¬→â‚¬ */}
+        {/* —— STYLES —— */}
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
           :root{
@@ -3185,7 +3185,7 @@ function App() {
           }
         `}</style>
 
-        {/* →â‚¬→â‚¬ NAV →â‚¬→â‚¬ */}
+        {/* —— NAV —— */}
         <nav className="lp-nav">
           <a href="#" className="lp-logo">
             <img src={logoMark} alt="MGX" />
@@ -3199,11 +3199,11 @@ function App() {
           </ul>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             <button className="lp-btn-out" type="button" onClick={() => void handleConnectWallet()}>Sign in</button>
-            <button className="lp-btn-gold" type="button" onClick={() => void handleConnectWallet()}>Launch App → â€™</button>
+            <button className="lp-btn-gold" type="button" onClick={() => void handleConnectWallet()}>Launch App →</button>
           </div>
         </nav>
 
-        {/* →â‚¬→â‚¬ HERO →â‚¬→â‚¬ */}
+        {/* —— HERO —— */}
         <div className="lp-hero">
           <div className="lp-hero-bg"></div>
           <div className="lp-stars" id="lp-stars-container"></div>
@@ -3366,7 +3366,7 @@ function App() {
                       void handleConnectWallet();
                     }}
                   >
-                    Register with Sponsor #{referralSponsorId} → â€™
+                    Register with Sponsor #{referralSponsorId} →
                   </button>
                 </div>
               </div>
@@ -3381,10 +3381,10 @@ function App() {
             <div className="lp-acts">
               {referralSponsorId ? (
                 <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>
-                  Register with Sponsor #{referralSponsorId} → â€™
+                  Register with Sponsor #{referralSponsorId} →
                 </button>
               ) : (
-                <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Start Earning → â€™</button>
+                <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Start Earning →</button>
               )}
               <a href="#lp-how" className="lp-btn-hero-out">How it works</a>
             </div>
@@ -3395,7 +3395,7 @@ function App() {
           </div>
         </div>
 
-        {/* →â‚¬→â‚¬ TICKER →â‚¬→â‚¬ */}
+        {/* —— TICKER —— */}
         <div className="lp-ticker">
           <div className="lp-ticker-track">
             {[["Registration","$10 USDT"],["Direct income","46%"],["Level income","40%"],
@@ -3415,7 +3415,7 @@ function App() {
         </div>
         <div className="lp-sep"></div>
 
-        {/* →â‚¬→â‚¬ HOW IT WORKS →â‚¬→â‚¬ */}
+        {/* —— HOW IT WORKS —— */}
         <section className="lp-section" id="lp-how">
           <div className="lp-lbl">How it works</div>
           <h2 className="lp-stitle">Income flows automatically<br/>to your wallet</h2>
@@ -3462,7 +3462,7 @@ function App() {
         </section>
         <div className="lp-sep"></div>
 
-        {/* →â‚¬→â‚¬ PACKAGES →â‚¬→â‚¬ */}
+        {/* —— PACKAGES —— */}
         <section className="lp-section" id="lp-packages">
           <div className="lp-lbl">Package tiers</div>
           <h2 className="lp-stitle">Choose your entry level</h2>
@@ -3507,7 +3507,7 @@ function App() {
         </section>
         <div className="lp-sep"></div>
 
-        {/* →â‚¬→â‚¬ ROADMAP →â‚¬→â‚¬ */}
+        {/* —— ROADMAP —— */}
         <div className="lp-rm-wrap" id="lp-roadmap">
           <div className="lp-rm-inner">
             <div className="lp-lbl">Roadmap</div>
@@ -3519,11 +3519,11 @@ function App() {
                 {[
                   {icon:"",title:"C&B Platform",sub:"Community Building",tag:"done",label:"Live "},
                   {icon:"",title:"MGX Token",sub:"Token Launch",tag:"done",label:"Live "},
-                  {icon:"ðŸ¦",title:"MGX Staking",sub:"Stake & Earn Rewards",tag:"done",label:"Live "},
+                  {icon:"🏦",title:"MGX Staking",sub:"Stake & Earn Rewards",tag:"done",label:"Live "},
                   {icon:"",title:"NFT Creation",sub:"NFT Minting Platform",tag:"active",label:"In Progress"},
-                  {icon:"ðŸª",title:"NFT Marketplace",sub:"Buy, Sell & Trade",tag:"soon",label:"Coming Soon"},
-                  {icon:"âš¡",title:"MGX DEX",sub:"Decentralized Exchange",tag:"soon",label:"Coming Soon"},
-                  {icon:"ðŸŽ®",title:"Gaming Platform",sub:"Play-to-Earn Games",tag:"soon",label:"Coming Soon"},
+                  {icon:"🏪",title:"NFT Marketplace",sub:"Buy, Sell & Trade",tag:"soon",label:"Coming Soon"},
+                  {icon:"⚡",title:"MGX DEX",sub:"Decentralized Exchange",tag:"soon",label:"Coming Soon"},
+                  {icon:"🎮",title:"Gaming Platform",sub:"Play-to-Earn Games",tag:"soon",label:"Coming Soon"},
                   {icon:"",title:"Metaverse",sub:"Virtual World & Helping",tag:"soon",label:"Future"},
                 ].map(({icon,title,sub,tag,label}) => (
                   <div key={title} className={`lp-rm-item ${tag==="done"?"done":tag==="active"?"active":""}`}>
@@ -3539,18 +3539,18 @@ function App() {
         </div>
         <div className="lp-sep"></div>
 
-        {/* →â‚¬→â‚¬ FEATURES →â‚¬→â‚¬ */}
+        {/* —— FEATURES —— */}
         <section className="lp-section" id="lp-features">
           <div className="lp-lbl">Platform features</div>
           <h2 className="lp-stitle">Built for transparency<br/>and performance</h2>
           <div className="lp-feat-grid">
             {[
-              ["→”Ë†","UUPS Upgradeable Proxy","OpenZeppelin v5 with ERC-7201 namespaced storage. Contracts upgrade safely without disrupting user funds."],
-              ["â¬¡","Binary placement tree","Smart queue of 1000 positions. Overflow users auto-place on the opposite side for balanced network growth."],
-              ["âŸ³","Auto-upgrade engine","Escrow accumulates toward your next package. When threshold is hit, the contract upgrades automatically."],
+              ["🔐","UUPS Upgradeable Proxy","OpenZeppelin v5 with ERC-7201 namespaced storage. Contracts upgrade safely without disrupting user funds."],
+              ["⬡","Binary placement tree","Smart queue of 1000 positions. Overflow users auto-place on the opposite side for balanced network growth."],
+              ["⟳","Auto-upgrade engine","Escrow accumulates toward your next package. When threshold is hit, the contract upgrades automatically."],
               ["","Rebirth mechanism","Complete Package 1 cycle and re-enter the network on the opposite side — unlocking a fresh income cycle."],
-              ["→”Å½","MGX staking rewards","Stake MGX tokens and earn 10.95% APY. Rewards distribute every 24 hours from the 10.23M MGX reward pool."],
-              ["âŠž","Cashback pool","4% of every registration flows to the cashback pool, distributed proportionally to qualifying members."],
+              ["💎","MGX staking rewards","Stake MGX tokens and earn 10.95% APY. Rewards distribute every 24 hours from the 10.23M MGX reward pool."],
+              ["⊞","Cashback pool","4% of every registration flows to the cashback pool, distributed proportionally to qualifying members."],
             ].map(([icon,name,desc]) => (
               <div key={name} className="lp-feat">
                 <div className="lp-feat-icon">{icon}</div>
@@ -3562,7 +3562,7 @@ function App() {
         </section>
         <div className="lp-sep"></div>
 
-        {/* →â‚¬→â‚¬ MGX TOKEN →â‚¬→â‚¬ */}
+        {/* —— MGX TOKEN —— */}
         <section className="lp-section" id="lp-token">
           <div className="lp-lbl">MGX Token</div>
           <div className="lp-tok-grid">
@@ -3602,20 +3602,20 @@ function App() {
         </section>
         <div className="lp-sep"></div>
 
-        {/* →â‚¬→â‚¬ CTA →â‚¬→â‚¬ */}
+        {/* —— CTA —— */}
         <div className="lp-cta-outer">
           <div className="lp-cta-box">
             <img src={logoMark} alt="MetaGuildX" className="lp-cta-logo" />
             <h2>Ready to start earning?</h2>
             <p>Join the MetaGuildX network and build real passive income on-chain.</p>
             <div className="lp-cta-acts">
-              <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Connect Wallet → â€™</button>
+              <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Connect Wallet →</button>
               <a href="#lp-how" className="lp-btn-hero-out">Learn more</a>
             </div>
           </div>
         </div>
 
-        {/* →â‚¬→â‚¬ FOOTER →â‚¬→â‚¬ */}
+        {/* —— FOOTER —— */}
         <footer className="lp-footer">
           <div className="lp-ft-top">
             <div>
@@ -3651,7 +3651,7 @@ function App() {
           </div>
         </footer>
 
-        {/* →â‚¬→â‚¬ STAR GENERATOR SCRIPT →â‚¬→â‚¬ */}
+        {/* —— STAR GENERATOR SCRIPT —— */}
         <script dangerouslySetInnerHTML={{__html:`
           (function(){
             var c=document.getElementById("lp-stars-container");
@@ -3966,7 +3966,7 @@ function App() {
             <nav className="dashboard-sidebar-nav">
               {/* Main nav items */}
               {[
-                { key: "overview",  icon: "ðŸ ", label: "Home" },
+                { key: "overview",  icon: "🏠", label: "Home" },
                 { key: "income",    icon: "💰", label: "Earnings" },
                 { key: "network",   icon: "", label: "Network" },
                 { key: "upgrade",   icon: "", label: "Upgrade" },
@@ -4010,7 +4010,7 @@ function App() {
 
               {/* Bottom items */}
               {[
-                { key: "support",  icon: "ðŸŽ§", label: "Support" },
+                { key: "support",  icon: "🎧", label: "Support" },
                 { key: "profile",  icon: "👤", label: "My Profile" },
                 { key: "settings", icon: "", label: "Settings" },
               ].map(item => (
@@ -4032,7 +4032,7 @@ function App() {
                 onClick={handleLogout}
                 style={{ color: "#FF6B7A" }}
               >
-                <span className="nav-icon">ðŸšª</span>
+                <span className="nav-icon">🚪</span>
                 <span>Logout</span>
               </button>
             </div>
@@ -4081,7 +4081,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("overview")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">ðŸ </span> Home</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🏠</span> Home</p>
             </button>
 
             <button
@@ -4169,7 +4169,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("support")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon">ðŸŽ§</span> Support</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🎧</span> Support</p>
             </button>
 
             <button
