@@ -3835,7 +3835,7 @@ export async function loadDashboardSnapshot(
   }
 
   registeredProfile = (await contract.usersById(userId)) as MinimalRegisteredProfile;
-  const previewUserIds = Array.from({ length: Math.min(maxUserId, 10) }, (_, index) => index + 1);
+  const previewUserIds = Array.from({ length: Math.min(maxUserId, 5) }, (_, index) => index + 1);
   const featuredUserIds = [rootUserId, rootUserId + 1, rootUserId + 2].filter((value, index, array) => value > 0 && array.indexOf(value) === index);
   const previewDataByUserId = await loadPreviewUsers(contract, treeContract, [...featuredUserIds, ...previewUserIds]);
   const featuredUsers = featuredUserIds
@@ -4096,7 +4096,6 @@ export async function loadDashboardSnapshot(
         )
       ]);
       const boxEarningsByPackage: Record<number, bigint> = {};
-      });
       const currentPackageLevel = Number(profile.packageLevel);
       const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
       const currentPackageBucketEarningsRaw =
