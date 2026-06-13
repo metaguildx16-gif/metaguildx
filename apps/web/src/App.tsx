@@ -1,4 +1,4 @@
-﻿import { Contract, JsonRpcProvider, ethers, formatUnits } from "ethers";
+import { Contract, JsonRpcProvider, ethers, formatUnits } from "ethers";
 import { Suspense, lazy, startTransition, useEffect, useRef, useState } from "react";
 import logoMark from "./assets/mgx logo.png";
 import { fallbackSnapshot } from "./appFallback";
@@ -582,11 +582,17 @@ function App() {
                 incomeAddress: metaguildx.getConfiguredIncomeAddress
               }).then((boxResult) => {
                 if (isActive) {
-                  setSnapshot((prev) => prev ? {
-                    ...prev,
-                    packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
-                    currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
-                  } : prev);
+                  setSnapshot((prev) => {
+                    if (!prev) return prev;
+                    const existingBox = parseFloat(prev.currentPackageBucketEarnings ?? "0");
+                    const newBox = parseFloat(boxResult.currentPackageBucketEarnings ?? "0");
+                    if (existingBox >= newBox && existingBox > 0) return prev;
+                    return {
+                      ...prev,
+                      packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
+                      currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
+                    };
+                  });
                 }
               }).catch(() => {});
             }
@@ -613,12 +619,18 @@ function App() {
                     incomeAddress: metaguildx.getConfiguredIncomeAddress
                   }).then((boxResult) => {
                     if (isActive) {
-                      setSnapshot((prev) => prev ? {
-                        ...prev,
-                        packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
-                        currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
-                      } : prev);
-                    }
+                  setSnapshot((prev) => {
+                    if (!prev) return prev;
+                    const existingBox = parseFloat(prev.currentPackageBucketEarnings ?? "0");
+                    const newBox = parseFloat(boxResult.currentPackageBucketEarnings ?? "0");
+                    if (existingBox >= newBox && existingBox > 0) return prev;
+                    return {
+                      ...prev,
+                      packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
+                      currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
+                    };
+                  });
+                }
                   }).catch(() => {});
                 }
                 setLoadStage('complete');
@@ -657,12 +669,18 @@ function App() {
             incomeAddress: metaguildx.getConfiguredIncomeAddress
           }).then((boxResult) => {
             if (isActive) {
-              setSnapshot((prev) => prev ? {
-                ...prev,
-                packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
-                currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
-              } : prev);
-            }
+                  setSnapshot((prev) => {
+                    if (!prev) return prev;
+                    const existingBox = parseFloat(prev.currentPackageBucketEarnings ?? "0");
+                    const newBox = parseFloat(boxResult.currentPackageBucketEarnings ?? "0");
+                    if (existingBox >= newBox && existingBox > 0) return prev;
+                    return {
+                      ...prev,
+                      packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
+                      currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
+                    };
+                  });
+                }
           }).catch(() => {});
         }
         beginLoadPhase("loading tree", "Loading tree...");
