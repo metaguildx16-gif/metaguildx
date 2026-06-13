@@ -4051,7 +4051,6 @@ export async function loadDashboardSnapshot(
         provider
       });
       const currentPackageLevel = Number(profile.packageLevel);
-      console.log("[MGX Box] boxEarningsByPackage:", JSON.stringify(Object.fromEntries(Object.entries(boxEarningsByPackage).map(([k,v]) => [k, v.toString()]))));
       const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
       const currentPackageBucketEarningsRaw =
         currentPackageLevel > 0 ? (boxEarningsByPackage[currentPackageLevel] ?? 0n) : 0n;
