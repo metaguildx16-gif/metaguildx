@@ -1360,8 +1360,8 @@ async function loadBoxEarnings(input: {
   const legacyDirectTopics = legacyInterface.encodeFilterTopics("DirectIncomeRecorded", [null, BigInt(input.userId)]);
   const legacyLevelTopics = legacyInterface.encodeFilterTopics("LevelIncomeRecorded", [null, BigInt(input.userId)]);
 
-  for (let start = startBlock; start <= currentBlock; start += 200_000) {
-    const end = Math.min(start + 199_999, currentBlock);
+  for (let start = startBlock; start <= currentBlock; start += 49_000) {
+    const end = Math.min(start + 48_999, currentBlock);
     const isLastChunk = end >= currentBlock;
 
     try {
