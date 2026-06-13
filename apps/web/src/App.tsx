@@ -3517,14 +3517,14 @@ function App() {
               <div className="lp-rm-line"></div>
               <div className="lp-rm-items">
                 {[
-                  {icon:"",title:"C&B Platform",sub:"Community Building",tag:"done",label:"Live "},
-                  {icon:"",title:"MGX Token",sub:"Token Launch",tag:"done",label:"Live "},
-                  {icon:"🏦",title:"MGX Staking",sub:"Stake & Earn Rewards",tag:"done",label:"Live "},
-                  {icon:"",title:"NFT Creation",sub:"NFT Minting Platform",tag:"active",label:"In Progress"},
+                  {icon:"🏛️",title:"C&B Platform",sub:"Community Building",tag:"done",label:"Live"},
+                  {icon:"🪙",title:"MGX Token",sub:"Token Launch",tag:"done",label:"Live"},
+                  {icon:"🏦",title:"MGX Staking",sub:"Stake & Earn Rewards",tag:"active",label:"In Progress"},
+                  {icon:"🎨",title:"NFT Creation",sub:"NFT Minting Platform",tag:"soon",label:"Coming Soon"},
                   {icon:"🏪",title:"NFT Marketplace",sub:"Buy, Sell & Trade",tag:"soon",label:"Coming Soon"},
                   {icon:"⚡",title:"MGX DEX",sub:"Decentralized Exchange",tag:"soon",label:"Coming Soon"},
                   {icon:"🎮",title:"Gaming Platform",sub:"Play-to-Earn Games",tag:"soon",label:"Coming Soon"},
-                  {icon:"",title:"Metaverse",sub:"Virtual World & Helping",tag:"soon",label:"Future"},
+                  {icon:"🌐",title:"Metaverse",sub:"Virtual World & Helping",tag:"soon",label:"Future"},
                 ].map(({icon,title,sub,tag,label}) => (
                   <div key={title} className={`lp-rm-item ${tag==="done"?"done":tag==="active"?"active":""}`}>
                     <div className="lp-rm-dot">{icon}</div>
@@ -3548,7 +3548,7 @@ function App() {
               ["🔐","UUPS Upgradeable Proxy","OpenZeppelin v5 with ERC-7201 namespaced storage. Contracts upgrade safely without disrupting user funds."],
               ["⬡","Binary placement tree","Smart queue of 1000 positions. Overflow users auto-place on the opposite side for balanced network growth."],
               ["⟳","Auto-upgrade engine","Escrow accumulates toward your next package. When threshold is hit, the contract upgrades automatically."],
-              ["","Rebirth mechanism","Complete Package 1 cycle and re-enter the network on the opposite side — unlocking a fresh income cycle."],
+              ["♻️","Rebirth mechanism","Complete Package 1 cycle and re-enter the network on the opposite side — unlocking a fresh income cycle."],
               ["💎","MGX staking rewards","Stake MGX tokens and earn 10.95% APY. Rewards distribute every 24 hours from the 10.23M MGX reward pool."],
               ["⊞","Cashback pool","4% of every registration flows to the cashback pool, distributed proportionally to qualifying members."],
             ].map(([icon,name,desc]) => (

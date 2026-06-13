@@ -306,61 +306,7 @@ export function WalletPage(props: DashboardPageProps) {
         </div>
 
         <div className="wallet-staking-cards">
-          <article className="dashboard-card action-card wallet-staking-card wallet-staking-premium-card">
-            <div className="wallet-staking-action-grid">
-              <button
-                type="button"
-                className="btn-stake-action wallet-staking-action-btn"
-                onClick={() => setWalletSubView("stake")}
-              >
-                Add More Stake
-              </button>
-              <button
-                type="button"
-                className="btn-stake-action wallet-staking-action-btn is-claim"
-                disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
-                onClick={() =>
-                  runWalletAction(
-                    () => metaguildx.claimReward(displayedPendingStakingReward, rewardWindowReady),
-                    "Claiming staking reward...",
-                    "Reward claimed",
-                    (_nextSnapshot: any, result: any) => ({
-                      title: "Reward claimed successfully",
-                      detail: `Successfully claimed ${result.claimedReward} MGX.`
-                    })
-                  )
-                }
-              >
-                Claim Reward
-              </button>
-              <button
-                type="button"
-                className="btn-stake-action wallet-staking-action-btn is-compound"
-                disabled={isLoading || !snapshot.walletAddress || !hasClaimableReward}
-                onClick={() =>
-                  runWalletAction(
-                    () => metaguildx.compoundReward(),
-                    "Compounding reward...",
-                    "Reward compounded",
-                    () => ({
-                      title: "Reward compounded",
-                      detail: "The available staking reward has been added back into your position."
-                    })
-                  )
-                }
-              >
-                Compound Reward
-              </button>
-              <button
-                type="button"
-                className="btn-stake-action danger wallet-staking-action-btn"
-                disabled={isLoading || !snapshot.walletAddress || !hasWithdrawableStake}
-                onClick={() => setWalletSubView("myStake")}
-              >
-                Withdraw
-              </button>
-            </div>
-          </article>
+
 
           <article className="dashboard-card action-card wallet-staking-card wallet-staking-premium-card">
             <div className="section-header">
