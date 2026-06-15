@@ -200,7 +200,6 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         bool placedLeft
     );
     event PackageUpgraded(uint256 indexed userId, uint8 fromLevel, uint8 toLevel, uint256 amount);
-    event PackagePricesUpdated(uint256[] prices);
     event PackageLevelUpdated(uint256 indexed userId, uint256 newLevel);
     event RebirthUserCreated(uint256 indexed originalUserId, uint256 indexed newUserId, address wallet);
     event PaymentCollected(address indexed payer, address indexed asset, uint256 platformAmount, uint256 settlementAmount);
@@ -872,13 +871,6 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         paymentAssetUnitPrice[asset] = unitPrice;
     }
 
-    function setPackagePrices(uint256[] calldata prices) external onlyOwner {
-        require(prices.length == packagePricesArray.length, "Length mismatch");
-        for (uint256 i = 0; i < prices.length; i++) {
-            packagePricesArray[i] = prices[i];
-        }
-        emit PackagePricesUpdated(prices);
-    }
     function _applyPackageUpgrade(uint256 userId, uint8 newPackageLevel, address paymentAsset, uint256 upgradeAmount) internal {
         MGXTypes.UserProfile storage profile = usersById[userId];
         if (profile.id == 0) revert UserNotFound(userId);

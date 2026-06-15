@@ -1,8 +1,18 @@
-﻿import { Contract, JsonRpcProvider, type EventLog } from "ethers";
+import { Contract, JsonRpcProvider, type EventLog } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { getPackagePrice } from "../utils/packageUtils";
 
+
+const blockTimestampCache = new Map<number, number>();
+
+async function getCachedBlockTimestamp(provider: JsonRpcProvider, blockNumber: number): Promise<number> {
+  if (blockTimestampCache.has(blockNumber)) return blockTimestampCache.get(blockNumber)!;
+  const block = await provider.getBlock(blockNumber);
+  const ts = block?.timestamp ?? 0;
+  blockTimestampCache.set(blockNumber, ts);
+  return ts;
+}
 
 async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 49000): Promise<EventLog[]> {
   const results: EventLog[] = [];
@@ -10,7 +20,7 @@ async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract[
     const end = Math.min(start + batchSize - 1, toBlock);
     const logs = await contract.queryFilter(filter, start, end);
     results.push(...(logs as EventLog[]));
-    if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 300));
+    if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 100));
   }
   return results;
 }
