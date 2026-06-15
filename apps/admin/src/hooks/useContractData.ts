@@ -690,8 +690,11 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
   const fromBlock = NETWORK.startBlock;
 
   const directLogs = await batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock);
+  await new Promise((r) => setTimeout(r, 2000));
   const levelLogs = await batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock);
+  await new Promise((r) => setTimeout(r, 2000));
   const spilloverLogs = await batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock);
+  await new Promise((r) => setTimeout(r, 2000));
   const crosslineLogs = await batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock);
   const registrationEvents = await getRegistrationEvents(provider);
   const platformReserveRaw = await router.platformReserve();
