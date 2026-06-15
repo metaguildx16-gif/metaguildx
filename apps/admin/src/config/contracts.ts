@@ -2,7 +2,7 @@ const ENV_CORE_ADDRESS = import.meta.env.VITE_CORE_ADDRESS || import.meta.env.VI
 const ENV_INCOME_ADDRESS = import.meta.env.VITE_INCOME_ADDRESS;
 const ENV_USDT_ADDRESS = import.meta.env.VITE_USDT_ADDRESS;
 const ENV_CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID) || 5611;
-const ENV_RPC = import.meta.env.VITE_TESTNET_RPC || "https://opbnb-testnet-rpc.bnbchain.org";
+const ENV_RPC = import.meta.env.VITE_RPC_URL || import.meta.env.VITE_TESTNET_RPC || "https://opbnb-rpc.publicnode.com";
 const ENV_DEPLOY_BLOCK = Number(import.meta.env.VITE_DEPLOY_BLOCK) || 168685464;
 const IS_MAINNET = ENV_CHAIN_ID === 204;
 
