@@ -3298,7 +3298,7 @@ export async function upgradeUserPackage(input: { userId: number; newPackageLeve
   let mined = false;
   try {
       const tx = await core.upgradePackage(input.userId, input.newPackageLevel, {
-        gasLimit: 1_500_000n
+        gasLimit: 3_000_000n
       });
       const receipt = await tx.wait();
       mined = receipt?.status === 1;
