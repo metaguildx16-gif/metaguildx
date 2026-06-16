@@ -2429,20 +2429,20 @@ export async function connectWalletSilently(expectedWallet?: string | null) {
 
     await withTimeout(ensureConfiguredChain(), 15000);
 
-    const accounts = await withTimeout(
+    const currentAccounts = await withTimeout(
       window.ethereum.request({ method: "eth_accounts" }) as Promise<unknown>,
       15000
     );
-    if (!Array.isArray(accounts) || accounts.length === 0 || typeof accounts[0] !== "string") {
+    if (!Array.isArray(currentAccounts) || currentAccounts.length === 0 || typeof currentAccounts[0] !== "string") {
       throw new Error("Wallet session not found");
     }
 
-    const address = accounts[0];
-    if (expectedWallet && address.toLowerCase() !== expectedWallet.toLowerCase()) {
-      throw new Error("Saved wallet does not match the active MetaMask account");
+    const currentWallet = currentAccounts[0].toLowerCase();
+    if (expectedWallet && (!currentWallet || currentWallet !== expectedWallet.toLowerCase())) {
+      throw new Error("Wallet mismatch - require fresh connect");
     }
 
-    return address;
+    return currentAccounts[0];
   });
 }
 
@@ -4246,5 +4246,4 @@ export async function loadDashboardSnapshot(
   }
   });
 }
-
 
