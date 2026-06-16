@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IMetaGuildXTokenEngine.sol";
+import {MetaGuildXRebirthLib} from "./MetaGuildXRebirthLib.sol";
 import "./libs/MetaGuildXPaymentLib.sol";
 import "./libs/MetaGuildXPlacementLib.sol";
 import "./libraries/MGXTypes.sol";
@@ -489,141 +490,25 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function createRebirthUser(uint256 originalUserId) external onlyUpgradeEngine returns (uint256) {
-        MGXTypes.UserProfile storage original = usersById[originalUserId];
-        if (original.id == 0) revert UserNotFound(originalUserId);
-
-        address wallet = original.account;
-        uint256 baseSponsorId = original.sponsorId;
-
-        uint256 placementSponsorId;
-        if (baseSponsorId == 0) {
-            // Root user rebirths place within the user's own weakest leg.
-            placementSponsorId = originalUserId;
-        } else {
-            uint256[] memory sponsorRebirths =
-                IMetaGuildXUpgradeEngine(upgradeEngineContract).getRebirthIds(baseSponsorId);
-
-            if (sponsorRebirths.length > 0) {
-                // Case 2: Sponsor has rebirth -> place under latest rebirth (unchanged)
-                placementSponsorId = sponsorRebirths[sponsorRebirths.length - 1];
-            } else {
-                // Case 3: No rebirth -> place under sponsor on OPPOSITE side
-                placementSponsorId = baseSponsorId;
-            }
-        }
-
-        bool weakLeft;
-        if (baseSponsorId == 0) {
-            // Root user: use weakest leg (unchanged)
-            weakLeft = _findWeakLeg(placementSponsorId);
-        } else {
-            uint256[] memory sponsorRebirthsCheck =
-                IMetaGuildXUpgradeEngine(upgradeEngineContract).getRebirthIds(baseSponsorId);
-
-            if (sponsorRebirthsCheck.length > 0) {
-                // Case 2: sponsor has rebirth -> use weakest leg under that rebirth
-                weakLeft = _findWeakLeg(placementSponsorId);
-            } else {
-                // Case 3: no rebirth -> find which side originalUser is on,
-                // place rebirth on OPPOSITE side
-                (uint256 leftChildId, uint256 rightChildId) =
-                    IMetaGuildXBinaryTree(binaryTreeContract).getChildren(baseSponsorId);
-
-                bool originalIsOnLeft = (leftChildId == originalUserId);
-                bool originalIsOnRight = (rightChildId == originalUserId);
-
-                if (originalIsOnLeft) {
-                    // Original is Left -> place rebirth on Right
-                    weakLeft = false;
-                } else if (originalIsOnRight) {
-                    // Original is Right -> place rebirth on Left
-                    weakLeft = true;
-                } else {
-                    // Original not direct child of sponsor -> fallback weakest leg
-                    weakLeft = _findWeakLeg(placementSponsorId);
-                }
-            }
-        }
-        address paymentAsset = userPrimaryAsset[originalUserId];
-        if (paymentAsset == address(0)) {
-            paymentAsset = defaultPaymentAsset;
-        }
-
-        uint256 weakChild;
-        if (binaryTreeContract != address(0)) {
-            (uint256 leftChildId, uint256 rightChildId) = IMetaGuildXBinaryTree(binaryTreeContract).getChildren(placementSponsorId);
-            weakChild = weakLeft ? leftChildId : rightChildId;
-        }
-
-        uint256 newId = nextUserId++;
-        uint256 packageAmount = packagePricesArray[0];
-        uint256 placedUnderId;
-        bool actualPlacedLeft;
-
-        if (weakChild == 0) {
-            // Weak-leg direct slot is free, so place directly under the sponsor on that side.
-            (placedUnderId, actualPlacedLeft) = _placeInForcedSlot(newId, placementSponsorId, weakLeft);
-        } else {
-            // Weak-leg direct slot is occupied, so continue placement with normal BFS under that subtree.
-            (placedUnderId, actualPlacedLeft) = _placeInSpecifiedSlot(newId, weakChild);
-        }
-
-        usersById[newId] = MGXTypes.UserProfile({
-            id: newId,
-            account: wallet,
-            sponsorId: placementSponsorId,
-            packageLevel: 1,
-            originalPackageLevel: 1,
-            totalContribution: packageAmount,
-            totalEarnings: 0,
-            directReferrals: 0,
-            totalTeamBusiness: 0,
-            rebirthCount: 1,
-            xCount: 0,
-            joinedAt: block.timestamp,
-            surrendered: false
-        });
-        activeUsers[newId] = true;
-        userPrimaryAsset[newId] = paymentAsset;
-        rebirthOriginalUserId[newId] = originalUserId;
-
-        (uint256 tokenAmount, uint8 appliedBoxId) = _allocateTokensForCurrentBox(newId, packageAmount);
-        activeBoxByUser[newId] = appliedBoxId;
-        tokenAllocationsByUser[newId] += tokenAmount;
-        totalTokenDistributed += tokenAmount;
-        _transferAllocatedMgx(wallet, tokenAmount);
-
-        usersById[placementSponsorId].directReferrals += 1;
-        usersById[placementSponsorId].totalTeamBusiness += packageAmount;
-        directReferralsByUser[placementSponsorId].push(newId);
-        referralCountByPkg[placementSponsorId][1] += 1;
-
-        if (binaryTreeContract != address(0)) {
-            IMetaGuildXBinaryTree(binaryTreeContract).refreshLevelEligibility(
-                placementSponsorId,
-                usersById[placementSponsorId].directReferrals,
-                usersById[placementSponsorId].sponsorId
+        (uint256 newId, uint256 nextUserIdValue, uint256 tokenAmount) =
+            MetaGuildXRebirthLib.createRebirthUser(
+                usersById,
+                directReferralsByUser,
+                referralCountByPkg,
+                userPrimaryAsset,
+                tokenAllocationsByUser,
+                activeBoxByUser,
+                activeUsers,
+                rebirthOriginalUserId,
+                failedDistribution,
+                failedUserIds,
+                nativePaymentAssets,
+                paymentAssetUnitPrice,
+                _rebirthConfig(),
+                originalUserId
             );
-        }
-
-        try IMetaGuildXRouter(incomeRouterContract).distributeJoinIncome(
-            newId,
-            placementSponsorId,
-            placedUnderId,
-            packageAmount,
-            paymentAsset,
-            originalUserId
-        ) {
-            _distributeCashbackAndCreator(packageAmount, paymentAsset);
-        } catch (bytes memory reason) {
-            failedDistribution[newId] = true;
-            failedUserIds.push(newId);
-            emit DistributionFailed(newId, block.timestamp);
-            emit DistributionFailedReason(newId, reason);
-        }
-
-        emit UserRegistered(newId, placementSponsorId, wallet, 1, packageAmount, placedUnderId, actualPlacedLeft);
-        emit RebirthUserCreated(originalUserId, newId, wallet);
+        nextUserId = nextUserIdValue;
+        totalTokenDistributed += tokenAmount;
         return newId;
     }
 
@@ -843,20 +728,30 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function adminRetryDistribution(uint256 userId) external onlyOwnerOrAdmin {
-        if (!failedDistribution[userId]) revert NotFailedDistribution(userId);
-
-        address paymentAsset = _resolveRetryPaymentAsset(userId);
-        _retryDistributionForUser(userId, paymentAsset);
+        MetaGuildXRebirthLib.adminRetryDistribution(
+            usersById,
+            userPrimaryAsset,
+            rebirthOriginalUserId,
+            failedDistribution,
+            nativePaymentAssets,
+            paymentAssetUnitPrice,
+            _rebirthConfig(),
+            userId
+        );
     }
 
     function adminRetryRebirthDistribution(uint256 rebirthUserId, uint256 originalUserId) external onlyOwnerOrAdmin {
-        if (!failedDistribution[rebirthUserId]) revert NotFailedDistribution(rebirthUserId);
-        if (!isRebirthUser(rebirthUserId)) revert UserNotFound(rebirthUserId);
-        if (usersById[originalUserId].id == 0) revert UserNotFound(originalUserId);
-
-        rebirthOriginalUserId[rebirthUserId] = originalUserId;
-        address paymentAsset = _resolveRetryPaymentAsset(rebirthUserId);
-        _retryDistributionForUser(rebirthUserId, paymentAsset);
+        MetaGuildXRebirthLib.adminRetryRebirthDistribution(
+            usersById,
+            userPrimaryAsset,
+            rebirthOriginalUserId,
+            failedDistribution,
+            nativePaymentAssets,
+            paymentAssetUnitPrice,
+            _rebirthConfig(),
+            rebirthUserId,
+            originalUserId
+        );
     }
 
     function getFailedUserIds() external view returns (uint256[] memory) {
@@ -914,49 +809,22 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         emit PackageUpgraded(userId, previousLevel, newPackageLevel, upgradeAmount);
     }
 
-    function _retryDistributionForUser(uint256 userId, address paymentAsset) internal {
-        MGXTypes.UserProfile storage profile = usersById[userId];
-        if (profile.id == 0) revert UserNotFound(userId);
-
-        uint256 packageAmount = packagePricesArray[profile.packageLevel - 1];
-        uint256 placedUnderId = IMetaGuildXBinaryTree(binaryTreeContract).getParent(userId);
-        uint256 originalUserId = isRebirthUser(userId) ? rebirthOriginalUserId[userId] : 0;
-        uint256 settlementAmt = _platformToSettlement(paymentAsset, packageAmount);
-        if (paymentAsset != address(0)) {
-            uint256 coreBal = IERC20(paymentAsset).balanceOf(address(this));
-            if (coreBal < settlementAmt) revert InsufficientCoreBalance();
-        }
-
-        try IMetaGuildXRouter(incomeRouterContract).distributeJoinIncome(
-            userId,
-            profile.sponsorId,
-            placedUnderId,
-            packageAmount,
-            paymentAsset,
-            originalUserId
-        ) {
-            failedDistribution[userId] = false;
-            _distributeCashbackAndCreator(packageAmount, paymentAsset);
-            emit DistributionRetried(userId, true);
-        } catch (bytes memory reason) {
-            emit DistributionRetried(userId, false);
-            emit DistributionFailedReason(userId, reason);
-        }
-    }
-
-    function _resolveRetryPaymentAsset(uint256 userId) internal view returns (address paymentAsset) {
-        if (!productionMode) {
-            return address(0);
-        }
-
-        paymentAsset = userPrimaryAsset[userId];
-        uint256 originalUserId = rebirthOriginalUserId[userId];
-        if (paymentAsset == address(0) && originalUserId != 0) {
-            paymentAsset = userPrimaryAsset[originalUserId];
-        }
-        if (paymentAsset == address(0)) {
-            paymentAsset = defaultPaymentAsset;
-        }
+    function _rebirthConfig() internal view returns (MetaGuildXRebirthLib.RebirthConfig memory) {
+        return MetaGuildXRebirthLib.RebirthConfig({
+            nextUserId: nextUserId,
+            binaryTreeContract: binaryTreeContract,
+            upgradeEngineContract: upgradeEngineContract,
+            incomeRouterContract: incomeRouterContract,
+            cashbackPoolContract: cashbackPoolContract,
+            creatorFeeWallet: creatorFeeWallet,
+            defaultPaymentAsset: defaultPaymentAsset,
+            mgxTokenAddress: mgxTokenAddress,
+            tokenEngineContract: tokenEngineContract,
+            productionMode: productionMode,
+            cashbackJoinShareBps: CASHBACK_JOIN_SHARE_BPS,
+            creatorShareBps: CREATOR_SHARE_BPS,
+            maxSubtreeDepth: MAX_SUBTREE_DEPTH
+        });
     }
 
     function _createUserWithPlacement(
