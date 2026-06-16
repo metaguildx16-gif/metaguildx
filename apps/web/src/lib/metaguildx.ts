@@ -2568,7 +2568,7 @@ export async function registerUser(
       signature,
       BigInt(nonce),
       deadline,
-      { gasLimit: 5_000_000n }
+      { gasLimit: 8_000_000n }
     );    await tx.wait();    onProgress?.("success");
 
     return {
