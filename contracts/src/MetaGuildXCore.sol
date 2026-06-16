@@ -727,6 +727,30 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         revert("Removed: migration only");
     }
 
+
+    function adminForceDistributeJoinIncome(uint256 userId) external onlyOwnerOrAdmin {
+        MGXTypes.UserProfile storage profile = usersById[userId];
+        if (profile.id == 0) revert UserNotFound(userId);
+        uint256 packageAmount = this.getPackagePriceByLevel(profile.packageLevel);
+        uint256 placedUnderId = binaryTreeContract != address(0)
+            ? IMetaGuildXBinaryTree(binaryTreeContract).getParent(userId) : 0;
+        uint256 originalUserId = profile.rebirthCount > 0 ? rebirthOriginalUserId[userId] : 0;
+        try IMetaGuildXRouter(incomeRouterContract).distributeJoinIncome(
+            userId,
+            profile.sponsorId,
+            placedUnderId,
+            packageAmount,
+            defaultPaymentAsset,
+            originalUserId
+        ) {
+            failedDistribution[userId] = false;
+            _distributeCashbackAndCreator(packageAmount, defaultPaymentAsset);
+            emit DistributionRetried(userId, true);
+        } catch (bytes memory reason) {
+            emit DistributionRetried(userId, false);
+            emit DistributionFailedReason(userId, reason);
+        }
+    }
     function adminRetryDistribution(uint256 userId) external onlyOwnerOrAdmin {
         MetaGuildXRebirthLib.adminRetryDistribution(
             usersById,

@@ -6,7 +6,7 @@ dotenv.config();
 async function main() {
   const CORE_PROXY = process.env.CORE_PROXY_ADDRESS ?? "0xE3cD200609E223c96987c9FEa41C6014e8625c2F";
   const EXPECTED_CURRENT_IMPL =
-    process.env.EXPECTED_CORE_IMPL ?? "0x064c4ebe7cb88cad6b6e2da1d7eb6d95f68d976c";
+    process.env.EXPECTED_CORE_IMPL ?? "0xb4f2735cd0e0aa4ff631aff55066aa4a093c425c";
   const EXPECTED_OWNER =
     process.env.EXPECTED_CORE_OWNER ?? "0x6D01d1E9771193467B5fae47Ce8463d7060098eA";
 
