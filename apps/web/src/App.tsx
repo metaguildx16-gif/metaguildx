@@ -241,6 +241,9 @@ function App() {
   const [userDisplayNames, setUserDisplayNames] = useState<Record<string, string>>({});
   const getDisplayName = (wallet: string | undefined, userId: number): string => {
     if (!wallet) return `User #${encodeUserId(userId)}`;
+    if (snapshot?.walletAddress && wallet.toLowerCase() === snapshot.walletAddress.toLowerCase()) {
+      return profileMeta.displayName || profileMeta.nickname || `User #${encodeUserId(userId)}`;
+    }
     const name = userDisplayNames[wallet.toLowerCase()];
     return name || `User #${encodeUserId(userId)}`;
   };
