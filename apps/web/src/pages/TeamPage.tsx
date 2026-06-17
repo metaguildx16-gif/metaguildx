@@ -195,7 +195,7 @@ export function TeamPage(props: DashboardPageProps) {
               ?? snapshot.featuredUsers.find((n: any) => n.userId === uid) as any;
             const wallet = node?.account;
             const name = wallet
-              ? (userDisplayNames[wallet.toLowerCase()] || `User #${uid}`)
+              ? (userDisplayNames[wallet.toLowerCase()] || `User #${(()=>{const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";let n=uid+100000,e="";while(n>0){e=c[n%62]+e;n=Math.floor(n/62);}return e;})()}`)
               : `User #${(()=>{const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";let n=uid+100000,e="";while(n>0){e=c[n%62]+e;n=Math.floor(n/62);}return e;})()}`;
             const income = snapshot.directReferralIncomeByUserId?.[uid] ?? "0";
             return (
