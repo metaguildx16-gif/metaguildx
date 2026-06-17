@@ -240,9 +240,9 @@ function App() {
   const [profileMeta, setProfileMeta] = useState(defaultProfile);
   const [userDisplayNames, setUserDisplayNames] = useState<Record<string, string>>({});
   const getDisplayName = (wallet: string | undefined, userId: number): string => {
-    if (!wallet) return `User #${userId}`;
+    if (!wallet) return `User #${encodeUserId(userId)}`;
     const name = userDisplayNames[wallet.toLowerCase()];
-    return name || `User #${userId}`;
+    return name || `User #${encodeUserId(userId)}`;
   };
   const saveProfileMeta = (updated: typeof defaultProfile) => {
     setProfileMeta(updated);
@@ -1656,6 +1656,7 @@ function App() {
   }
   const referralLink =
     snapshot.userId && typeof window !== "undefined" ? `${window.location.origin}/?ref=${encodeUserId(snapshot.userId)}` : null;
+  const userDisplayCode = snapshot.userId ? encodeUserId(snapshot.userId) : null;
   const compactDisplayAddress = (value?: string | null) => {
     if (!value || value.length < 10) {
       return value ?? "Not configured";
@@ -1973,7 +1974,7 @@ function App() {
     return result;
   })();
   const memberSinceLabel = formatDashboardDate(snapshot.joinedAt);
-  const sponsorLabel = snapshot.sponsorId ? `User #${snapshot.sponsorId}` : "Root";
+  const sponsorLabel = snapshot.sponsorId ? `User #${encodeUserId(snapshot.sponsorId)}` : "Root";
   const currentUserTreeNode = snapshot.userId ? snapshot.treePreview.find((node) => node.userId === snapshot.userId) ?? null : null;
   const directLeftNode =
     currentUserTreeNode && currentUserTreeNode.leftChildId
@@ -3976,7 +3977,7 @@ function App() {
             <div style={{display:"flex",flexDirection:"column",gap:2}}>
               <span style={{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:".9rem"}}>MetaGuildX</span>
               {snapshot.userId ? (
-                <span style={{fontSize:".7rem",color:"#C9A84C",fontWeight:600}}>{profileMeta.displayName || `User #${snapshot.userId}`}</span>
+                <span style={{fontSize:".7rem",color:"#C9A84C",fontWeight:600}}>{profileMeta.displayName || `User #${userDisplayCode}`}</span>
               ) : null}
             </div>
           </div>
@@ -4019,7 +4020,7 @@ function App() {
               <div className="dashboard-sidebar-logo-text">
                 <span>MetaGuildX</span>
                 {snapshot?.userId ? (
-                  <span>{profileMeta.displayName || `User #${snapshot.userId}`}</span>
+                  <span>{profileMeta.displayName || `User #${userDisplayCode}`}</span>
                 ) : null}
                 <span>
                   {snapshot?.walletAddress
@@ -4119,7 +4120,7 @@ function App() {
             <div className="brand-copy">
               <strong>MetaGuildX Dashboard</strong>
               <span className="brand-wallet-text" title={snapshot.walletAddress ?? "Wallet pending"}>
-                {snapshot.userId ? profileMeta.displayName || `User #${snapshot.userId}` : snapshot.walletAddress ? `${snapshot.walletAddress.slice(0, 6)}...${snapshot.walletAddress.slice(-4)}` : "Wallet pending"}
+                {snapshot.userId ? profileMeta.displayName || `User #${userDisplayCode}` : snapshot.walletAddress ? `${snapshot.walletAddress.slice(0, 6)}...${snapshot.walletAddress.slice(-4)}` : "Wallet pending"}
               </span>
             </div>
           </div>
@@ -4296,7 +4297,7 @@ function App() {
             <p className="section-label">Home</p>
             <div className="dashboard-hero-row">
               <div>
-                <h2>{snapshot.userId ? <>Welcome back, {profileMeta.displayName || `User #${snapshot.userId}`}</> : "Welcome back"}</h2>
+                <h2>{snapshot.userId ? <>Welcome back, {profileMeta.displayName || `User #${userDisplayCode}`}</> : "Welcome back"}</h2>
                 <p>
                   {snapshot.packageLevel ? `Package ${snapshot.packageLevel}` : "Package pending"}{" · "}
                   {snapshot.isRegistered ? "Active member" : "Activation pending"}{" · Since "}{memberSinceLabel}
