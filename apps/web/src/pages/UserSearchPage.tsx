@@ -193,6 +193,28 @@ export function UserSearchPage(props: DashboardPageProps) {
         <div style={{ fontSize: "11px", color: "#3D5580", marginBottom: "12px" }}>
           Showing results from visible network ({snapshot.treePreview.length} nodes)
         </div>
+        {(props as any).onChainSearchLoading && (
+          <div style={{ textAlign: "center", color: "#8899BB", padding: "20px" }}>Searching on-chain...</div>
+        )}
+        {(props as any).onChainSearchResult?.notFound && (
+          <div style={{ textAlign: "center", color: "#8899BB", padding: "20px" }}>No user found for this wallet address.</div>
+        )}
+        {(props as any).onChainSearchResult && !(props as any).onChainSearchResult.notFound && (() => {
+          const r = (props as any).onChainSearchResult;
+          const encodeId = (id: number) => { const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; let n=id+100000, e=""; while(n>0){e=c[n%62]+e;n=Math.floor(n/62);} return e; };
+          return (
+            <div style={{ padding: "12px 0", borderBottom: "1px solid rgba(46,111,216,0.1)", display: "flex", alignItems: "center", gap: "14px" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "linear-gradient(135deg,rgba(46,111,216,.2),rgba(201,168,76,.1))", display: "flex", alignItems: "center", justifyContent: "center", color: "#C9A84C", fontWeight: 700 }}>
+                {encodeId(r.userId)[0]}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, color: "#EEF4FF" }}>User #{encodeId(r.userId)}</div>
+                <div style={{ fontSize: "11px", color: "#3D5580" }}>{r.account?.slice(0,6)}...{r.account?.slice(-4)} · Pkg {r.packageLevel}</div>
+              </div>
+              <div style={{ fontSize: "12px", color: "#8899BB" }}>{r.directReferrals} referrals</div>
+            </div>
+          );
+        })()}
         {(() => {
           const q = userSearchQuery.trim().toLowerCase();
           const encodeId = (id: number) => { const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; let n=id+100000, e=""; while(n>0){e=c[n%62]+e;n=Math.floor(n/62);} return e; };
