@@ -2069,13 +2069,14 @@ function App() {
   const memberSinceLabel = formatDashboardDate(snapshot.joinedAt);
   const sponsorLabel = snapshot.sponsorId ? `User #${encodeUserId(snapshot.sponsorId)}` : "Root";
   const currentUserTreeNode = snapshot.userId ? snapshot.treePreview.find((node) => node.userId === snapshot.userId) ?? null : null;
+  const allNodes = [...snapshot.treePreview, ...snapshot.featuredUsers];
   const directLeftNode =
     currentUserTreeNode && currentUserTreeNode.leftChildId
-      ? snapshot.treePreview.find((node) => node.userId === currentUserTreeNode.leftChildId) ?? null
+      ? allNodes.find((node) => node.userId === currentUserTreeNode.leftChildId) ?? null
       : null;
   const directRightNode =
     currentUserTreeNode && currentUserTreeNode.rightChildId
-      ? snapshot.treePreview.find((node) => node.userId === currentUserTreeNode.rightChildId) ?? null
+      ? allNodes.find((node) => node.userId === currentUserTreeNode.rightChildId) ?? null
       : null;
   const totalReceivedValue =
     parseDisplayNumber(snapshot.directIncome) +
