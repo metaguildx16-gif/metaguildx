@@ -92,7 +92,7 @@ function TreeVisualNode(props: {
           <>
             <strong>
               {(branch.node.account && userDisplayNames?.[branch.node.account.toLowerCase()])
-                || `User ${branch.node.userId}`}
+                || `User #${getDisplayName(userDisplayNames, branch.node).replace("User #", "")}`}
             </strong>
             <span className="tree-node-wallet" title={branch.node.account}>
               {compactWallet(branch.node.account)}
