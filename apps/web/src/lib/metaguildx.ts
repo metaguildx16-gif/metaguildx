@@ -294,6 +294,7 @@ export type StakePositionView = {
 
 export type DashboardSnapshot = {
   walletAddress: string | null;
+  isPartialLoad?: boolean;
   userId: number | null;
   sponsorId: number | null;
   joinedAt: number | null;
@@ -3724,6 +3725,86 @@ export async function loadLiveWalletStakeState(walletAddress?: string | null): P
   };
 }
 
+async function loadQuickSnapshot(input: {
+  walletAddress: string;
+  contract: Contract;
+  incomeModule: Contract | null;
+  stakingModule: Contract | null;
+  tokenEngineModule: Contract | null;
+}): Promise<DashboardSnapshot> {
+  const userId = Number(await input.contract.userIdByAddress(input.walletAddress));
+  if (userId <= 0) {
+    return {
+      ...fallbackSnapshot,
+      walletAddress: input.walletAddress,
+      isConnected: true,
+      hasContractConfig: true,
+      contractReady: true,
+      isRegistered: false,
+      isPartialLoad: true
+    };
+  }
+
+  const [
+    profile,
+    totalIncomeRaw,
+    totalEscrowRaw,
+    packageLevelRaw,
+    pendingRewardRaw,
+    stakePositionsRaw,
+    userTokenAllocationRaw,
+    userActiveBoxIdRaw
+  ] = await Promise.all([
+    input.contract.usersById(userId),
+    input.incomeModule ? safeBigIntRead(() => input.incomeModule!.getTotalAllIncome(userId)) : Promise.resolve(0n),
+    input.incomeModule ? safeBigIntRead(() => input.incomeModule!.getTotalEscrow(userId)) : Promise.resolve(0n),
+    safeBigIntRead(() => input.contract.getUserPackageLevel(userId)),
+    input.stakingModule ? safeBigIntRead(() => input.stakingModule!.pendingStakingReward(input.walletAddress)) : Promise.resolve(0n),
+    input.stakingModule
+      ? input.stakingModule.getStakePositions(input.walletAddress).catch(() => [] as RawStakePosition[])
+      : Promise.resolve([] as RawStakePosition[]),
+    input.tokenEngineModule ? safeBigIntRead(() => input.tokenEngineModule!.getTokenAllocation(userId)) : Promise.resolve(0n),
+    safeBigIntRead(() => input.contract.activeBoxByUser(userId))
+  ]);
+
+  const stakePositions = mapStakePositions(stakePositionsRaw);
+  const totalPersonalStaked = sumStakePositionAmounts(stakePositionsRaw);
+  const availableMgx =
+    BigInt(userTokenAllocationRaw) > totalPersonalStaked ? BigInt(userTokenAllocationRaw) - totalPersonalStaked : 0n;
+  const packageLevel = Number(packageLevelRaw || profile.packageLevel || 0n);
+  const totalIncome = formatPlatformUsdValue(totalIncomeRaw);
+
+  return {
+    ...fallbackSnapshot,
+    walletAddress: input.walletAddress,
+    userId,
+    sponsorId: Number(profile.sponsorId ?? 0n),
+    joinedAt: Number(profile.joinedAt ?? 0n),
+    packageLevel,
+    isRebirthUser: Number(profile.rebirthCount ?? 0n) > 0,
+    totalContribution: formatPlatformUsdValue(BigInt(profile.totalContribution ?? 0n)),
+    totalEarnings: totalIncome,
+    directIncome: totalIncome,
+    directReferrals: Number(profile.directReferrals ?? 0n),
+    xCount: Number(profile.xCount ?? 0n),
+    internalWalletBalance: formatTokenAmount(totalEscrowRaw),
+    currentPackageEscrow: formatTokenAmount(totalEscrowRaw),
+    pendingStakingReward: formatTokenAmount(pendingRewardRaw, 18),
+    personalStaked: formatTokenAmount(totalPersonalStaked, 18),
+    stakeLockDurationLabel: stakePositions[0]?.lockDurationLabel ?? "No active stake",
+    stakeAutoCompound: stakePositions.some((position) => position.autoCompound),
+    stakePositions,
+    mgxAllocated: formatTokenAmount(availableMgx, 18),
+    userActiveBoxId: Number(userActiveBoxIdRaw),
+    isConnected: true,
+    hasContractConfig: true,
+    contractReady: true,
+    isRegistered: true,
+    isSurrendered: Boolean(profile.surrendered),
+    isPartialLoad: true
+  };
+}
+
 export async function loadDashboardSnapshot(
   walletAddress?: string | null,
   options?: { forceRefresh?: boolean }
@@ -3810,6 +3891,22 @@ export async function loadDashboardSnapshot(
       ? new Contract(configuredUpgradeAddress, metaGuildXUpgradeAbi, provider)
       : null;
   const tokenEngineModule = createTokenEngineModule(provider);
+  const quickWalletAddress = walletAddress ? normalizeAddress(walletAddress) : null;
+
+  if (quickWalletAddress && !options?.forceRefresh) {
+    const quickSnapshot = await loadQuickSnapshot({
+      walletAddress: quickWalletAddress,
+      contract,
+      incomeModule,
+      stakingModule,
+      tokenEngineModule
+    });
+    cacheDashboardSnapshot(cacheKey, persistentCacheKey, quickSnapshot);
+    void loadDashboardSnapshot(quickWalletAddress, { forceRefresh: true }).catch((error) => {
+      console.warn("MetaGuildX background dashboard refresh failed", error);
+    });
+    return quickSnapshot;
+  }
 
   const [stakingRewardPool, totalStaked, cashbackPoolBalance, totalTokenDistributed, rootUserIdRaw, currentBoxIdRaw, packagePricesRaw, nextUserIdRaw] = await Promise.all([
     stakingModule ? stakingModule.rewardPool() : 0n,
