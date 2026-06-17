@@ -64,6 +64,7 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
     uint256 public constant CASHBACK_BPS = 400;
     uint256 public constant CREATOR_FEE_BPS = 1_000;
     uint8 public constant MAX_LEVELS = 10;
+    uint8 public constant MAX_SEARCH_DEPTH = 50;
     uint8 public constant MAX_SPILLOVER_SEARCH = 20;
     uint8 private constant INCOME_TYPE_DIRECT = 0;
     uint8 private constant INCOME_TYPE_LEVEL = 1;
@@ -530,7 +531,7 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
     ) internal view returns (uint256) {
         uint256 current = start;
 
-        for (uint8 i = 0; i < MAX_LEVELS; i++) {
+        for (uint8 i = 0; i < MAX_SEARCH_DEPTH; i++) {
             if (current == 0) {
                 break;
             }
@@ -571,7 +572,7 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
     ) internal view returns (uint256) {
         uint256 current = start;
 
-        for (uint8 i = 0; i < MAX_LEVELS; i++) {
+        for (uint8 i = 0; i < MAX_SEARCH_DEPTH; i++) {
             if (current == 0) {
                 break;
             }

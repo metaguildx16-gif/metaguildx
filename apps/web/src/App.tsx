@@ -224,6 +224,43 @@ function App() {
   const [stakeForm, setStakeForm] = useState({ amount: "10", durationKey: "30D" as StakeDurationKey, autoCompound: true });
   const [walletSubView, setWalletSubView] = useState<WalletSubView>("main");
   const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [onChainSearchResult, setOnChainSearchResult] = useState<any>(null);
+  const [onChainSearchLoading, setOnChainSearchLoading] = useState(false);
+
+  useEffect(() => {
+    const q = userSearchQuery.trim();
+    if (!q.startsWith("0x") || q.length < 10) {
+      setOnChainSearchResult(null);
+      return;
+    }
+    setOnChainSearchLoading(true);
+    setOnChainSearchResult(null);
+    const run = async () => {
+      try {
+        const { ethers } = await import("ethers");
+        const provider = new ethers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
+        const core = new ethers.Contract(
+          import.meta.env.VITE_CORE_ADDRESS,
+          ["function userIdByAddress(address) view returns (uint256)",
+           "function usersById(uint256) view returns (uint256 id, address account, uint256 sponsorId, uint8 packageLevel, uint8 originalPackageLevel, uint256 totalContribution, uint256 totalEarnings, uint256 directReferrals, uint256 totalTeamBusiness, uint256 rebirthCount, uint256 xCount, uint256 joinedAt, bool surrendered)"],
+          provider
+        );
+        const userId = Number(await core.userIdByAddress(q));
+        if (userId > 0) {
+          const u = await core.usersById(BigInt(userId));
+          setOnChainSearchResult({ userId, account: u.account, packageLevel: Number(u.packageLevel), directReferrals: Number(u.directReferrals) });
+        } else {
+          setOnChainSearchResult({ notFound: true });
+        }
+      } catch {
+        setOnChainSearchResult({ notFound: true });
+      } finally {
+        setOnChainSearchLoading(false);
+      }
+    };
+    const timer = setTimeout(run, 600);
+    return () => clearTimeout(timer);
+  }, [userSearchQuery]);
   const [privacySettings, setPrivacySettings] = useState<typeof defaultPrivacy>(() => {
     try {
       const saved = localStorage.getItem(PRIVACY_STORAGE_KEY);
@@ -3831,6 +3868,8 @@ function App() {
       rebirthProgressLabel,
       rebirthProgressPercent,
       rebirthProgressStep,
+      onChainSearchResult,
+      onChainSearchLoading,
       rebirthRows,
       rebirthStatusLabel,
       rebirthTreePreview,
