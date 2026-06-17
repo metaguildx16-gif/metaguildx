@@ -212,7 +212,7 @@ export function UserSearchPage(props: DashboardPageProps) {
           }
           return results.map((node: any) => {
             const wallet = node.account;
-            const name = wallet ? (userDisplayNames[wallet.toLowerCase()] || `User #${node.userId}`) : `User #${node.userId}`;
+            const name = wallet ? (userDisplayNames[wallet.toLowerCase()] || `User #${(()=>{const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";let n=node.userId+100000,e="";while(n>0){e=c[n%62]+e;n=Math.floor(n/62);}return e;})()}`) : `User #${(()=>{const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";let n=node.userId+100000,e="";while(n>0){e=c[n%62]+e;n=Math.floor(n/62);}return e;})()}`;
             return (
               <div key={node.userId} style={{
                 display: "flex", alignItems: "center", gap: "14px",

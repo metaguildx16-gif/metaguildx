@@ -348,7 +348,7 @@ export function NetworkPage(props: DashboardPageProps) {
               <ul className="metric-list compact progress-list">
                 {networkBonusHistoryRows.length > 0 ? networkBonusHistoryRows.map((item: any) => (
                   <li key={`network-log-${item.txHash}`}>
-                    <strong>{item.fromUserId ? `From User #${item.fromUserId}` : "Rebirth network"}</strong> ï¿½ {item.dateLabel}<br />
+                    <strong>{item.fromUserId ? `From User #${(()=>{const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";let n=item.fromUserId+100000,e="";while(n>0){e=c[n%62]+e;n=Math.floor(n/62);}return e;})()}` : "Rebirth network"}</strong> · {item.dateLabel}<br />
                     <span className="text-secondary">{`Amount: $${item.amount}`}</span>
                   </li>
                 )) : <li>No network income log yet.</li>}
