@@ -254,7 +254,15 @@ function App() {
           const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
           let n = 0;
           for (const ch of q) { n = n * 62 + chars.indexOf(ch); }
-          userId = n - 100000;
+          const decoded = n - 100000;
+          if (decoded > 0 && decoded < 100000) { userId = decoded; }
+          if (!userId) {
+            const qUpper = q.charAt(0).toUpperCase() + q.slice(1);
+            let n2 = 0;
+            for (const ch of qUpper) { n2 = n2 * 62 + chars.indexOf(ch); }
+            const decoded2 = n2 - 100000;
+            if (decoded2 > 0 && decoded2 < 100000) userId = decoded2;
+          }
         }
         if (userId > 0) {
           const u = await core.usersById(BigInt(userId));
