@@ -3758,7 +3758,7 @@ async function loadQuickSnapshot(input: {
     input.contract.usersById(userId),
     input.incomeModule ? safeBigIntRead(() => input.incomeModule!.getTotalAllIncome(userId)) : Promise.resolve(0n),
     input.incomeModule ? safeBigIntRead(() => input.incomeModule!.getTotalEscrow(userId)) : Promise.resolve(0n),
-    safeBigIntRead(() => input.contract.getUserPackageLevel(userId)),
+    Promise.resolve(0n), // getUserPackageLevel removed - use usersById.packageLevel instead
     input.stakingModule ? safeBigIntRead(() => input.stakingModule!.pendingStakingReward(input.walletAddress)) : Promise.resolve(0n),
     input.stakingModule
       ? input.stakingModule.getStakePositions(input.walletAddress).catch(() => [] as RawStakePosition[])
