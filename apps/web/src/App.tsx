@@ -229,7 +229,9 @@ function App() {
 
   useEffect(() => {
     const q = userSearchQuery.trim();
-    if (!q.startsWith("0x") || q.length < 10) {
+    const isWallet = q.startsWith("0x") && q.length >= 10;
+    const isEncoded = !isWallet && q.length >= 2 && /^[A-Za-z0-9]+$/.test(q);
+    if (!isWallet && !isEncoded) {
       setOnChainSearchResult(null);
       return;
     }
@@ -245,7 +247,15 @@ function App() {
            "function usersById(uint256) view returns (uint256 id, address account, uint256 sponsorId, uint8 packageLevel, uint8 originalPackageLevel, uint256 totalContribution, uint256 totalEarnings, uint256 directReferrals, uint256 totalTeamBusiness, uint256 rebirthCount, uint256 xCount, uint256 joinedAt, bool surrendered)"],
           provider
         );
-        const userId = Number(await core.userIdByAddress(q));
+        let userId = 0;
+        if (isWallet) {
+          userId = Number(await core.userIdByAddress(q));
+        } else {
+          const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+          let n = 0;
+          for (const ch of q) { n = n * 62 + chars.indexOf(ch); }
+          userId = n - 100000;
+        }
         if (userId > 0) {
           const u = await core.usersById(BigInt(userId));
           setOnChainSearchResult({ userId, account: u.account, packageLevel: Number(u.packageLevel), directReferrals: Number(u.directReferrals) });
