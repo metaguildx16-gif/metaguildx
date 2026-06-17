@@ -2072,11 +2072,13 @@ function App() {
   const allNodes = [...snapshot.treePreview, ...snapshot.featuredUsers];
   const directLeftNode =
     currentUserTreeNode && currentUserTreeNode.leftChildId
-      ? allNodes.find((node) => node.userId === currentUserTreeNode.leftChildId) ?? null
+      ? (allNodes.find((node) => node.userId === currentUserTreeNode.leftChildId) ??
+        { userId: currentUserTreeNode.leftChildId, account: "", packageLevel: 0, depth: 0, parentId: 0, leftChildId: 0, rightChildId: 0, directReferrals: 0 })
       : null;
   const directRightNode =
     currentUserTreeNode && currentUserTreeNode.rightChildId
-      ? allNodes.find((node) => node.userId === currentUserTreeNode.rightChildId) ?? null
+      ? (allNodes.find((node) => node.userId === currentUserTreeNode.rightChildId) ??
+        { userId: currentUserTreeNode.rightChildId, account: "", packageLevel: 0, depth: 0, parentId: 0, leftChildId: 0, rightChildId: 0, directReferrals: 0 })
       : null;
   const totalReceivedValue =
     parseDisplayNumber(snapshot.directIncome) +
