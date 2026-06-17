@@ -1745,7 +1745,10 @@ function App() {
         })?.timestampLabel ?? "Live on-chain"
       : "Live on-chain";
   const sponsorPartnerCount = referralSponsorProfile?.directReferrals ?? referredSponsorPreview?.directReferrals ?? 0;
-  const canStartSignUp = registrationConsent.terms && registrationConsent.restrictedCountry;
+  const LAUNCH_DATE = new Date("2026-06-26T00:00:00+05:30");
+  const isLaunched = new Date() >= LAUNCH_DATE;
+  const hasReferral = referralSponsorId !== null && referralSponsorId > 0;
+  const canStartSignUp = (isLaunched || hasReferral) && registrationConsent.terms && registrationConsent.restrictedCountry;
   const shouldShowActivationPrompt = !isAdminRoute && Boolean(snapshot.walletAddress) && !snapshot.isRegistered && (isJustConnected || dashboardView === "overview");
   const nextUpgradeLevel = snapshot.packageLevel && snapshot.packageLevel < 10 ? snapshot.packageLevel + 1 : null;
 
