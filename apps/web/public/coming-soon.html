@@ -398,5 +398,27 @@
       window.setInterval(updateCountdown, 1000);
     })();
   </script>
+  <script>
+    // If wallet is connected and registered, redirect to app
+    (function() {
+      try {
+        if (window.ethereum) {
+          window.ethereum.request({ method: "eth_accounts" }).then(function(accounts) {
+            if (accounts && accounts.length > 0) {
+              var wallet = accounts[0].toLowerCase();
+              var key = "mgx_snapshot_v1_" + wallet;
+              var saved = localStorage.getItem(key);
+              if (saved) {
+                var data = JSON.parse(saved);
+                if (data && data.isRegistered && data.userId > 0) {
+                  window.location.href = "/dashboard";
+                }
+              }
+            }
+          }).catch(function(){});
+        }
+      } catch(e) {}
+    })();
+  </script>
 </body>
 </html>
