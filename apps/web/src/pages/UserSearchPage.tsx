@@ -197,9 +197,17 @@ export function UserSearchPage(props: DashboardPageProps) {
           const q = userSearchQuery.trim().toLowerCase();
           const encodeId = (id: number) => { const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; let n=id+100000, e=""; while(n>0){e=c[n%62]+e;n=Math.floor(n/62);} return e; };
           const isWalletSearch = q.startsWith("0x") && q.length >= 10;
+          const allNodes = [
+            ...snapshot.treePreview,
+            ...snapshot.featuredUsers,
+            ...(snapshot.directReferralIds ?? []).map((uid: number) =>
+              snapshot.treePreview.find((n: any) => n.userId === uid) ??
+              snapshot.featuredUsers.find((n: any) => n.userId === uid)
+            ).filter(Boolean),
+          ].filter((n: any, i: number, arr: any[]) => n && arr.findIndex((x: any) => x.userId === n.userId) === i);
           const results = isWalletSearch
-            ? snapshot.treePreview.filter((node: any) => node.account?.toLowerCase().includes(q))
-            : snapshot.treePreview.filter((node: any) => {
+            ? allNodes.filter((node: any) => node.account?.toLowerCase().includes(q))
+            : allNodes.filter((node: any) => {
                 const name = node.account ? (userDisplayNames[node.account.toLowerCase()] || "") : "";
                 const enc = encodeId(node.userId);
                 return enc.toLowerCase().includes(q) || name.toLowerCase().includes(q);
