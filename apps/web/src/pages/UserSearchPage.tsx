@@ -196,15 +196,14 @@ export function UserSearchPage(props: DashboardPageProps) {
         {(() => {
           const q = userSearchQuery.trim().toLowerCase();
           const encodeId = (id: number) => { const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; let n=id+100000, e=""; while(n>0){e=c[n%62]+e;n=Math.floor(n/62);} return e; };
-          const results = snapshot.treePreview.filter((node: any) => {
-            const name = node.account ? (userDisplayNames[node.account.toLowerCase()] || "") : "";
-            const enc = encodeId(node.userId);
-            return (
-              enc.toLowerCase().includes(q) ||
-              (node.account?.toLowerCase().includes(q)) ||
-              name.toLowerCase().includes(q)
-            );
-          });
+          const isWalletSearch = q.startsWith("0x") && q.length >= 10;
+          const results = isWalletSearch
+            ? snapshot.treePreview.filter((node: any) => node.account?.toLowerCase().includes(q))
+            : snapshot.treePreview.filter((node: any) => {
+                const name = node.account ? (userDisplayNames[node.account.toLowerCase()] || "") : "";
+                const enc = encodeId(node.userId);
+                return enc.toLowerCase().includes(q) || name.toLowerCase().includes(q);
+              });
           if (results.length === 0) {
             return (
               <div style={{ textAlign: "center", color: "#8899BB", padding: "30px 0" }}>
