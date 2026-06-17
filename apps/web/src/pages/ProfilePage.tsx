@@ -229,7 +229,7 @@ export function ProfilePage(props: DashboardPageProps) {
           className="btn-primary"
           style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "10px", whiteSpace: "nowrap" }}
           onClick={() => {
-            const link = `${window.location.origin}?ref=${snapshot?.userId}`;
+            const uid = snapshot?.userId || 0; const chars2 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; let n2 = uid + 100000; let enc2 = ""; while (n2 > 0) { enc2 = chars2[n2 % 62] + enc2; n2 = Math.floor(n2 / 62); } const link = `${window.location.origin}?ref=${enc2}`;
             navigator.clipboard.writeText(link);
           }}
         >

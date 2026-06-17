@@ -30,7 +30,7 @@ type TreePanelProps = {
 
 function getDisplayName(userDisplayNames: Record<string, string> | undefined, node?: TreeNodeLike | null) {
   if (!node) return "Open slot";
-  return (node.account && userDisplayNames?.[node.account.toLowerCase()]) || `User ${node.userId}`;
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; let n = node.userId + 100000; let enc = ""; while (n > 0) { enc = chars[n % 62] + enc; n = Math.floor(n / 62); } return (node.account && userDisplayNames?.[node.account.toLowerCase()]) || `User #${enc}`;
 }
 
 function formatSideUser(
