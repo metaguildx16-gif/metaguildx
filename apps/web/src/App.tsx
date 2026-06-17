@@ -773,13 +773,22 @@ function App() {
       return;
     }
 
-    const parsedRef = Number(refValue);
+    function decodeUserId(encoded: string): number {
+      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      let n = 0;
+      for (const c of encoded) {
+        n = n * 62 + chars.indexOf(c);
+      }
+      return n - 100000;
+    }
+    const isNumeric = /^\d+$/.test(refValue);
+    const parsedRef = isNumeric ? Number(refValue) : decodeUserId(refValue);
     if (!Number.isFinite(parsedRef) || parsedRef <= 0) {
       return;
     }
 
     setReferralSponsorId(parsedRef);
-    setRegisterForm((current) => ({ ...current, sponsorId: refValue }));
+    setRegisterForm((current) => ({ ...current, sponsorId: String(parsedRef) }));
   }, []);
 
   useEffect(() => {
@@ -1635,8 +1644,18 @@ function App() {
   });
   const spilloverHistoryRows = snapshot.spilloverHistory.slice(0, 5);
   const networkBonusHistoryRows = snapshot.networkBonusHistory.slice(0, 5);
+  function encodeUserId(id: number): string {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let result = "";
+    let n = id + 100000;
+    while (n > 0) {
+      result = chars[n % 62] + result;
+      n = Math.floor(n / 62);
+    }
+    return result;
+  }
   const referralLink =
-    snapshot.userId && typeof window !== "undefined" ? `${window.location.origin}/?ref=${snapshot.userId}` : null;
+    snapshot.userId && typeof window !== "undefined" ? `${window.location.origin}/?ref=${encodeUserId(snapshot.userId)}` : null;
   const compactDisplayAddress = (value?: string | null) => {
     if (!value || value.length < 10) {
       return value ?? "Not configured";
