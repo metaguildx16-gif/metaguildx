@@ -183,7 +183,7 @@ export function ProfilePage(props: DashboardPageProps) {
       {/* User Info */}
       <div style={{ flex: 1, minWidth: "200px" }}>
         <div style={{ fontSize: "24px", fontWeight: 700, color: "#EEF4FF", marginBottom: "4px" }}>
-          {profileMeta.displayName || `User #${snapshot?.userId || "—"}`}
+          {profileMeta.displayName || `User #${(()=>{const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";let n=(snapshot?.userId||0)+100000,e="";while(n>0){e=c[n%62]+e;n=Math.floor(n/62);}return e;})()}`}
         </div>
         {profileMeta.nickname && (
           <div style={{ fontSize: "13px", color: "#8899BB", marginBottom: "6px" }}>
@@ -292,8 +292,8 @@ export function ProfilePage(props: DashboardPageProps) {
         📋 Personal Info
       </h3>
       {[
-        { label: "User ID", value: `#${snapshot?.userId || "—"}` },
-        { label: "Sponsor ID", value: `#${snapshot?.sponsorId || "—"}` },
+        { label: "User ID", value: `#${(()=>{const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";let n=(snapshot?.userId||0)+100000,e="";while(n>0){e=c[n%62]+e;n=Math.floor(n/62);}return e;})()}` },
+        { label: "Sponsor ID", value: snapshot?.sponsorId ? `#${(()=>{const c2="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";let n2=(snapshot?.sponsorId||0)+100000,e2="";while(n2>0){e2=c2[n2%62]+e2;n2=Math.floor(n2/62);}return e2;})()}` : "�" },
         {
           label: "Wallet",
           value: privacySettings.walletAddress === "all"
