@@ -258,7 +258,7 @@ function App() {
         }
         if (userId > 0) {
           const u = await core.usersById(BigInt(userId));
-          setOnChainSearchResult({ userId, account: u.account, packageLevel: Number(u[3]), directReferrals: Number(u[7]) });
+          setOnChainSearchResult({ userId, account: u[1], packageLevel: Number(u[3]), directReferrals: Number(u[7]) });
         } else {
           setOnChainSearchResult({ notFound: true });
         }
