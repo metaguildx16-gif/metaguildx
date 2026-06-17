@@ -2518,7 +2518,7 @@ function App() {
       totalEarnings: featured?.totalEarnings ?? "0",
         mgxAllocated: featured?.mgxAllocated ?? "0",
         userActiveBoxId: featured?.userActiveBoxId ?? null,
-        joinedLabel: `Member ${userId}`,
+        joinedLabel: `Member #${encodeUserId(userId)}`,
         income: snapshot.directReferralIncomeByUserId[userId] ?? "0"
       };
     });
