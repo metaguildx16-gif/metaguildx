@@ -195,10 +195,12 @@ export function UserSearchPage(props: DashboardPageProps) {
         </div>
         {(() => {
           const q = userSearchQuery.trim().toLowerCase();
+          const encodeId = (id: number) => { const c="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; let n=id+100000, e=""; while(n>0){e=c[n%62]+e;n=Math.floor(n/62);} return e; };
           const results = snapshot.treePreview.filter((node: any) => {
             const name = node.account ? (userDisplayNames[node.account.toLowerCase()] || "") : "";
+            const enc = encodeId(node.userId);
             return (
-              String(node.userId).includes(q) ||
+              enc.toLowerCase().includes(q) ||
               (node.account?.toLowerCase().includes(q)) ||
               name.toLowerCase().includes(q)
             );
