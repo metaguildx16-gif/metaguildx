@@ -598,8 +598,74 @@ const levelBreakdownCache = new Map<
 >();
 const genealogyCache = new Map<string, { data: Set<number>; timestamp: number }>();
 const SNAPSHOT_CACHE_TTL = 300_000;
+const SNAPSHOT_LOCAL_CACHE_TTL = 5 * 60 * 1000;
+export const DASHBOARD_SNAPSHOT_REFRESH_EVENT = "mgx:dashboard-snapshot-refreshed";
 const GENEALOGY_CACHE_TTL = 300_000;
 const tokenDecimalsCache = new Map<string, number>();
+
+function getPersistentSnapshotCacheKey(walletAddress?: string | null) {
+  if (!walletAddress) {
+    return null;
+  }
+  return `mgx_snapshot_v2_${walletAddress.toLowerCase()}`;
+}
+
+function readPersistentDashboardSnapshot(cacheKey: string): { data: DashboardSnapshot; timestamp: number } | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const cached = window.localStorage.getItem(cacheKey);
+    if (!cached) {
+      return null;
+    }
+    const parsed = JSON.parse(cached) as { data?: DashboardSnapshot; timestamp?: number };
+    if (!parsed.data || typeof parsed.timestamp !== "number") {
+      return null;
+    }
+    if (Date.now() - parsed.timestamp >= SNAPSHOT_LOCAL_CACHE_TTL) {
+      return null;
+    }
+    return { data: parsed.data, timestamp: parsed.timestamp };
+  } catch {
+    return null;
+  }
+}
+
+function writePersistentDashboardSnapshot(cacheKey: string | null, data: DashboardSnapshot) {
+  if (typeof window === "undefined" || !cacheKey) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
+  } catch {
+    // Ignore storage quota or privacy-mode failures; in-memory cache still works.
+  }
+}
+
+function cacheDashboardSnapshot(
+  memoryCacheKey: string,
+  persistentCacheKey: string | null,
+  data: DashboardSnapshot,
+  options?: { emitRefresh?: boolean }
+) {
+  const timestamp = Date.now();
+  snapshotCache.set(memoryCacheKey, { data, timestamp });
+  writePersistentDashboardSnapshot(persistentCacheKey, data);
+
+  if (options?.emitRefresh && typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(DASHBOARD_SNAPSHOT_REFRESH_EVENT, {
+        detail: {
+          snapshot: data,
+          walletAddress: data.walletAddress ?? null
+        }
+      })
+    );
+  }
+}
 
 function getConfiguredDeploymentStartBlockValue() {
   const configuredBlock = Number(readTrimmedEnv("VITE_DEPLOY_BLOCK") || "151879381");
@@ -3666,9 +3732,19 @@ export async function loadDashboardSnapshot(
   try {
   syncAnalyticsCachesForDeployment();
   const cacheKey = `snapshot-${getDeploymentCacheNamespace()}-${walletAddress ?? "__guest__"}`;
+  const persistentCacheKey = getPersistentSnapshotCacheKey(walletAddress);
   const cachedSnapshot = snapshotCache.get(cacheKey);
   if (cachedSnapshot && Date.now() - cachedSnapshot.timestamp < SNAPSHOT_CACHE_TTL && !options?.forceRefresh) {
     return cachedSnapshot.data;
+  }
+  const persistentSnapshot =
+    !options?.forceRefresh && persistentCacheKey ? readPersistentDashboardSnapshot(persistentCacheKey) : null;
+  if (persistentSnapshot) {
+    snapshotCache.set(cacheKey, persistentSnapshot);
+    void loadDashboardSnapshot(walletAddress, { forceRefresh: true }).catch((error) => {
+      console.warn("MetaGuildX background dashboard refresh failed", error);
+    });
+    return persistentSnapshot.data;
   }
   const contractAddress = configuredCoreAddress;
   if (!contractAddress) {
@@ -3802,7 +3878,7 @@ export async function loadDashboardSnapshot(
       isSurrendered: false,
       surrenderStatus: "Connect wallet to check"
     };
-    snapshotCache.set(cacheKey, { data: snapshot, timestamp: Date.now() });
+    cacheDashboardSnapshot(cacheKey, persistentCacheKey, snapshot, { emitRefresh: Boolean(options?.forceRefresh) });
     return snapshot;
   }
 
@@ -3830,7 +3906,7 @@ export async function loadDashboardSnapshot(
       activityFeed: [],
       currentBoxStatus
     });
-    snapshotCache.set(cacheKey, { data: snapshot, timestamp: Date.now() });
+    cacheDashboardSnapshot(cacheKey, persistentCacheKey, snapshot, { emitRefresh: Boolean(options?.forceRefresh) });
     return snapshot;
   }
 
@@ -4182,7 +4258,7 @@ export async function loadDashboardSnapshot(
       isSurrendered: Boolean(profile.surrendered),
       surrenderStatus
     };
-      snapshotCache.set(cacheKey, { data: snapshot, timestamp: Date.now() });
+      cacheDashboardSnapshot(cacheKey, persistentCacheKey, snapshot, { emitRefresh: Boolean(options?.forceRefresh) });
       return snapshot;
   };
 
@@ -4246,4 +4322,3 @@ export async function loadDashboardSnapshot(
   }
   });
 }
-

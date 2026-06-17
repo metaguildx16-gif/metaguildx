@@ -880,6 +880,38 @@ function App() {
   }, [snapshot.walletAddress]);
 
   useEffect(() => {
+    const handleSnapshotRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ snapshot?: DashboardSnapshot; walletAddress?: string | null }>).detail;
+      const nextSnapshot = detail?.snapshot;
+      if (!nextSnapshot) {
+        return;
+      }
+
+      setSnapshot((prev) => {
+        const currentWallet = (prev.walletAddress ?? "").toLowerCase();
+        const nextWallet = (detail.walletAddress ?? nextSnapshot.walletAddress ?? "").toLowerCase();
+        if (currentWallet && nextWallet && currentWallet !== nextWallet) {
+          return prev;
+        }
+        return {
+          ...nextSnapshot,
+          packageOneBucketEarnings:
+            nextSnapshot.packageOneBucketEarnings !== "0"
+              ? nextSnapshot.packageOneBucketEarnings
+              : prev.packageOneBucketEarnings,
+          currentPackageBucketEarnings:
+            nextSnapshot.currentPackageBucketEarnings !== "0"
+              ? nextSnapshot.currentPackageBucketEarnings
+              : prev.currentPackageBucketEarnings
+        };
+      });
+    };
+
+    window.addEventListener(metaguildx.DASHBOARD_SNAPSHOT_REFRESH_EVENT, handleSnapshotRefresh);
+    return () => window.removeEventListener(metaguildx.DASHBOARD_SNAPSHOT_REFRESH_EVENT, handleSnapshotRefresh);
+  }, []);
+
+  useEffect(() => {
     if (!snapshot?.walletAddress) {
       setProfileMeta(defaultProfile);
       return;
@@ -4505,7 +4537,6 @@ function App() {
 }
 
 export default App;
-
 
 
 
