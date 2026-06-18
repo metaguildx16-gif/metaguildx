@@ -704,6 +704,17 @@ function clearAnalyticsCaches() {
   snapshotCache.clear();
   levelBreakdownCache.clear();
   genealogyCache.clear();
+  // Clear localStorage persistent snapshot cache
+  if (typeof window !== "undefined") {
+    try {
+      const keys = Object.keys(window.localStorage);
+      keys.forEach(k => {
+        if (k.startsWith("mgx_snapshot_v2_")) {
+          window.localStorage.removeItem(k);
+        }
+      });
+    } catch (_) {}
+  }
 }
 
 export function invalidateDashboardAnalytics() {
@@ -3365,7 +3376,7 @@ export async function upgradeUserPackage(input: { userId: number; newPackageLeve
   let mined = false;
   try {
       const tx = await core.upgradePackage(input.userId, input.newPackageLevel, {
-        gasLimit: 3_000_000n
+        gasLimit: 6_000_000n
       });
       const receipt = await tx.wait();
       mined = receipt?.status === 1;
