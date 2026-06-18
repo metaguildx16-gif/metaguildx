@@ -240,7 +240,8 @@ function App() {
     const run = async () => {
       try {
         const { ethers } = await import("ethers");
-        const provider = new ethers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
+        const provider = new ethers.JsonRpcProvider(import.meta.env.VITE_RPC_URL, undefined, { staticNetwork: true });
+        provider.pollingInterval = 15000;
         const core = new ethers.Contract(
           import.meta.env.VITE_CORE_ADDRESS,
           ["function userIdByAddress(address) view returns (uint256)",
@@ -413,7 +414,8 @@ function App() {
     if (activeNetworkConfig.rpcUrl) {
       try {
         // timing disabled
-        const provider = new JsonRpcProvider(activeNetworkConfig.rpcUrl);
+        const provider = new JsonRpcProvider(activeNetworkConfig.rpcUrl, undefined, { staticNetwork: true });
+        provider.pollingInterval = 15000;
         currentBlock = await Promise.race<number>([
           provider.getBlockNumber(),
           new Promise<number>((_, reject) =>
@@ -779,7 +781,8 @@ function App() {
       }
 
       try {
-        const provider = new JsonRpcProvider(rpcUrl);
+        const provider = new JsonRpcProvider(rpcUrl, undefined, { staticNetwork: true });
+        provider.pollingInterval = 15000;
         const core = new Contract(contractAddress, landingStatsCoreAbi, provider);
         const [nextId, latestBlock] = await Promise.all([
           core.nextUserId(),
