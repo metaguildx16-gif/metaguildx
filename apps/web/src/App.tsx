@@ -4257,7 +4257,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("income")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon"></span> Earnings</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">💰</span> Earnings</p>
             </button>
 
             <button
@@ -4272,7 +4272,7 @@ function App() {
                 setTreeMode("personal");
               }}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon"></span> Network</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🌐</span> Network</p>
             </button>
 
             <button
@@ -4282,7 +4282,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("upgrade")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon"></span> Upgrade</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">⬆️</span> Upgrade</p>
             </button>
 
             <button
@@ -4292,7 +4292,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("rebirth")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon"></span> Rebirth</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">♻️</span> Rebirth</p>
             </button>
 
             <button
@@ -4305,7 +4305,7 @@ function App() {
                 setWalletSubView("main");
               }}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon"></span> Wallet</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">👛</span> Wallet</p>
             </button>
 
             <button
