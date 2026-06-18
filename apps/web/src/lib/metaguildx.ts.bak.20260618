@@ -704,17 +704,6 @@ function clearAnalyticsCaches() {
   snapshotCache.clear();
   levelBreakdownCache.clear();
   genealogyCache.clear();
-  // Clear localStorage persistent snapshot cache
-  if (typeof window !== "undefined") {
-    try {
-      const keys = Object.keys(window.localStorage);
-      keys.forEach(k => {
-        if (k.startsWith("mgx_snapshot_v2_")) {
-          window.localStorage.removeItem(k);
-        }
-      });
-    } catch (_) {}
-  }
 }
 
 export function invalidateDashboardAnalytics() {
@@ -1999,34 +1988,18 @@ function getReadRpcUrls() {
   if (activeNetworkConfig.chainId === 5611) {
     urls.push("https://opbnb-testnet.publicnode.com");
   }
-  if (activeNetworkConfig.chainId === 204) {
-    urls.push("https://opbnb-mainnet-rpc.bnbchain.org");
-    urls.push("https://opbnb.drpc.org");
-  }
 
   return urls.filter((value, index, list): value is string => Boolean(value) && list.indexOf(value) === index);
 }
 
-let _readProviderCache: JsonRpcProvider | null = null;
-let _readProviderCacheTime = 0;
-const READ_PROVIDER_CACHE_MS = 30 * 60 * 1000; // 30 min
-
 async function getReadProvider() {
-  const now = Date.now();
-  if (_readProviderCache && (now - _readProviderCacheTime) < READ_PROVIDER_CACHE_MS) {
-    return _readProviderCache;
-  }
-
   const rpcUrls = getReadRpcUrls();
   let lastError: unknown = null;
 
   for (const rpcUrl of rpcUrls) {
     try {
       const provider = new JsonRpcProvider(rpcUrl);
-      provider.pollingInterval = 15000; // reduce polling: 4s → 15s
       await getBlockNumberWithDiagnostics(provider, `provider.getBlockNumber:${rpcUrl}`);
-      _readProviderCache = provider;
-      _readProviderCacheTime = now;
       return provider;
     } catch (error) {
       lastError = error;
@@ -3392,7 +3365,7 @@ export async function upgradeUserPackage(input: { userId: number; newPackageLeve
   let mined = false;
   try {
       const tx = await core.upgradePackage(input.userId, input.newPackageLevel, {
-        gasLimit: 6_000_000n
+        gasLimit: 3_000_000n
       });
       const receipt = await tx.wait();
       mined = receipt?.status === 1;
@@ -4035,10 +4008,7 @@ export async function loadDashboardSnapshot(
   }
 
   registeredProfile = (await contract.usersById(userId)) as MinimalRegisteredProfile;
-  const basePreviewIds = Array.from({ length: Math.min(maxUserId, 5) }, (_, index) => index + 1);
-  const previewUserIds = userId && !basePreviewIds.includes(userId)
-    ? [...basePreviewIds, userId]
-    : basePreviewIds;
+  const previewUserIds = Array.from({ length: Math.min(maxUserId, 5) }, (_, index) => index + 1);
   const featuredUserIds = [rootUserId, rootUserId + 1, rootUserId + 2].filter((value, index, array) => value > 0 && array.indexOf(value) === index);
   const previewDataByUserId = await loadPreviewUsers(contract, treeContract, [...featuredUserIds, ...previewUserIds]);
   const featuredUsers = featuredUserIds

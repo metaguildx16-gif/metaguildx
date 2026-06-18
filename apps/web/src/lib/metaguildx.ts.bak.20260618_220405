@@ -1999,34 +1999,18 @@ function getReadRpcUrls() {
   if (activeNetworkConfig.chainId === 5611) {
     urls.push("https://opbnb-testnet.publicnode.com");
   }
-  if (activeNetworkConfig.chainId === 204) {
-    urls.push("https://opbnb-mainnet-rpc.bnbchain.org");
-    urls.push("https://opbnb.drpc.org");
-  }
 
   return urls.filter((value, index, list): value is string => Boolean(value) && list.indexOf(value) === index);
 }
 
-let _readProviderCache: JsonRpcProvider | null = null;
-let _readProviderCacheTime = 0;
-const READ_PROVIDER_CACHE_MS = 30 * 60 * 1000; // 30 min
-
 async function getReadProvider() {
-  const now = Date.now();
-  if (_readProviderCache && (now - _readProviderCacheTime) < READ_PROVIDER_CACHE_MS) {
-    return _readProviderCache;
-  }
-
   const rpcUrls = getReadRpcUrls();
   let lastError: unknown = null;
 
   for (const rpcUrl of rpcUrls) {
     try {
       const provider = new JsonRpcProvider(rpcUrl);
-      provider.pollingInterval = 15000; // reduce polling: 4s → 15s
       await getBlockNumberWithDiagnostics(provider, `provider.getBlockNumber:${rpcUrl}`);
-      _readProviderCache = provider;
-      _readProviderCacheTime = now;
       return provider;
     } catch (error) {
       lastError = error;

@@ -4326,7 +4326,7 @@ function App() {
               }`}
               onClick={() => setDashboardView("usersearch")}
             >
-              <p className="text-lg font-semibold"><span className="nav-icon"></span> Search</p>
+              <p className="text-lg font-semibold"><span className="nav-icon">🔍</span> Search</p>
             </button>
 
             <button
