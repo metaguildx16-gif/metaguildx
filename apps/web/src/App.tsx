@@ -3865,6 +3865,7 @@ function App() {
       directIncomeDisplay,
       directLeftNode,
       directRightNode,
+      currentUserTreeNode,
       displayedMgxAllocated,
       displayedPendingStakingReward,
       displayedPersonalStaked,
