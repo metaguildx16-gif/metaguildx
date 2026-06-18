@@ -44,3 +44,4 @@ contracts/cache-local/
 # Allow env example templates
 !*.env.example
 !*.env.mainnet.example
+*.bak.*
