@@ -101,6 +101,11 @@ async function loadRebirthEscrowData(): Promise<RebirthEscrowData> {
   const fromBlock = Math.max(NETWORK.startBlock, 149800000);
   const registrationLogs = await batchQueryFilter(core, core.filters.UserRegistered(), fromBlock, currentBlock);
   const rebirthLogs = await batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock);
+  const [allDirectLogs, allLevelLogs, allCrossLogs] = await Promise.all([
+    batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
+    batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
+    batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock)
+  ]) as [EventLog[], EventLog[], EventLog[]];
 
 
   const registrationEvents = registrationLogs as EventLog[];
@@ -167,11 +172,9 @@ async function loadRebirthEscrowData(): Promise<RebirthEscrowData> {
         let txIncomeRaw = 0n;
 
         if (rebirthTxHash) {
-          const [directLogs, levelLogs, crossLogs] = await Promise.all([
-            router.queryFilter(router.filters.DirectIncomeRecorded(), NETWORK.startBlock, "latest"),
-            router.queryFilter(router.filters.LevelIncomeRecorded(), NETWORK.startBlock, "latest"),
-            router.queryFilter(router.filters.CrossLineIncomeRecorded(), NETWORK.startBlock, "latest")
-          ]);
+          const directLogs = allDirectLogs;
+          const levelLogs = allLevelLogs;
+          const crossLogs = allCrossLogs;
 
           for (const log of directLogs as EventLog[]) {
             if (
