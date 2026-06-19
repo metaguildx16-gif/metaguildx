@@ -2,7 +2,7 @@ import { BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEt
 import { activeNetworkConfig, toHexChainId } from "../config/networks";
 
 const DEBUG_EVENTS = false;
-const BLOCK_CHUNK_SIZE = 1_999;
+const BLOCK_CHUNK_SIZE = 49_000;
 
 async function withTimeout<T>(
   promise: Promise<T>,
@@ -617,6 +617,13 @@ export const DASHBOARD_SNAPSHOT_REFRESH_EVENT = "mgx:dashboard-snapshot-refreshe
 const GENEALOGY_CACHE_TTL = 300_000;
 const tokenDecimalsCache = new Map<string, number>();
 const backgroundRefreshInFlight = new Set<string>();
+const BOX_EARNINGS_CACHE_PREFIX = "mgx_box_earnings_v1";
+
+type PersistedBoxEarnings = {
+  data: Record<number, bigint>;
+  lastScannedBlock: number;
+  timestamp: number;
+};
 
 function getPersistentSnapshotCacheKey(walletAddress?: string | null) {
   if (!walletAddress) {
@@ -655,6 +662,84 @@ function writePersistentDashboardSnapshot(cacheKey: string | null, data: Dashboa
   } catch {
     // Ignore storage quota or privacy-mode failures; in-memory cache still works.
   }
+}
+
+function getPersistentBoxEarningsCacheKey(userId: number, routerAddress: string, deployBlock: number) {
+  return `${BOX_EARNINGS_CACHE_PREFIX}_${getDeploymentCacheNamespace()}_${routerAddress.toLowerCase()}_${userId}_${deployBlock}`;
+}
+
+function readPersistentBoxEarnings(cacheKey: string): PersistedBoxEarnings | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const cached = window.localStorage.getItem(cacheKey);
+    if (!cached) {
+      return null;
+    }
+    const parsed = JSON.parse(cached) as {
+      data?: Record<string, string>;
+      lastScannedBlock?: number;
+      timestamp?: number;
+    };
+    if (!parsed.data || typeof parsed.lastScannedBlock !== "number" || typeof parsed.timestamp !== "number") {
+      return null;
+    }
+    return {
+      data: Object.fromEntries(
+        Object.entries(parsed.data).map(([pkg, amount]) => [Number(pkg), BigInt(amount)])
+      ),
+      lastScannedBlock: parsed.lastScannedBlock,
+      timestamp: parsed.timestamp
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writePersistentBoxEarnings(cacheKey: string, data: Record<number, bigint>, lastScannedBlock: number) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      cacheKey,
+      JSON.stringify({
+        data: Object.fromEntries(
+          Object.entries(data).map(([pkg, amount]) => [pkg, amount.toString()])
+        ),
+        lastScannedBlock,
+        timestamp: Date.now()
+      })
+    );
+  } catch {
+    // Ignore storage quota or privacy-mode failures; in-memory cache still works.
+  }
+}
+
+function waitForNonCriticalScanDelay(ms = 3000) {
+  if (typeof window === "undefined") {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve) => {
+    let resolved = false;
+    const finish = () => {
+      if (resolved) {
+        return;
+      }
+      resolved = true;
+      window.clearTimeout(timeoutId);
+      resolve();
+    };
+    const timeoutId = window.setTimeout(finish, ms);
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+    };
+    idleWindow.requestIdleCallback?.(finish, { timeout: ms });
+  });
 }
 
 function cacheDashboardSnapshot(
@@ -1439,7 +1524,6 @@ async function loadBoxEarnings(input: {
     return cached.data;
   }
 
-  const pkgEarnings: Record<number, bigint> = {};
   const maxPkg = input.maxPkg ?? 10;
   const routerAddress =
     input.routerContract
@@ -1450,9 +1534,28 @@ async function loadBoxEarnings(input: {
     return {} as Record<number, bigint>;
   }
 
+  const persistentCacheKey = getPersistentBoxEarningsCacheKey(input.userId, routerAddress, input.deployBlock);
+  const persisted = readPersistentBoxEarnings(persistentCacheKey);
+  if (persisted && Date.now() - persisted.timestamp < SNAPSHOT_LOCAL_CACHE_TTL) {
+    boxEarningsCache.set(cacheKey, { data: persisted.data, timestamp: Date.now() });
+    return persisted.data;
+  }
+
+  await waitForNonCriticalScanDelay();
+
   const router = input.routerContract ?? new Contract(routerAddress, incomeRouterWriteAbi, input.provider);
   const currentBlock = await input.provider.getBlockNumber();
-  const startBlock = Math.max(0, input.deployBlock || getEventQueryStartBlock(currentBlock));
+  const startBlock = Math.max(
+    persisted ? persisted.lastScannedBlock + 1 : 0,
+    input.deployBlock || getEventQueryStartBlock(currentBlock)
+  );
+  const pkgEarnings: Record<number, bigint> = persisted ? { ...persisted.data } : {};
+  if (startBlock > currentBlock) {
+    boxEarningsCache.set(cacheKey, { data: pkgEarnings, timestamp: Date.now() });
+    writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, currentBlock);
+    return pkgEarnings;
+  }
+
   const modernInterface = router.interface;
   const legacyInterface = new Interface([
     "event DirectIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint256 amount)",
@@ -1465,8 +1568,8 @@ async function loadBoxEarnings(input: {
   const legacyDirectTopics = legacyInterface.encodeFilterTopics("DirectIncomeRecorded", [null, BigInt(input.userId)]);
   const legacyLevelTopics = legacyInterface.encodeFilterTopics("LevelIncomeRecorded", [null, BigInt(input.userId)]);
 
-  for (let start = startBlock; start <= currentBlock; start += 1_999) {
-    const end = Math.min(start + 1_998, currentBlock);
+  for (let start = startBlock; start <= currentBlock; start += BLOCK_CHUNK_SIZE) {
+    const end = Math.min(start + BLOCK_CHUNK_SIZE - 1, currentBlock);
     const isLastChunk = end >= currentBlock;
 
     try {
@@ -1528,6 +1631,7 @@ async function loadBoxEarnings(input: {
   }
 
   boxEarningsCache.set(cacheKey, { data: pkgEarnings, timestamp: Date.now() });
+  writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, currentBlock);
   return pkgEarnings;
 }
 
