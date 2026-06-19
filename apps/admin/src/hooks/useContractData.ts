@@ -3,6 +3,26 @@ import { useCallback, useEffect, useState } from "react";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { getPackagePrice } from "../utils/packageUtils";
 
+function readBlockCache<T>(key: string): { lastBlock: number; data: T[] } | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.lastBlock !== "number" || !Array.isArray(parsed.data)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeBlockCache<T>(key: string, lastBlock: number, data: T[]) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ lastBlock, data }));
+  } catch {
+    // localStorage full or unavailable - silently skip caching
+  }
+}
+
 async function queryFilterWithRetry(contract: Contract, filter: any, start: number, end: number, retries = 3): Promise<any[]> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
@@ -31,7 +51,7 @@ async function getCachedBlockTimestamp(provider: JsonRpcProvider, blockNumber: n
   return ts;
 }
 
-async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 2000): Promise<EventLog[]> {
+async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 10000): Promise<EventLog[]> {
   const results: EventLog[] = [];
   for (let start = fromBlock; start <= toBlock; start += batchSize) {
     const end = Math.min(start + batchSize - 1, toBlock);
@@ -418,14 +438,21 @@ async function getRegistrationEvents(provider: JsonRpcProvider) {
     provider
   );
   const currentBlock = await provider.getBlockNumber();
-  const fromBlock = NETWORK.startBlock;
+  const CACHE_KEY = "mgx_admin_registration_events_v1";
+  const cached = readBlockCache<DashboardEvent>(CACHE_KEY);
+  const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
+
+  if (fromBlock > currentBlock) {
+    return (cached?.data ?? []).sort((a, b) => b.timestamp - a.timestamp);
+  }
+
   const logs = await batchQueryFilter(core, core.filters.UserRegistered(), fromBlock, currentBlock);
 
   const blocks = await Promise.all(
     logs.map((log) => provider.getBlock(log.blockNumber))
   );
 
-  return (logs as EventLog[])
+  const newEvents = (logs as EventLog[])
     .map((log, index) => {
       const args = log.args;
       const block = blocks[index];
@@ -444,8 +471,12 @@ async function getRegistrationEvents(provider: JsonRpcProvider) {
         timestamp: block.timestamp
       } satisfies DashboardEvent;
     })
-    .filter((item): item is DashboardEvent => item !== null)
-    .sort((a, b) => b.timestamp - a.timestamp);
+    .filter((item): item is DashboardEvent => item !== null);
+
+  const merged = [...(cached?.data ?? []), ...newEvents];
+  writeBlockCache(CACHE_KEY, currentBlock, merged);
+
+  return merged.sort((a, b) => b.timestamp - a.timestamp);
 }
 
 function getCoreContract(provider: JsonRpcProvider) {
@@ -845,10 +876,17 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
   const provider = getProvider();
   const core = getCoreContract(provider);
   const currentBlock = await provider.getBlockNumber();
-  const fromBlock = NETWORK.startBlock;
+  const CACHE_KEY = "mgx_admin_upgrade_events_v1";
+  const cached = readBlockCache<TransactionRecord>(CACHE_KEY);
+  const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
+
+  if (fromBlock > currentBlock) {
+    return (cached?.data ?? []).slice().sort((a, b) => b.timestamp - a.timestamp);
+  }
+
   const upgradeLogs: EventLog[] = [];
   const reactivationLogs: EventLog[] = [];
-  const CHUNK_SIZE = 1_999;
+  const CHUNK_SIZE = 9_999;
   for (let start = fromBlock; start <= currentBlock; start += CHUNK_SIZE + 1) {
     const end = Math.min(start + CHUNK_SIZE, currentBlock);
     const [upgradeChunk, rebirthChunk] = await Promise.all([
@@ -917,7 +955,9 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
     }
   }
 
-  return records;
+  const merged = [...(cached?.data ?? []), ...records];
+  writeBlockCache(CACHE_KEY, currentBlock, merged);
+  return merged.slice().sort((a, b) => b.timestamp - a.timestamp);
 }
 
 export async function getPlacementEvents(): Promise<TransactionRecord[]> {
