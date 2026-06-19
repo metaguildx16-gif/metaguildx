@@ -2132,7 +2132,6 @@ function getReadRpcUrls() {
   }
   if (activeNetworkConfig.chainId === 204) {
     urls.push("https://opbnb-mainnet-rpc.bnbchain.org");
-    urls.push("https://opbnb.drpc.org");
   }
 
   return urls.filter((value, index, list): value is string => Boolean(value) && list.indexOf(value) === index);
