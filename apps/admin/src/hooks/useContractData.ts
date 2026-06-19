@@ -969,7 +969,12 @@ export async function getPlacementEvents(): Promise<TransactionRecord[]> {
   const tree = getBinaryTreeContract(provider);
   const core = getCoreContract(provider);
   const currentBlock = await provider.getBlockNumber();
-  const fromBlock = NETWORK.startBlock;
+  const CACHE_KEY = "mgx_admin_placement_events_v1";
+  const cached = readBlockCache<any>(CACHE_KEY);
+  const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
+  if (fromBlock > currentBlock) {
+    return (cached?.data ?? []) as any;
+  }
   const logs = await batchQueryFilter(tree, tree.filters.NodePlaced(), fromBlock, currentBlock);
   const blocks = await Promise.all(logs.map((log) => provider.getBlock(log.blockNumber)));
 
@@ -994,7 +999,9 @@ export async function getPlacementEvents(): Promise<TransactionRecord[]> {
     });
   }
 
-  return records;
+  const __merged = [...(cached?.data ?? []), ...(records)];
+  writeBlockCache(CACHE_KEY, currentBlock, __merged);
+  return __merged as any;
 }
 
 export async function getCashbackEvents(): Promise<TransactionRecord[]> {
@@ -1006,7 +1013,12 @@ export async function getCashbackEvents(): Promise<TransactionRecord[]> {
   const cashback = new Contract(CONTRACTS.CashbackPool, ABIS.CashbackPool, provider);
   const core = getCoreContract(provider);
   const currentBlock = await provider.getBlockNumber();
-  const fromBlock = NETWORK.startBlock;
+  const CACHE_KEY = "mgx_admin_cashback_events_v1";
+  const cached = readBlockCache<any>(CACHE_KEY);
+  const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
+  if (fromBlock > currentBlock) {
+    return (cached?.data ?? []) as any;
+  }
   const [claimLogs, surrenderLogs] = await Promise.all([
     batchQueryFilter(cashback, cashback.filters.CashbackClaimed(), fromBlock, currentBlock),
     batchQueryFilter(cashback, cashback.filters.UserSurrendered(), fromBlock, currentBlock)
@@ -1039,7 +1051,9 @@ export async function getCashbackEvents(): Promise<TransactionRecord[]> {
     });
   }
 
-  return records;
+  const __merged = [...(cached?.data ?? []), ...(records)];
+  writeBlockCache(CACHE_KEY, currentBlock, __merged);
+  return __merged as any;
 }
 
 export async function getSurrenderedUsers(): Promise<SurrenderedUserRecord[]> {
@@ -1051,7 +1065,12 @@ export async function getSurrenderedUsers(): Promise<SurrenderedUserRecord[]> {
   const cashback = new Contract(CONTRACTS.CashbackPool, ABIS.CashbackPool, provider);
   const core = getCoreContract(provider);
   const currentBlock = await provider.getBlockNumber();
-  const fromBlock = NETWORK.startBlock;
+  const CACHE_KEY = "mgx_admin_surrendered_users_v1";
+  const cached = readBlockCache<any>(CACHE_KEY);
+  const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
+  if (fromBlock > currentBlock) {
+    return (cached?.data ?? []) as any;
+  }
 
   const [surrenderLogs, claimHistory] = await Promise.all([
     batchQueryFilter(cashback, cashback.filters.UserSurrendered(), fromBlock, currentBlock),
@@ -1080,13 +1099,15 @@ export async function getSurrenderedUsers(): Promise<SurrenderedUserRecord[]> {
   );
 
   const totalSurrenderValue = users.reduce((sum, user) => sum + user.surrenderValue, 0);
-  return users
+  const __merged = [...(cached?.data ?? []), ...(users
     .map((user) => ({
       ...user,
       poolSharePercent:
         totalSurrenderValue > 0 ? (user.surrenderValue / totalSurrenderValue) * 100 : 0
     }))
-    .sort((a, b) => b.surrenderDate - a.surrenderDate);
+    .sort((a, b) => b.surrenderDate - a.surrenderDate))];
+  writeBlockCache(CACHE_KEY, currentBlock, __merged);
+  return __merged as any;
 }
 
 export async function getCashbackClaims(): Promise<CashbackClaimRecord[]> {
@@ -1098,7 +1119,12 @@ export async function getCashbackClaims(): Promise<CashbackClaimRecord[]> {
   const cashback = new Contract(CONTRACTS.CashbackPool, ABIS.CashbackPool, provider);
   const core = getCoreContract(provider);
   const currentBlock = await provider.getBlockNumber();
-  const fromBlock = NETWORK.startBlock;
+  const CACHE_KEY = "mgx_admin_cashback_claims_v1";
+  const cached = readBlockCache<any>(CACHE_KEY);
+  const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
+  if (fromBlock > currentBlock) {
+    return (cached?.data ?? []) as any;
+  }
   const logs = await batchQueryFilter(cashback, cashback.filters.CashbackClaimed(), fromBlock, currentBlock);
   const blocks = await Promise.all(logs.map((log) => provider.getBlock(log.blockNumber)));
 
@@ -1122,7 +1148,9 @@ export async function getCashbackClaims(): Promise<CashbackClaimRecord[]> {
     });
   }
 
-  return records.sort((a, b) => b.timestamp - a.timestamp);
+  const __merged = [...(cached?.data ?? []), ...(records.sort((a, b) => b.timestamp - a.timestamp))];
+  writeBlockCache(CACHE_KEY, currentBlock, __merged);
+  return __merged as any;
 }
 
 export async function getCashbackMonitorData(): Promise<CashbackMonitorData> {
