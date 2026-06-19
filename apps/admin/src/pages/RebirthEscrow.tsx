@@ -4,11 +4,11 @@ import { ToastStack, type ToastMessage } from "../components/Toast";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { useOwner } from "../hooks/useOwner";
 
-async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 49000) {
+async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 4999) {
   const results = [];
   for (let start = fromBlock; start <= toBlock; start += batchSize) {
     const end = Math.min(start + batchSize - 1, toBlock);
-    const logs = await contract.queryFilter(filter, start, end);
+    const logs = await queryFilterWithRetry(contract, filter, start, end);
     results.push(...logs);
     if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 300));
   }
@@ -16,6 +16,23 @@ async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract[
 }
 import { sendTransaction } from "../utils/txHelper";
 import { shortAddress } from "../utils/packageUtils";
+
+async function queryFilterWithRetry(contract: Contract, filter: any, start: number, end: number, retries = 3): Promise<any[]> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await contract.queryFilter(filter, start, end);
+    } catch (err: any) {
+      const isLimitErr = err?.code === -32005 || /limit exceeded/i.test(err?.message ?? "");
+      if (isLimitErr && attempt < retries - 1) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  return [];
+}
+
 
 type CompletedRebirthRow = {
   originalUserId: number;

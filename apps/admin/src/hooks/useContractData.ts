@@ -3,6 +3,23 @@ import { useCallback, useEffect, useState } from "react";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { getPackagePrice } from "../utils/packageUtils";
 
+async function queryFilterWithRetry(contract: Contract, filter: any, start: number, end: number, retries = 3): Promise<any[]> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await contract.queryFilter(filter, start, end);
+    } catch (err: any) {
+      const isLimitErr = err?.code === -32005 || /limit exceeded/i.test(err?.message ?? "");
+      if (isLimitErr && attempt < retries - 1) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  return [];
+}
+
+
 
 const blockTimestampCache = new Map<number, number>();
 
@@ -14,11 +31,11 @@ async function getCachedBlockTimestamp(provider: JsonRpcProvider, blockNumber: n
   return ts;
 }
 
-async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 10000): Promise<EventLog[]> {
+async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 4999): Promise<EventLog[]> {
   const results: EventLog[] = [];
   for (let start = fromBlock; start <= toBlock; start += batchSize) {
     const end = Math.min(start + batchSize - 1, toBlock);
-    const logs = await contract.queryFilter(filter, start, end);
+    const logs = await queryFilterWithRetry(contract, filter, start, end);
     results.push(...(logs as EventLog[]));
     if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 200));
   }
@@ -347,7 +364,7 @@ const initialState: HookState = {
 };
 
 function getProvider() {
-  return new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+  return new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
 }
 
 function isConfigured(address: string) {
@@ -690,11 +707,11 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
   const fromBlock = NETWORK.startBlock;
 
   const directLogs = await batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock);
-  await new Promise((r) => setTimeout(r, 2000));
+  await new Promise((r) => setTimeout(r, 1000));
   const levelLogs = await batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock);
-  await new Promise((r) => setTimeout(r, 2000));
+  await new Promise((r) => setTimeout(r, 1000));
   const spilloverLogs = await batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock);
-  await new Promise((r) => setTimeout(r, 2000));
+  await new Promise((r) => setTimeout(r, 1000));
   const crosslineLogs = await batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock);
   const registrationEvents = await getRegistrationEvents(provider);
   const platformReserveRaw = await router.platformReserve();
@@ -831,14 +848,16 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
   const fromBlock = NETWORK.startBlock;
   const upgradeLogs: EventLog[] = [];
   const reactivationLogs: EventLog[] = [];
-  for (let start = fromBlock; start <= currentBlock; start += 10_000) {
-    const end = Math.min(start + 48_999, currentBlock);
+  const CHUNK_SIZE = 4_999;
+  for (let start = fromBlock; start <= currentBlock; start += CHUNK_SIZE + 1) {
+    const end = Math.min(start + CHUNK_SIZE, currentBlock);
     const [upgradeChunk, rebirthChunk] = await Promise.all([
       core.queryFilter(core.filters.PackageUpgraded(), start, end),
       core.queryFilter(core.filters.RebirthUserCreated(), start, end)
     ]);
     upgradeLogs.push(...(upgradeChunk as EventLog[]));
     reactivationLogs.push(...(rebirthChunk as EventLog[]));
+    if (end < currentBlock) await new Promise((r) => setTimeout(r, 150));
   }
 
   const allLogs = [...upgradeLogs, ...reactivationLogs];
