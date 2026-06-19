@@ -612,10 +612,11 @@ const levelBreakdownCache = new Map<
 >();
 const genealogyCache = new Map<string, { data: Set<number>; timestamp: number }>();
 const SNAPSHOT_CACHE_TTL = 300_000;
-const SNAPSHOT_LOCAL_CACHE_TTL = 5 * 60 * 1000;
+const SNAPSHOT_LOCAL_CACHE_TTL = 30 * 60 * 1000;
 export const DASHBOARD_SNAPSHOT_REFRESH_EVENT = "mgx:dashboard-snapshot-refreshed";
 const GENEALOGY_CACHE_TTL = 300_000;
 const tokenDecimalsCache = new Map<string, number>();
+const backgroundRefreshInFlight = new Set<string>();
 
 function getPersistentSnapshotCacheKey(walletAddress?: string | null) {
   if (!walletAddress) {
@@ -636,9 +637,6 @@ function readPersistentDashboardSnapshot(cacheKey: string): { data: DashboardSna
     }
     const parsed = JSON.parse(cached) as { data?: DashboardSnapshot; timestamp?: number };
     if (!parsed.data || typeof parsed.timestamp !== "number") {
-      return null;
-    }
-    if (Date.now() - parsed.timestamp >= SNAPSHOT_LOCAL_CACHE_TTL) {
       return null;
     }
     return { data: parsed.data, timestamp: parsed.timestamp };
@@ -679,6 +677,22 @@ function cacheDashboardSnapshot(
       })
     );
   }
+}
+
+function queueBackgroundDashboardRefresh(walletAddress?: string | null) {
+  const key = walletAddress ?? "__guest__";
+  if (backgroundRefreshInFlight.has(key)) {
+    return;
+  }
+
+  backgroundRefreshInFlight.add(key);
+  void loadDashboardSnapshot(walletAddress, { forceRefresh: true })
+    .catch((error) => {
+      console.warn("MetaGuildX background dashboard refresh failed", error);
+    })
+    .finally(() => {
+      backgroundRefreshInFlight.delete(key);
+    });
 }
 
 function getConfiguredDeploymentStartBlockValue() {
@@ -3862,9 +3876,9 @@ export async function loadDashboardSnapshot(
     !options?.forceRefresh && persistentCacheKey ? readPersistentDashboardSnapshot(persistentCacheKey) : null;
   if (persistentSnapshot) {
     snapshotCache.set(cacheKey, persistentSnapshot);
-    void loadDashboardSnapshot(walletAddress, { forceRefresh: true }).catch((error) => {
-      console.warn("MetaGuildX background dashboard refresh failed", error);
-    });
+    if (Date.now() - persistentSnapshot.timestamp >= SNAPSHOT_LOCAL_CACHE_TTL) {
+      queueBackgroundDashboardRefresh(walletAddress);
+    }
     return persistentSnapshot.data;
   }
   const contractAddress = configuredCoreAddress;
@@ -3888,7 +3902,7 @@ export async function loadDashboardSnapshot(
     };
   }
 
-  const provider = await getReadProviderWithFallback();
+  const provider = await getReadProvider();
   const code = await provider.getCode(contractAddress);
   const treeCode =
     configuredBinaryTreeAddress && configuredBinaryTreeAddress !== "0x0000000000000000000000000000000000000000"
@@ -3942,9 +3956,7 @@ export async function loadDashboardSnapshot(
       tokenEngineModule
     });
     cacheDashboardSnapshot(cacheKey, persistentCacheKey, quickSnapshot);
-    void loadDashboardSnapshot(quickWalletAddress, { forceRefresh: true }).catch((error) => {
-      console.warn("MetaGuildX background dashboard refresh failed", error);
-    });
+    queueBackgroundDashboardRefresh(quickWalletAddress);
     return quickSnapshot;
   }
 
@@ -4287,30 +4299,28 @@ export async function loadDashboardSnapshot(
         { history: [], error: null, cursor: null }
       );
       const directReferralIds = directReferralIdsRaw.map((value: bigint) => Number(value));
-      const [{ total: crosslineAmount }, spilloverAmount, directReferralIncomeByUserId] = await Promise.all([
-        loadCrosslineDisplayIncome({
+      const { total: crosslineAmount } = await loadCrosslineDisplayIncome({
+        provider,
+        userId,
+        coreAddress: contractAddress,
+        incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
+      });
+      const spilloverAmount = await loadSpilloverDisplayIncome({
+        provider,
+        coreAddress: contractAddress,
+        userId,
+        incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
+      });
+      const directReferralIncomeByUserId = await withTimeout(
+        loadDirectReferralIncomeByUserId({
           provider,
-          userId,
-          coreAddress: contractAddress,
+          sponsorUserId: userId,
+          referralIds: directReferralIds,
           incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
         }),
-        loadSpilloverDisplayIncome({
-          provider,
-          coreAddress: contractAddress,
-          userId,
-          incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
-        }),
-        withTimeout(
-          loadDirectReferralIncomeByUserId({
-            provider,
-            sponsorUserId: userId,
-            referralIds: directReferralIds,
-            incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
-          }),
-          30000,
-          {}
-        )
-      ]);
+        30000,
+        {}
+      );
       const boxEarningsByPackage: Record<number, bigint> = {};
       const currentPackageLevel = Number(profile.packageLevel);
       const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
