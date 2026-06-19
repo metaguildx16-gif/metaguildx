@@ -4402,28 +4402,34 @@ export async function loadDashboardSnapshot(
         { history: [], error: null, cursor: null }
       );
       const directReferralIds = directReferralIdsRaw.map((value: bigint) => Number(value));
-      const { total: crosslineAmount } = await loadCrosslineDisplayIncome({
-        provider,
-        userId,
-        coreAddress: contractAddress,
-        incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
-      });
-      const spilloverAmount = await loadSpilloverDisplayIncome({
-        provider,
-        coreAddress: contractAddress,
-        userId,
-        incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
-      });
-      const directReferralIncomeByUserId = await withTimeout(
-        loadDirectReferralIncomeByUserId({
+      const [
+        { total: crosslineAmount },
+        spilloverAmount,
+        directReferralIncomeByUserId
+      ] = await Promise.all([
+        loadCrosslineDisplayIncome({
           provider,
-          sponsorUserId: userId,
-          referralIds: directReferralIds,
+          userId,
+          coreAddress: contractAddress,
           incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
         }),
-        30000,
-        {}
-      );
+        loadSpilloverDisplayIncome({
+          provider,
+          coreAddress: contractAddress,
+          userId,
+          incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
+        }),
+        withTimeout(
+          loadDirectReferralIncomeByUserId({
+            provider,
+            sponsorUserId: userId,
+            referralIds: directReferralIds,
+            incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
+          }),
+          30000,
+          {}
+        )
+      ]);
       const boxEarningsByPackage: Record<number, bigint> = {};
       const currentPackageLevel = Number(profile.packageLevel);
       const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
