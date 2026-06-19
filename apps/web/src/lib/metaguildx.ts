@@ -2,7 +2,7 @@ import { BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEt
 import { activeNetworkConfig, toHexChainId } from "../config/networks";
 
 const DEBUG_EVENTS = false;
-const BLOCK_CHUNK_SIZE = 10_000;
+const BLOCK_CHUNK_SIZE = 1_999;
 
 async function withTimeout<T>(
   promise: Promise<T>,
@@ -1261,7 +1261,7 @@ async function loadUserIncomeHistory(input: {
         router.filters.SpilloverIncome(BigInt(input.userId)),
         OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
         latestBlock,
-        4_999
+        1_999
       ),
       30_000,
       []
@@ -1272,7 +1272,7 @@ async function loadUserIncomeHistory(input: {
         router.filters.CrossLineIncomeRecorded(null, BigInt(input.userId)),
         OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
         latestBlock,
-        4_999
+        1_999
       ),
       30_000,
       []
@@ -1451,8 +1451,8 @@ async function loadBoxEarnings(input: {
   const legacyDirectTopics = legacyInterface.encodeFilterTopics("DirectIncomeRecorded", [null, BigInt(input.userId)]);
   const legacyLevelTopics = legacyInterface.encodeFilterTopics("LevelIncomeRecorded", [null, BigInt(input.userId)]);
 
-  for (let start = startBlock; start <= currentBlock; start += 4_999) {
-    const end = Math.min(start + 4_998, currentBlock);
+  for (let start = startBlock; start <= currentBlock; start += 1_999) {
+    const end = Math.min(start + 1_998, currentBlock);
     const isLastChunk = end >= currentBlock;
 
     try {
@@ -1641,7 +1641,7 @@ async function loadCrosslineDisplayIncome(input: {
       core.filters.RebirthUserCreated(null, null, null),
       OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
       currentBlock,
-      4_999
+      1_999
     );
 
     const crosslineRebirthIds = new Set<number>();
@@ -1673,7 +1673,7 @@ async function loadCrosslineDisplayIncome(input: {
             router.filters.CrossLineIncomeRecorded(null, BigInt(input.userId)),
             OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
             currentBlock,
-            4_999
+            1_999
           ),
           30000,
           []
@@ -2961,14 +2961,14 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
       core.filters.UserRegistered(null, null, null, null, null, null, null),
       deploymentStartBlock,
       latestBlock,
-      4_999
+      1_999
     ),
     queryFilterChunked(
       core,
       core.filters.PackageUpgraded(null, null, null, null),
       deploymentStartBlock,
       latestBlock,
-      4_999
+      1_999
     )
   ]);
   let recentRebirthEvents: any[] = [];
@@ -2979,7 +2979,7 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
         core.filters.RebirthUserCreated(null, null, null),
         deploymentStartBlock,
         latestBlock,
-        4_999
+        1_999
       );
     }
   } catch (error) {
@@ -4095,7 +4095,7 @@ export async function loadDashboardSnapshot(
           contract.filters.RebirthUserCreated(null, null, null),
           ACTIVITY_START,
           latestBlock,
-          4_999
+          1_999
         ).catch((error) => {
           console.warn("RebirthUserCreated not available:", error);
           return [];
@@ -4107,14 +4107,14 @@ export async function loadDashboardSnapshot(
       contract.filters.UserRegistered(null, null, null, null, null, null, null),
       ACTIVITY_START,
       latestBlock,
-      4_999
+      1_999
     ),
     queryFilterChunked(
       contract,
       contract.filters.PackageUpgraded(null, null, null, null),
       ACTIVITY_START,
       latestBlock,
-      4_999
+      1_999
     ),
     activityRebirthPromise
   ]);

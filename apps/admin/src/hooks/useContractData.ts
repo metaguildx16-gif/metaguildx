@@ -31,7 +31,7 @@ async function getCachedBlockTimestamp(provider: JsonRpcProvider, blockNumber: n
   return ts;
 }
 
-async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 4999): Promise<EventLog[]> {
+async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 2000): Promise<EventLog[]> {
   const results: EventLog[] = [];
   for (let start = fromBlock; start <= toBlock; start += batchSize) {
     const end = Math.min(start + batchSize - 1, toBlock);
@@ -848,7 +848,7 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
   const fromBlock = NETWORK.startBlock;
   const upgradeLogs: EventLog[] = [];
   const reactivationLogs: EventLog[] = [];
-  const CHUNK_SIZE = 4_999;
+  const CHUNK_SIZE = 1_999;
   for (let start = fromBlock; start <= currentBlock; start += CHUNK_SIZE + 1) {
     const end = Math.min(start + CHUNK_SIZE, currentBlock);
     const [upgradeChunk, rebirthChunk] = await Promise.all([

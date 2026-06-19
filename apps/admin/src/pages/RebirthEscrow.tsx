@@ -4,7 +4,7 @@ import { ToastStack, type ToastMessage } from "../components/Toast";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { useOwner } from "../hooks/useOwner";
 
-async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 4999) {
+async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 2000) {
   const results = [];
   for (let start = fromBlock; start <= toBlock; start += batchSize) {
     const end = Math.min(start + batchSize - 1, toBlock);
