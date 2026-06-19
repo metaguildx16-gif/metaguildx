@@ -218,10 +218,23 @@ async function queryFilterChunked(
   const effectiveChunkSize = totalRange > 200_000 ? Math.max(chunkSize, BLOCK_CHUNK_SIZE) : chunkSize;
   for (let start = fromBlock; start <= toBlock; start += effectiveChunkSize) {
     const end = Math.min(start + effectiveChunkSize - 1, toBlock);
-    const chunk = await timedAsync(
-      `queryFilter:${filter?.fragment?.name ?? filter?.name ?? "unknown"}:${start}-${end}`,
-      () => withTimeout(contract.queryFilter(filter, start, end), 15000, [])
-    );
+    let chunk: any[] = [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        chunk = await timedAsync(
+          `queryFilter:${filter?.fragment?.name ?? filter?.name ?? "unknown"}:${start}-${end}`,
+          () => withTimeout(contract.queryFilter(filter, start, end), 15000, [])
+        );
+        break;
+      } catch (err: any) {
+        const isLimitErr = err?.code === -32005 || /limit exceeded/i.test(err?.message ?? "");
+        if (isLimitErr && attempt < 2) {
+          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+          continue;
+        }
+        throw err;
+      }
+    }
     results.push(...chunk);
   }
   return results;
@@ -1248,7 +1261,7 @@ async function loadUserIncomeHistory(input: {
         router.filters.SpilloverIncome(BigInt(input.userId)),
         OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
         latestBlock,
-        49_000
+        4_999
       ),
       30_000,
       []
@@ -1259,7 +1272,7 @@ async function loadUserIncomeHistory(input: {
         router.filters.CrossLineIncomeRecorded(null, BigInt(input.userId)),
         OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
         latestBlock,
-        49_000
+        4_999
       ),
       30_000,
       []
@@ -1438,8 +1451,8 @@ async function loadBoxEarnings(input: {
   const legacyDirectTopics = legacyInterface.encodeFilterTopics("DirectIncomeRecorded", [null, BigInt(input.userId)]);
   const legacyLevelTopics = legacyInterface.encodeFilterTopics("LevelIncomeRecorded", [null, BigInt(input.userId)]);
 
-  for (let start = startBlock; start <= currentBlock; start += 49_000) {
-    const end = Math.min(start + 48_999, currentBlock);
+  for (let start = startBlock; start <= currentBlock; start += 4_999) {
+    const end = Math.min(start + 4_998, currentBlock);
     const isLastChunk = end >= currentBlock;
 
     try {
@@ -1628,7 +1641,7 @@ async function loadCrosslineDisplayIncome(input: {
       core.filters.RebirthUserCreated(null, null, null),
       OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
       currentBlock,
-      49_000
+      4_999
     );
 
     const crosslineRebirthIds = new Set<number>();
@@ -1660,7 +1673,7 @@ async function loadCrosslineDisplayIncome(input: {
             router.filters.CrossLineIncomeRecorded(null, BigInt(input.userId)),
             OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
             currentBlock,
-            49_000
+            4_999
           ),
           30000,
           []
@@ -2948,14 +2961,14 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
       core.filters.UserRegistered(null, null, null, null, null, null, null),
       deploymentStartBlock,
       latestBlock,
-      49_000
+      4_999
     ),
     queryFilterChunked(
       core,
       core.filters.PackageUpgraded(null, null, null, null),
       deploymentStartBlock,
       latestBlock,
-      49_000
+      4_999
     )
   ]);
   let recentRebirthEvents: any[] = [];
@@ -2966,7 +2979,7 @@ export async function loadAdminOverview(): Promise<AdminOverview> {
         core.filters.RebirthUserCreated(null, null, null),
         deploymentStartBlock,
         latestBlock,
-        49_000
+        4_999
       );
     }
   } catch (error) {
@@ -4082,7 +4095,7 @@ export async function loadDashboardSnapshot(
           contract.filters.RebirthUserCreated(null, null, null),
           ACTIVITY_START,
           latestBlock,
-          49_000
+          4_999
         ).catch((error) => {
           console.warn("RebirthUserCreated not available:", error);
           return [];
@@ -4094,14 +4107,14 @@ export async function loadDashboardSnapshot(
       contract.filters.UserRegistered(null, null, null, null, null, null, null),
       ACTIVITY_START,
       latestBlock,
-      49_000
+      4_999
     ),
     queryFilterChunked(
       contract,
       contract.filters.PackageUpgraded(null, null, null, null),
       ACTIVITY_START,
       latestBlock,
-      49_000
+      4_999
     ),
     activityRebirthPromise
   ]);
