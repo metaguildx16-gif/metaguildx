@@ -14,13 +14,13 @@ async function getCachedBlockTimestamp(provider: JsonRpcProvider, blockNumber: n
   return ts;
 }
 
-async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 49000): Promise<EventLog[]> {
+async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 10000): Promise<EventLog[]> {
   const results: EventLog[] = [];
   for (let start = fromBlock; start <= toBlock; start += batchSize) {
     const end = Math.min(start + batchSize - 1, toBlock);
     const logs = await contract.queryFilter(filter, start, end);
     results.push(...(logs as EventLog[]));
-    if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 500));
+    if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 200));
   }
   return results;
 }
@@ -831,7 +831,7 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
   const fromBlock = NETWORK.startBlock;
   const upgradeLogs: EventLog[] = [];
   const reactivationLogs: EventLog[] = [];
-  for (let start = fromBlock; start <= currentBlock; start += 49_000) {
+  for (let start = fromBlock; start <= currentBlock; start += 10_000) {
     const end = Math.min(start + 48_999, currentBlock);
     const [upgradeChunk, rebirthChunk] = await Promise.all([
       core.queryFilter(core.filters.PackageUpgraded(), start, end),
