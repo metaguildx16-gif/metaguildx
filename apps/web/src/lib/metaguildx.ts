@@ -617,11 +617,57 @@ export const DASHBOARD_SNAPSHOT_REFRESH_EVENT = "mgx:dashboard-snapshot-refreshe
 const GENEALOGY_CACHE_TTL = 300_000;
 const tokenDecimalsCache = new Map<string, number>();
 const backgroundRefreshInFlight = new Set<string>();
+const backgroundRefreshScheduled = new Set<string>();
 const BOX_EARNINGS_CACHE_PREFIX = "mgx_box_earnings_v1";
+const HOT_PATH_CACHE_PREFIX = "mgx_hot_path_v1";
+const HOT_PATH_CACHE_TTL = 5 * 60 * 1000;
+const BRANCH_STATS_BLOCK_BUCKET = 1_000;
 
 type PersistedBoxEarnings = {
   data: Record<number, bigint>;
   lastScannedBlock: number;
+  timestamp: number;
+};
+
+type PersistedBigIntTotal = {
+  total: string;
+  lastScannedBlock: number;
+  timestamp: number;
+};
+
+type PersistedDirectReferralIncome = {
+  data: Record<string, string>;
+  lastScannedBlock: number;
+  timestamp: number;
+};
+
+type PersistedCrosslineIncome = {
+  total: string;
+  history: UserIncomeHistoryRow[];
+  rebirthIds: number[];
+  lastScannedBlock: number;
+  timestamp: number;
+};
+
+type PersistedBranchStats = {
+  data: {
+    leftDirectChildId: number;
+    rightDirectChildId: number;
+    leftBranchNodes: number;
+    rightBranchNodes: number;
+    leftBranchBusiness: string;
+    rightBranchBusiness: string;
+  };
+  blockBucket: number;
+  timestamp: number;
+};
+
+type PersistedLevelBranchStats = {
+  data: {
+    levelTreeLeft: number;
+    levelTreeRight: number;
+  };
+  blockBucket: number;
   timestamp: number;
 };
 
@@ -662,6 +708,48 @@ function writePersistentDashboardSnapshot(cacheKey: string | null, data: Dashboa
   } catch {
     // Ignore storage quota or privacy-mode failures; in-memory cache still works.
   }
+}
+
+function readPersistentJson<T>(cacheKey: string): T | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const cached = window.localStorage.getItem(cacheKey);
+    return cached ? (JSON.parse(cached) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePersistentJson<T>(cacheKey: string, data: T) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(cacheKey, JSON.stringify(data));
+  } catch {
+    // Ignore storage quota or privacy-mode failures.
+  }
+}
+
+function getHotPathCacheKey(name: string, ...parts: Array<string | number | null | undefined>) {
+  return [
+    HOT_PATH_CACHE_PREFIX,
+    getDeploymentCacheNamespace(),
+    name,
+    ...parts.map((part) => String(part ?? "none").toLowerCase())
+  ].join("_");
+}
+
+function isFreshHotPathCache(timestamp: number | undefined) {
+  return typeof timestamp === "number" && Date.now() - timestamp < HOT_PATH_CACHE_TTL;
+}
+
+function getBlockBucket(blockNumber: number) {
+  return Math.floor(blockNumber / BRANCH_STATS_BLOCK_BUCKET) * BRANCH_STATS_BLOCK_BUCKET;
 }
 
 function getPersistentBoxEarningsCacheKey(userId: number, routerAddress: string, deployBlock: number) {
@@ -766,18 +854,40 @@ function cacheDashboardSnapshot(
 
 function queueBackgroundDashboardRefresh(walletAddress?: string | null) {
   const key = walletAddress ?? "__guest__";
-  if (backgroundRefreshInFlight.has(key)) {
+  if (backgroundRefreshInFlight.has(key) || backgroundRefreshScheduled.has(key)) {
     return;
   }
 
-  backgroundRefreshInFlight.add(key);
-  void loadDashboardSnapshot(walletAddress, { forceRefresh: true })
-    .catch((error) => {
-      console.warn("MetaGuildX background dashboard refresh failed", error);
-    })
-    .finally(() => {
-      backgroundRefreshInFlight.delete(key);
-    });
+  backgroundRefreshScheduled.add(key);
+  const runRefresh = () => {
+    backgroundRefreshScheduled.delete(key);
+    if (backgroundRefreshInFlight.has(key)) {
+      return;
+    }
+
+    backgroundRefreshInFlight.add(key);
+    void loadDashboardSnapshot(walletAddress, { forceRefresh: true })
+      .catch((error) => {
+        console.warn("MetaGuildX background dashboard refresh failed", error);
+      })
+      .finally(() => {
+        backgroundRefreshInFlight.delete(key);
+      });
+  };
+
+  if (typeof window === "undefined") {
+    setTimeout(runRefresh, 3000);
+    return;
+  }
+
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+  };
+  if (idleWindow.requestIdleCallback) {
+    idleWindow.requestIdleCallback(runRefresh, { timeout: 3000 });
+  } else {
+    window.setTimeout(runRefresh, 3000);
+  }
 }
 
 function getConfiguredDeploymentStartBlockValue() {
@@ -1437,6 +1547,18 @@ async function loadSpilloverDisplayIncome(input: {
   }
 
   try {
+    const currentBlock = await input.provider.getBlockNumber();
+    const cacheKey = getHotPathCacheKey("spillover", input.incomeRouterAddress, input.userId);
+    const persisted = readPersistentJson<PersistedBigIntTotal>(cacheKey);
+    if (
+      persisted &&
+      isFreshHotPathCache(persisted.timestamp) &&
+      Number.isFinite(persisted.lastScannedBlock) &&
+      persisted.lastScannedBlock >= currentBlock
+    ) {
+      return BigInt(persisted.total);
+    }
+
     const core = new Contract(input.coreAddress, metaGuildXCoreAbi, input.provider);
     const nextUserId = Number(await core.nextUserId());
     const sponsorMap: Record<number, number> = {};
@@ -1472,8 +1594,21 @@ async function loadSpilloverDisplayIncome(input: {
       }
     }
 
-    const currentBlock = await input.provider.getBlockNumber();
     const routerAddresses = getHistoricalIncomeRouterAddresses(input.incomeRouterAddress);
+    const startBlock = Math.max(
+      persisted ? persisted.lastScannedBlock + 1 : 0,
+      OPBNB_TESTNET_DEPLOYMENT_START_BLOCK
+    );
+    const previousTotal = persisted ? BigInt(persisted.total) : 0n;
+    if (startBlock > currentBlock) {
+      writePersistentJson<PersistedBigIntTotal>(cacheKey, {
+        total: previousTotal.toString(),
+        lastScannedBlock: currentBlock,
+        timestamp: Date.now()
+      });
+      return previousTotal;
+    }
+
     const eventResults = await Promise.all(
       routerAddresses.map(async (routerAddress) => {
         const router = new Contract(routerAddress, incomeRouterWriteAbi, input.provider);
@@ -1481,7 +1616,7 @@ async function loadSpilloverDisplayIncome(input: {
           queryFilterChunked(
             router,
             router.filters.LevelIncomeRecorded(null, BigInt(input.userId)),
-            OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
+            startBlock,
             currentBlock,
             49000
           ),
@@ -1491,7 +1626,7 @@ async function loadSpilloverDisplayIncome(input: {
       })
     );
 
-    return eventResults.flat().reduce((sum, event) => {
+    const nextTotal = eventResults.flat().reduce((sum, event) => {
       if (!("args" in event)) {
         return sum;
       }
@@ -1500,7 +1635,13 @@ async function loadSpilloverDisplayIncome(input: {
         return sum;
       }
       return sum + BigInt(event.args.amount ?? event.args[3] ?? 0n);
-    }, 0n);
+    }, previousTotal);
+    writePersistentJson<PersistedBigIntTotal>(cacheKey, {
+      total: nextTotal.toString(),
+      lastScannedBlock: currentBlock,
+      timestamp: Date.now()
+    });
+    return nextTotal;
   } catch {
     return 0n;
   }
@@ -1699,6 +1840,21 @@ async function loadCrosslineDisplayIncome(input: {
   }
 
   try {
+    const currentBlock = await input.provider.getBlockNumber();
+    const persistedCacheKey = getHotPathCacheKey("crossline", input.incomeRouterAddress, input.userId);
+    const persisted = readPersistentJson<PersistedCrosslineIncome>(persistedCacheKey);
+    if (
+      persisted &&
+      isFreshHotPathCache(persisted.timestamp) &&
+      Number.isFinite(persisted.lastScannedBlock) &&
+      persisted.lastScannedBlock >= currentBlock
+    ) {
+      return {
+        total: BigInt(persisted.total),
+        history: persisted.history
+      };
+    }
+
     const core = new Contract(input.coreAddress, metaGuildXCoreAbi, input.provider);
     const nextUserId = Number(await core.nextUserId());
     const sponsorMap: Record<number, number> = {};
@@ -1753,16 +1909,32 @@ async function loadCrosslineDisplayIncome(input: {
       });
     }
 
-    const currentBlock = await input.provider.getBlockNumber();
+    const startBlock = Math.max(
+      persisted ? persisted.lastScannedBlock + 1 : 0,
+      OPBNB_TESTNET_DEPLOYMENT_START_BLOCK
+    );
+    const crosslineRebirthIds = new Set<number>(persisted?.rebirthIds ?? []);
+    const previousTotal = persisted ? BigInt(persisted.total) : 0n;
+    const previousHistory = persisted?.history ?? [];
+    if (startBlock > currentBlock) {
+      writePersistentJson<PersistedCrosslineIncome>(persistedCacheKey, {
+        total: previousTotal.toString(),
+        history: previousHistory,
+        rebirthIds: [...crosslineRebirthIds],
+        lastScannedBlock: currentBlock,
+        timestamp: Date.now()
+      });
+      return { total: previousTotal, history: previousHistory };
+    }
+
     const rebirthEvents = await queryFilterChunked(
       core,
       core.filters.RebirthUserCreated(null, null, null),
-      OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
+      startBlock,
       currentBlock,
       60_000
     );
 
-    const crosslineRebirthIds = new Set<number>();
     for (const event of rebirthEvents) {
       if (!("args" in event)) {
         continue;
@@ -1789,7 +1961,7 @@ async function loadCrosslineDisplayIncome(input: {
           queryFilterChunked(
             router,
             router.filters.CrossLineIncomeRecorded(null, BigInt(input.userId)),
-            OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
+            startBlock,
             currentBlock,
             60_000
           ),
@@ -1799,8 +1971,8 @@ async function loadCrosslineDisplayIncome(input: {
       })
     );
 
-    let total = 0n;
-    const history: UserIncomeHistoryRow[] = [];
+    let total = previousTotal;
+    const history: UserIncomeHistoryRow[] = [...previousHistory];
     const blockDateCache = new Map<number, string>();
 
     async function getDateLabel(blockNumber: number) {
@@ -1838,6 +2010,13 @@ async function loadCrosslineDisplayIncome(input: {
 
     history.sort((left, right) => right.dateLabel.localeCompare(left.dateLabel));
 
+    writePersistentJson<PersistedCrosslineIncome>(persistedCacheKey, {
+      total: total.toString(),
+      history,
+      rebirthIds: [...crosslineRebirthIds],
+      lastScannedBlock: currentBlock,
+      timestamp: Date.now()
+    });
     return { total, history };
   } catch {
     return { total: 0n, history: [] as UserIncomeHistoryRow[] };
@@ -2279,6 +2458,29 @@ async function loadBranchStats(contract: Contract, userId: number) {
     };
   }
   const activeTreeContract = treeContract;
+  const provider = contract.runner?.provider;
+  let cacheKey: string | null = null;
+  let blockBucket = 0;
+  if (provider) {
+    try {
+      const latestBlock = await provider.getBlockNumber();
+      blockBucket = getBlockBucket(latestBlock);
+      cacheKey = getHotPathCacheKey("branch-stats", userId, blockBucket);
+      const persisted = readPersistentJson<PersistedBranchStats>(cacheKey);
+      if (persisted && persisted.blockBucket === blockBucket && isFreshHotPathCache(persisted.timestamp)) {
+        return {
+          leftDirectChildId: persisted.data.leftDirectChildId,
+          rightDirectChildId: persisted.data.rightDirectChildId,
+          leftBranchNodes: persisted.data.leftBranchNodes,
+          rightBranchNodes: persisted.data.rightBranchNodes,
+          leftBranchBusiness: BigInt(persisted.data.leftBranchBusiness),
+          rightBranchBusiness: BigInt(persisted.data.rightBranchBusiness)
+        };
+      }
+    } catch {
+      cacheKey = null;
+    }
+  }
 
   async function subtree(nodeId: number): Promise<{ nodes: number; business: bigint }> {
     if (nodeId === 0) {
@@ -2300,7 +2502,7 @@ async function loadBranchStats(contract: Contract, userId: number) {
   const rightDirectChildId = Number(rootNode.rightChildId);
   const [leftBranch, rightBranch] = await Promise.all([subtree(leftDirectChildId), subtree(rightDirectChildId)]);
 
-  return {
+  const stats = {
     leftDirectChildId,
     rightDirectChildId,
     leftBranchNodes: leftBranch.nodes,
@@ -2308,6 +2510,18 @@ async function loadBranchStats(contract: Contract, userId: number) {
     leftBranchBusiness: leftBranch.business,
     rightBranchBusiness: rightBranch.business
   };
+  if (cacheKey) {
+    writePersistentJson<PersistedBranchStats>(cacheKey, {
+      data: {
+        ...stats,
+        leftBranchBusiness: stats.leftBranchBusiness.toString(),
+        rightBranchBusiness: stats.rightBranchBusiness.toString()
+      },
+      blockBucket,
+      timestamp: Date.now()
+    });
+  }
+  return stats;
 }
 
 async function loadLevelBranchStats(contract: Contract, userId: number) {
@@ -2323,6 +2537,22 @@ async function loadLevelBranchStats(contract: Contract, userId: number) {
     };
   }
   const activeTreeContract = treeContract;
+  const provider = contract.runner?.provider;
+  let cacheKey: string | null = null;
+  let blockBucket = 0;
+  if (provider) {
+    try {
+      const latestBlock = await provider.getBlockNumber();
+      blockBucket = getBlockBucket(latestBlock);
+      cacheKey = getHotPathCacheKey("level-branch-stats", userId, blockBucket);
+      const persisted = readPersistentJson<PersistedLevelBranchStats>(cacheKey);
+      if (persisted && persisted.blockBucket === blockBucket && isFreshHotPathCache(persisted.timestamp)) {
+        return persisted.data;
+      }
+    } catch {
+      cacheKey = null;
+    }
+  }
 
   async function subtree(nodeId: number): Promise<number> {
     if (nodeId === 0) {
@@ -2341,10 +2571,18 @@ async function loadLevelBranchStats(contract: Contract, userId: number) {
     subtree(Number(rightRootRaw))
   ]);
 
-  return {
+  const stats = {
     levelTreeLeft,
     levelTreeRight
   };
+  if (cacheKey) {
+    writePersistentJson<PersistedLevelBranchStats>(cacheKey, {
+      data: stats,
+      blockBucket,
+      timestamp: Date.now()
+    });
+  }
+  return stats;
 }
 
 async function ensureConfiguredChain() {
@@ -3760,6 +3998,41 @@ async function loadDirectReferralIncomeByUserId(input: {
 
   try {
     const currentBlock = await input.provider.getBlockNumber();
+    const cacheKey = getHotPathCacheKey("direct-referral", input.incomeRouterAddress, input.sponsorUserId);
+    const persisted = readPersistentJson<PersistedDirectReferralIncome>(cacheKey);
+    if (
+      persisted &&
+      isFreshHotPathCache(persisted.timestamp) &&
+      Number.isFinite(persisted.lastScannedBlock) &&
+      persisted.lastScannedBlock >= currentBlock
+    ) {
+      return Object.fromEntries(
+        input.referralIds.map((referralId) => [
+          referralId,
+          formatPlatformUsdValue(BigInt(persisted.data[String(referralId)] ?? "0"))
+        ])
+      );
+    }
+    if (persisted) {
+      for (const [referralId, amount] of Object.entries(persisted.data)) {
+        incomeByReferral.set(Number(referralId), BigInt(amount));
+      }
+    }
+    const startBlock = Math.max(
+      persisted ? persisted.lastScannedBlock + 1 : 0,
+      OPBNB_TESTNET_DEPLOYMENT_START_BLOCK
+    );
+    if (startBlock > currentBlock) {
+      writePersistentJson<PersistedDirectReferralIncome>(cacheKey, {
+        data: Object.fromEntries([...incomeByReferral.entries()].map(([id, amount]) => [id, amount.toString()])),
+        lastScannedBlock: currentBlock,
+        timestamp: Date.now()
+      });
+      return Object.fromEntries(
+        input.referralIds.map((referralId) => [referralId, formatPlatformUsdValue(incomeByReferral.get(referralId) ?? 0n)])
+      );
+    }
+
     const allResults = await Promise.all(
       routerAddresses.map(async (routerAddress) => {
         const router = new Contract(routerAddress, incomeRouterWriteAbi, input.provider);
@@ -3767,7 +4040,7 @@ async function loadDirectReferralIncomeByUserId(input: {
           queryFilterChunked(
             router,
             router.filters.DirectIncomeRecorded(null, BigInt(input.sponsorUserId)),
-            OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
+            startBlock,
             currentBlock,
             49000
           ),
@@ -3789,6 +4062,11 @@ async function loadDirectReferralIncomeByUserId(input: {
       }
       incomeByReferral.set(fromUserId, (incomeByReferral.get(fromUserId) ?? 0n) + args.amount);
     }
+    writePersistentJson<PersistedDirectReferralIncome>(cacheKey, {
+      data: Object.fromEntries([...incomeByReferral.entries()].map(([id, amount]) => [id, amount.toString()])),
+      lastScannedBlock: currentBlock,
+      timestamp: Date.now()
+    });
   } catch {
     return {} as Record<number, string>;
   }
@@ -3981,6 +4259,13 @@ export async function loadDashboardSnapshot(
   }
   const persistentSnapshot =
     !options?.forceRefresh && persistentCacheKey ? readPersistentDashboardSnapshot(persistentCacheKey) : null;
+  if (!options?.forceRefresh && persistentCacheKey) {
+    console.info("[MGX] persistent snapshot cache", {
+      key: persistentCacheKey,
+      hit: Boolean(persistentSnapshot),
+      ageMs: persistentSnapshot ? Date.now() - persistentSnapshot.timestamp : null
+    });
+  }
   if (persistentSnapshot) {
     snapshotCache.set(cacheKey, persistentSnapshot);
     if (Date.now() - persistentSnapshot.timestamp >= SNAPSHOT_LOCAL_CACHE_TTL) {
