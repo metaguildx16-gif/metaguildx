@@ -67,8 +67,8 @@ async function queryTransferLogs(
   currentBlock: number
 ) {
   const results: EventLog[] = [];
-  for (let start = NETWORK.startBlock; start <= currentBlock; start += 1_999) {
-    const end = Math.min(start + 1_998, currentBlock);
+  for (let start = NETWORK.startBlock; start <= currentBlock; start += 9_999) {
+    const end = Math.min(start + 9_998, currentBlock);
     const chunk = await usdt.queryFilter(filter, start, end);
     results.push(...(chunk as EventLog[]));
   }
@@ -81,8 +81,8 @@ async function loadCoreBalanceData(): Promise<CoreBalanceData> {
   const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider);
   const currentBlock = await provider.getBlockNumber();
   const registrationTxHashes = new Set<string>();
-  for (let start = NETWORK.startBlock; start <= currentBlock; start += 1_999) {
-    const end = Math.min(start + 1_998, currentBlock);
+  for (let start = NETWORK.startBlock; start <= currentBlock; start += 9_999) {
+    const end = Math.min(start + 9_998, currentBlock);
     const chunk = await core.queryFilter(core.filters.UserRegistered(), start, end);
     for (const log of chunk) {
       registrationTxHashes.add(log.transactionHash.toLowerCase());

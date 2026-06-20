@@ -1,0 +1,52 @@
+[1mdiff --git a/apps/admin/src/pages/ContractControl.tsx b/apps/admin/src/pages/ContractControl.tsx[m
+[1mindex fe29654..b0180bc 100644[m
+[1m--- a/apps/admin/src/pages/ContractControl.tsx[m
+[1m+++ b/apps/admin/src/pages/ContractControl.tsx[m
+[36m@@ -145,7 +145,7 @@[m [mexport function ContractControl() {[m
+       ]);[m
+ [m
+       const currentBlock = await provider.getBlockNumber();[m
+[31m-      const fromBlock = Math.max(NETWORK.startBlock, currentBlock - 1_999);[m
+[32m+[m[32m      const fromBlock = Math.max(NETWORK.startBlock, currentBlock - 9_999);[m
+       const registrations = await core.queryFilter(core.filters.UserRegistered(), fromBlock, currentBlock);[m
+ [m
+       const currentSettings: SettingsState = {[m
+[1mdiff --git a/apps/admin/src/pages/CoreBalance.tsx b/apps/admin/src/pages/CoreBalance.tsx[m
+[1mindex 6397a15..d2e6fd6 100644[m
+[1m--- a/apps/admin/src/pages/CoreBalance.tsx[m
+[1m+++ b/apps/admin/src/pages/CoreBalance.tsx[m
+[36m@@ -67,8 +67,8 @@[m [masync function queryTransferLogs([m
+   currentBlock: number[m
+ ) {[m
+   const results: EventLog[] = [];[m
+[31m-  for (let start = NETWORK.startBlock; start <= currentBlock; start += 1_999) {[m
+[31m-    const end = Math.min(start + 1_998, currentBlock);[m
+[32m+[m[32m  for (let start = NETWORK.startBlock; start <= currentBlock; start += 9_999) {[m
+[32m+[m[32m    const end = Math.min(start + 9_998, currentBlock);[m
+     const chunk = await usdt.queryFilter(filter, start, end);[m
+     results.push(...(chunk as EventLog[]));[m
+   }[m
+[36m@@ -81,8 +81,8 @@[m [masync function loadCoreBalanceData(): Promise<CoreBalanceData> {[m
+   const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider);[m
+   const currentBlock = await provider.getBlockNumber();[m
+   const registrationTxHashes = new Set<string>();[m
+[31m-  for (let start = NETWORK.startBlock; start <= currentBlock; start += 1_999) {[m
+[31m-    const end = Math.min(start + 1_998, currentBlock);[m
+[32m+[m[32m  for (let start = NETWORK.startBlock; start <= currentBlock; start += 9_999) {[m
+[32m+[m[32m    const end = Math.min(start + 9_998, currentBlock);[m
+     const chunk = await core.queryFilter(core.filters.UserRegistered(), start, end);[m
+     for (const log of chunk) {[m
+       registrationTxHashes.add(log.transactionHash.toLowerCase());[m
+[1mdiff --git a/apps/admin/src/pages/RebirthEscrow.tsx b/apps/admin/src/pages/RebirthEscrow.tsx[m
+[1mindex 8b12388..8a3a71f 100644[m
+[1m--- a/apps/admin/src/pages/RebirthEscrow.tsx[m
+[1m+++ b/apps/admin/src/pages/RebirthEscrow.tsx[m
+[36m@@ -4,7 +4,7 @@[m [mimport { ToastStack, type ToastMessage } from "../components/Toast";[m
+ import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";[m
+ import { useOwner } from "../hooks/useOwner";[m
+ [m
+[31m-async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 2000) {[m
+[32m+[m[32masync function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 10000) {[m
+   const results = [];[m
+   for (let start = fromBlock; start <= toBlock; start += batchSize) {[m
+     const end = Math.min(start + batchSize - 1, toBlock);[m

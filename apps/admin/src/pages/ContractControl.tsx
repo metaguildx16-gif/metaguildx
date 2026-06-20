@@ -145,7 +145,7 @@ export function ContractControl() {
       ]);
 
       const currentBlock = await provider.getBlockNumber();
-      const fromBlock = Math.max(NETWORK.startBlock, currentBlock - 1_999);
+      const fromBlock = Math.max(NETWORK.startBlock, currentBlock - 9_999);
       const registrations = await core.queryFilter(core.filters.UserRegistered(), fromBlock, currentBlock);
 
       const currentSettings: SettingsState = {
