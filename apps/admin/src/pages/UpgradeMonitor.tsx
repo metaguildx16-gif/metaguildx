@@ -46,7 +46,7 @@ function getEthereum() {
 
 async function getEscrowStatusRows(): Promise<EscrowStatusRow[]> {
   console.log("getEscrowStatusRows START");
-  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
   const core = new Contract(
     CONTRACTS.MetaGuildXCore,
     [
@@ -115,7 +115,7 @@ async function getEscrowStatusRows(): Promise<EscrowStatusRow[]> {
 }
 
 async function getStrandedEscrowRows(): Promise<StrandedEscrowRow[]> {
-  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
   const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider);
   const income = new Contract(CONTRACTS.MetaGuildXIncome, ABIS.MetaGuildXIncome, provider);
   const nextUserId = Number(await core.nextUserId());
@@ -189,7 +189,7 @@ export function UpgradeMonitor() {
   const [strandedError, setStrandedError] = useState("");
 
   const loadBalances = async () => {
-    const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+    const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
     const usdt = new Contract(CONTRACTS.USDT, ABIS.USDT, provider);
     const [coreRaw, routerRaw, incomeRaw] = await Promise.all([
       usdt.balanceOf(CONTRACTS.MetaGuildXCore),

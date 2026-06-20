@@ -202,7 +202,7 @@ export function StakingMonitor() {
     }
 
     try {
-      const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+      const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
       const staking = new Contract(CONTRACTS.MGXStaking, ABIS.MGXStaking, provider);
       const position = await staking.getStakePosition(address);
       const amount = BigInt(position.amount);

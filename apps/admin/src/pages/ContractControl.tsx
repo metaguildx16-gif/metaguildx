@@ -126,7 +126,7 @@ export function ContractControl() {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+      const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
       const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider);
 
       const [creatorWallet, placementSigner, defaultPaymentAsset, usdtAddress, productionMode, owner, binaryTreeContract, incomeRouterContract, incomeEngineContract, upgradeEngineContract, cashbackPoolContract, stakingContract] = await Promise.all([
@@ -230,7 +230,7 @@ export function ContractControl() {
   };
 
   const readContracts = async () => {
-    const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+    const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
     return {
       core: new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider),
       income: new Contract(CONTRACTS.MetaGuildXIncome, ABIS.MetaGuildXIncome, provider)

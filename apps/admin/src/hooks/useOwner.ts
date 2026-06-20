@@ -24,7 +24,7 @@ export function useOwner(walletAddress: string | null) {
           throw new Error("MetaGuildXCore address is not configured");
         }
 
-        const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+        const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
         const core = new Contract(
           CONTRACTS.MetaGuildXCore,
           ABIS.MetaGuildXCore,

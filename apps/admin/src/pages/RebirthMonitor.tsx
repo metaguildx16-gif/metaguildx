@@ -110,7 +110,7 @@ export function RebirthMonitor() {
 }
 
 async function getNearRebirthData(): Promise<NearRebirthRow[]> {
-  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { staticNetwork: true });
+  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
   const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider);
   const income = new Contract(CONTRACTS.MetaGuildXIncome, ABIS.MetaGuildXIncome, provider);
   const upgrade = new Contract(CONTRACTS.MetaGuildXUpgrade, ABIS.MetaGuildXUpgrade, provider);

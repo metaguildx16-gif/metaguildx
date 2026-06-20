@@ -4,12 +4,12 @@ import { ToastStack, type ToastMessage } from "../components/Toast";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { useOwner } from "../hooks/useOwner";
 
-async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 2000) {
-  const results = [];
+async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 2000): Promise<EventLog[]> {
+  const results: EventLog[] = [];
   for (let start = fromBlock; start <= toBlock; start += batchSize) {
     const end = Math.min(start + batchSize - 1, toBlock);
     const logs = await queryFilterWithRetry(contract, filter, start, end);
-    results.push(...logs);
+    results.push(...(logs as EventLog[]));
     if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 300));
   }
   return results;
@@ -22,7 +22,11 @@ async function queryFilterWithRetry(contract: Contract, filter: any, start: numb
     try {
       return await contract.queryFilter(filter, start, end);
     } catch (err: any) {
-      const isLimitErr = err?.code === -32005 || /limit exceeded/i.test(err?.message ?? "");
+      const isLimitErr =
+        err?.code === -32005 ||
+        err?.error?.code === -32005 ||
+        /limit exceeded/i.test(err?.message ?? "") ||
+        /limit exceeded/i.test(err?.error?.message ?? "");
       if (isLimitErr && attempt < retries - 1) {
         await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
         continue;
@@ -87,7 +91,7 @@ function formatDateTime(timestamp: number) {
 }
 
 async function loadRebirthEscrowData(): Promise<RebirthEscrowData> {
-  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
   const core = new Contract(
     CONTRACTS.MetaGuildXCore,
     [...ABIS.MetaGuildXCore, "function getPackagePriceByLevel(uint256) view returns (uint256)"],

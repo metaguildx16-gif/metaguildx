@@ -76,7 +76,7 @@ async function queryTransferLogs(
 }
 
 async function loadCoreBalanceData(): Promise<CoreBalanceData> {
-  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
   const usdt = new Contract(CONTRACTS.USDT, ABIS.USDT, provider);
   const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider);
   const currentBlock = await provider.getBlockNumber();

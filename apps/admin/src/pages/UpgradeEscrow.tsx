@@ -87,7 +87,7 @@ async function mapInBatches<T, R>(items: T[], batchSize: number, mapper: (item: 
 async function loadUpgradeEscrowData(): Promise<UpgradeEscrowData> {
   return withTimeout(
     (async () => {
-      const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId);
+      const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
       const core = new Contract(
         CONTRACTS.MetaGuildXCore,
         [
