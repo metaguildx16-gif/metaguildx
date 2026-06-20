@@ -61,106 +61,145 @@ function formatSignedUsdt(amount: bigint) {
   return `${sign}${(Number(absolute) / 1e18).toFixed(2)} USDT`;
 }
 
-async function queryTransferLogs(
-  usdt: Contract,
-  filter: ReturnType<Contract["filters"]["Transfer"]>,
-  currentBlock: number
-) {
-  const results: EventLog[] = [];
-  for (let start = NETWORK.startBlock; start <= currentBlock; start += 9_999) {
-    const end = Math.min(start + 9_998, currentBlock);
-    const chunk = await usdt.queryFilter(filter, start, end);
-    results.push(...(chunk as EventLog[]));
+const REGISTERED_TX_CACHE_KEY = "mgx_admin_core_balance_registered_txs_v1";
+const USDT_IN_CACHE_KEY = "mgx_admin_core_balance_usdt_in_v1";
+const USDT_OUT_CACHE_KEY = "mgx_admin_core_balance_usdt_out_v1";
+
+type IncrementalCache<T> = {
+  lastScannedBlock: number;
+  data: T[];
+  timestamp: number;
+};
+
+type CachedTransferRow = {
+  counterparty: string;
+  amount: string;
+  blockNumber: number;
+  txHash: string;
+};
+
+function readIncrementalCache<T>(key: string): IncrementalCache<T> | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as IncrementalCache<T>;
+    if (typeof parsed.lastScannedBlock !== "number" || !Array.isArray(parsed.data)) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
   }
-  return results;
 }
 
-async function loadCoreBalanceData(): Promise<CoreBalanceData> {
-  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
-  const usdt = new Contract(CONTRACTS.USDT, ABIS.USDT, provider);
-  const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider);
-  const currentBlock = await provider.getBlockNumber();
-  const registrationTxHashes = new Set<string>();
-  for (let start = NETWORK.startBlock; start <= currentBlock; start += 9_999) {
-    const end = Math.min(start + 9_998, currentBlock);
-    const chunk = await core.queryFilter(core.filters.UserRegistered(), start, end);
-    for (const log of chunk) {
-      registrationTxHashes.add(log.transactionHash.toLowerCase());
+function writeIncrementalCache<T>(key: string, lastScannedBlock: number, data: T[]) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify({ lastScannedBlock, data, timestamp: Date.now() }));
+  } catch {
+    // localStorage full or unavailable - silently skip caching
+  }
+}
+
+async function queryFilterWithRetry(contract: Contract, filter: any, start: number, end: number, retries = 3): Promise<any[]> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await contract.queryFilter(filter, start, end);
+    } catch (err: any) {
+      const isLimitErr =
+        err?.code === -32005 ||
+        err?.error?.code === -32005 ||
+        /limit exceeded/i.test(err?.message ?? "") ||
+        /limit exceeded/i.test(err?.error?.message ?? "");
+      if (isLimitErr && attempt < retries - 1) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  return [];
+}
+
+async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
+  const results: T[] = [];
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < tasks.length) {
+      const index = cursor++;
+      results[index] = await tasks[index]();
     }
   }
 
-  const [inLogs, outLogs, actualBalance] = await Promise.all([
-    queryTransferLogs(usdt, usdt.filters.Transfer(null, CONTRACTS.MetaGuildXCore), currentBlock),
-    queryTransferLogs(usdt, usdt.filters.Transfer(CONTRACTS.MetaGuildXCore, null), currentBlock),
-    usdt.balanceOf(CONTRACTS.MetaGuildXCore)
-  ]);
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => worker()));
+  return results;
+}
 
-  const recentIn = [...inLogs]
-    .sort((a, b) => b.blockNumber - a.blockNumber)
-    .slice(0, PAGE_SIZE)
-    .map((log) => ({
-      counterparty: String(log.args.from),
-      amount: BigInt(log.args.value),
-      blockNumber: log.blockNumber,
-      txHash: log.transactionHash
-    }));
+async function queryTransferLogs(
+  usdt: Contract,
+  filter: ReturnType<Contract["filters"]["Transfer"]>,
+  currentBlock: number,
+  cacheKey: string,
+  counterpartyField: "from" | "to"
+) {
+  const cached = readIncrementalCache<CachedTransferRow>(cacheKey);
+  const results: TransferRow[] =
+    cached?.data.map((row) => ({
+      ...row,
+      amount: BigInt(row.amount)
+    })) ?? [];
+  const fromBlock = Math.max(NETWORK.startBlock, (cached?.lastScannedBlock ?? NETWORK.startBlock - 1) + 1);
 
-  const recentOut = [...outLogs]
-    .sort((a, b) => b.blockNumber - a.blockNumber)
-    .slice(0, PAGE_SIZE)
-    .map((log) => ({
-      counterparty: String(log.args.to),
-      amount: BigInt(log.args.value),
-      blockNumber: log.blockNumber,
-      txHash: log.transactionHash
-    }));
-
-  const totalIn = inLogs.reduce((sum, log) => sum + BigInt(log.args.value), 0n);
-  const totalOut = outLogs.reduce((sum, log) => sum + BigInt(log.args.value), 0n);
-  const expectedBalance = totalIn - totalOut;
-  const groupedByTx = new Map<string, StuckDistributionRow>();
-
-  for (const log of inLogs) {
-    const current = groupedByTx.get(log.transactionHash) ?? {
-      blockNumber: log.blockNumber,
-      txHash: log.transactionHash,
-      totalIn: 0n,
-      totalOut: 0n,
-      isRegistrationTx: false,
-      stuckAmount: 0n
-    };
-    current.totalIn += BigInt(log.args.value);
-    current.blockNumber = Math.max(current.blockNumber, log.blockNumber);
-    groupedByTx.set(log.transactionHash, current);
+  if (fromBlock > currentBlock) {
+    return results;
   }
 
-  for (const log of outLogs) {
-    const current = groupedByTx.get(log.transactionHash) ?? {
-      blockNumber: log.blockNumber,
-      txHash: log.transactionHash,
-      totalIn: 0n,
-      totalOut: 0n,
-      isRegistrationTx: false,
-      stuckAmount: 0n
-    };
-    current.totalOut += BigInt(log.args.value);
-    current.blockNumber = Math.max(current.blockNumber, log.blockNumber);
-    groupedByTx.set(log.transactionHash, current);
+  for (let start = fromBlock; start <= currentBlock; start += 9_999) {
+    const end = Math.min(start + 9_998, currentBlock);
+    const chunk = await queryFilterWithRetry(usdt, filter, start, end);
+    for (const log of chunk as EventLog[]) {
+      results.push({
+        counterparty: String(log.args[counterpartyField]),
+        amount: BigInt(log.args.value),
+        blockNumber: log.blockNumber,
+        txHash: log.transactionHash
+      });
+    }
   }
 
-  const heuristicStuckRows = [...groupedByTx.values()]
-    .map((row) => {
-      const isRegistrationTx = registrationTxHashes.has(row.txHash.toLowerCase());
-      const isStuck = row.totalIn > 0n && row.totalOut === 0n && isRegistrationTx;
-      return {
-        ...row,
-        isRegistrationTx,
-        stuckAmount: isStuck ? row.totalIn : 0n
-      };
-    })
-    .sort((a, b) => b.blockNumber - a.blockNumber)
-    .slice(0, PAGE_SIZE);
+  writeIncrementalCache<CachedTransferRow>(
+    cacheKey,
+    currentBlock,
+    results.map((row) => ({
+      ...row,
+      amount: row.amount.toString()
+    }))
+  );
+  return results;
+}
 
+async function queryRegisteredTxHashes(core: Contract, currentBlock: number) {
+  const cached = readIncrementalCache<string>(REGISTERED_TX_CACHE_KEY);
+  const hashes = new Set<string>(cached?.data ?? []);
+  const fromBlock = Math.max(NETWORK.startBlock, (cached?.lastScannedBlock ?? NETWORK.startBlock - 1) + 1);
+
+  if (fromBlock > currentBlock) {
+    return hashes;
+  }
+
+  for (let start = fromBlock; start <= currentBlock; start += 9_999) {
+    const end = Math.min(start + 9_998, currentBlock);
+    const chunk = await queryFilterWithRetry(core, core.filters.UserRegistered(), start, end);
+    for (const log of chunk) {
+      hashes.add(log.transactionHash.toLowerCase());
+    }
+  }
+
+  writeIncrementalCache(REGISTERED_TX_CACHE_KEY, currentBlock, [...hashes]);
+  return hashes;
+}
+
+async function loadFailedDistributionRows(core: Contract) {
   const failedRows: FailedDistributionRow[] = [];
   try {
     const ids = await core.getFailedUserIds();
@@ -177,17 +216,114 @@ async function loadCoreBalanceData(): Promise<CoreBalanceData> {
       }
     }
   } catch {
-    // failedDistribution not available on older impl — ignore
+    // failedDistribution not available on older impl - ignore
   }
+  return failedRows;
+}
 
-  const stuckRows = failedRows.length > 0 ? heuristicStuckRows : [];
+async function loadCoreBalanceEssentials(): Promise<CoreBalanceData> {
+  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
+  const usdt = new Contract(CONTRACTS.USDT, ABIS.USDT, provider);
+  const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider);
+  const [actualBalance, failedRows] = await Promise.all([
+    usdt.balanceOf(CONTRACTS.MetaGuildXCore),
+    loadFailedDistributionRows(core)
+  ]);
 
   return {
     actualBalance: BigInt(actualBalance),
+    totalIn: 0n,
+    totalOut: 0n,
+    expectedBalance: BigInt(actualBalance),
+    mismatch: 0n,
+    recentIn: [],
+    recentOut: [],
+    stuckRows: [],
+    failedRows
+  };
+}
+
+async function loadCoreBalanceData(baseData?: CoreBalanceData): Promise<CoreBalanceData> {
+  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
+  const usdt = new Contract(CONTRACTS.USDT, ABIS.USDT, provider);
+  const core = new Contract(CONTRACTS.MetaGuildXCore, ABIS.MetaGuildXCore, provider);
+  const currentBlock = await provider.getBlockNumber();
+  const [registrationTxHashesResult, inLogsResult, outLogsResult] = await runWithConcurrency<Set<string> | TransferRow[]>(
+    [
+      () => queryRegisteredTxHashes(core, currentBlock),
+      () => queryTransferLogs(usdt, usdt.filters.Transfer(null, CONTRACTS.MetaGuildXCore), currentBlock, USDT_IN_CACHE_KEY, "from"),
+      () => queryTransferLogs(usdt, usdt.filters.Transfer(CONTRACTS.MetaGuildXCore, null), currentBlock, USDT_OUT_CACHE_KEY, "to")
+    ],
+    2
+  );
+  const registrationTxHashes = registrationTxHashesResult as Set<string>;
+  const inLogs = inLogsResult as TransferRow[];
+  const outLogs = outLogsResult as TransferRow[];
+
+  const recentIn = [...inLogs]
+    .sort((a, b) => b.blockNumber - a.blockNumber)
+    .slice(0, PAGE_SIZE);
+
+  const recentOut = [...outLogs]
+    .sort((a, b) => b.blockNumber - a.blockNumber)
+    .slice(0, PAGE_SIZE);
+
+  const totalIn = inLogs.reduce((sum, log) => sum + log.amount, 0n);
+  const totalOut = outLogs.reduce((sum, log) => sum + log.amount, 0n);
+  const expectedBalance = totalIn - totalOut;
+  const groupedByTx = new Map<string, StuckDistributionRow>();
+
+  for (const log of inLogs) {
+    const current = groupedByTx.get(log.txHash) ?? {
+      blockNumber: log.blockNumber,
+      txHash: log.txHash,
+      totalIn: 0n,
+      totalOut: 0n,
+      isRegistrationTx: false,
+      stuckAmount: 0n
+    };
+    current.totalIn += log.amount;
+    current.blockNumber = Math.max(current.blockNumber, log.blockNumber);
+    groupedByTx.set(log.txHash, current);
+  }
+
+  for (const log of outLogs) {
+    const current = groupedByTx.get(log.txHash) ?? {
+      blockNumber: log.blockNumber,
+      txHash: log.txHash,
+      totalIn: 0n,
+      totalOut: 0n,
+      isRegistrationTx: false,
+      stuckAmount: 0n
+    };
+    current.totalOut += log.amount;
+    current.blockNumber = Math.max(current.blockNumber, log.blockNumber);
+    groupedByTx.set(log.txHash, current);
+  }
+
+  const heuristicStuckRows = [...groupedByTx.values()]
+    .map((row) => {
+      const isRegistrationTx = registrationTxHashes.has(row.txHash.toLowerCase());
+      const isStuck = row.totalIn > 0n && row.totalOut === 0n && isRegistrationTx;
+      return {
+        ...row,
+        isRegistrationTx,
+        stuckAmount: isStuck ? row.totalIn : 0n
+      };
+    })
+    .sort((a, b) => b.blockNumber - a.blockNumber)
+    .slice(0, PAGE_SIZE);
+
+  const actualBalance = baseData?.actualBalance ?? BigInt(await usdt.balanceOf(CONTRACTS.MetaGuildXCore));
+  const failedRows = baseData?.failedRows ?? await loadFailedDistributionRows(core);
+  const stuckRows = failedRows.length > 0 ? heuristicStuckRows : [];
+
+  return {
+    actualBalance,
     totalIn,
     totalOut,
     expectedBalance,
-    mismatch: BigInt(actualBalance) - expectedBalance,
+    mismatch: actualBalance - expectedBalance,
     recentIn,
     recentOut,
     stuckRows,
@@ -295,7 +431,10 @@ export function CoreBalancePage() {
   const refresh = async () => {
     setLoading(true);
     try {
-      const nextData = await loadCoreBalanceData();
+      const essentials = await loadCoreBalanceEssentials();
+      setData(essentials);
+      setLoading(false);
+      const nextData = await loadCoreBalanceData(essentials);
       setData(nextData);
     } catch (error) {
       addToast(error instanceof Error ? error.message : "Failed to load core balance", "error");

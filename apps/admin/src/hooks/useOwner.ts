@@ -17,6 +17,13 @@ export function useOwner(walletAddress: string | null) {
       setLoading(true);
       setError(null);
       try {
+        if (!walletAddress) {
+          setIsOwner(false);
+          setOwnerAddress("");
+          setLoading(false);
+          return;
+        }
+
         if (
           String(CONTRACTS.MetaGuildXCore).toLowerCase() ===
           ZERO
@@ -31,11 +38,10 @@ export function useOwner(walletAddress: string | null) {
           provider
         );
         const owner = String(await core.owner());
-        const wallet = (walletAddress ?? "").toLowerCase();
+        const wallet = walletAddress.toLowerCase();
         setOwnerAddress(owner);
         setIsOwner(
-          Boolean(walletAddress) &&
-            (owner.toLowerCase() === wallet || wallet === DEPLOYER_EOA || wallet === GNOSIS_SAFE)
+          owner.toLowerCase() === wallet || wallet === DEPLOYER_EOA || wallet === GNOSIS_SAFE
         );
       } catch (ownerError) {
         setIsOwner(false);
