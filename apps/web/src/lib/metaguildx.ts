@@ -2152,7 +2152,7 @@ async function getReadProvider() {
 
   for (const rpcUrl of rpcUrls) {
     try {
-      const provider = new JsonRpcProvider(rpcUrl);
+      const provider = new JsonRpcProvider(rpcUrl, undefined, { batchMaxCount: 1, staticNetwork: true });
       provider.pollingInterval = 15000; // reduce polling: 4s → 15s
       await getBlockNumberWithDiagnostics(provider, `provider.getBlockNumber:${rpcUrl}`);
       _readProviderCache = provider;
@@ -2177,7 +2177,7 @@ async function getReadProviderWithFallback() {
 
   for (const rpcUrl of rpcUrls) {
     try {
-      const provider = new JsonRpcProvider(rpcUrl);
+      const provider = new JsonRpcProvider(rpcUrl, undefined, { batchMaxCount: 1, staticNetwork: true });
       await getBlockNumberWithDiagnostics(provider, `dashboard.provider.getBlockNumber:${rpcUrl}`);
       return provider;
     } catch (error) {
