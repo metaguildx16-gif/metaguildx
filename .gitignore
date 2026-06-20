@@ -45,3 +45,4 @@ contracts/cache-local/
 !*.env.example
 !*.env.mainnet.example
 *.bak.*
+*.backup.*
