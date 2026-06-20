@@ -3,19 +3,102 @@ import { useEffect, useMemo, useState } from "react";
 import { ToastStack, type ToastMessage } from "../components/Toast";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { useOwner } from "../hooks/useOwner";
+import { sendTransaction } from "../utils/txHelper";
+import { shortAddress } from "../utils/packageUtils";
+
+type CachedEventLog = {
+  transactionHash: string;
+  blockNumber: number;
+  argsArray: string[];
+  argsNamed: Record<string, string>;
+};
+
+function stringifyLogValue(value: unknown) {
+  return typeof value === "bigint" ? value.toString() : String(value ?? "");
+}
+
+function parseLogValue(value: string) {
+  return /^-?\d+$/.test(value) ? BigInt(value) : value;
+}
+
+function getLogCacheKey(contract: Contract, filter: any, fromBlock: number) {
+  const address = String(contract.target ?? "unknown").toLowerCase();
+  const topics = (filter?.topics ?? [])
+    .map((topic: unknown) => Array.isArray(topic) ? topic.join("_") : String(topic ?? "null"))
+    .join("-");
+  return `mgx_admin_rebirth_escrow_logs_v1_${NETWORK.chainId}_${address}_${fromBlock}_${topics}`;
+}
+
+function readLogCache(key: string): { lastScannedBlock: number; data: CachedEventLog[] } | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { lastScannedBlock?: number; data?: CachedEventLog[] };
+    if (typeof parsed.lastScannedBlock !== "number" || !Array.isArray(parsed.data)) {
+      return null;
+    }
+    return { lastScannedBlock: parsed.lastScannedBlock, data: parsed.data };
+  } catch {
+    return null;
+  }
+}
+
+function writeLogCache(key: string, lastScannedBlock: number, data: CachedEventLog[]) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify({ lastScannedBlock, data, timestamp: Date.now() }));
+  } catch {
+    // localStorage full or unavailable - silently skip caching
+  }
+}
+
+function serializeEventLog(log: EventLog): CachedEventLog {
+  const args = log.args as any;
+  const argsArray = Array.from(args ?? []).map(stringifyLogValue);
+  const argsNamed = Object.fromEntries(
+    Object.keys(args ?? {})
+      .filter((key) => Number.isNaN(Number(key)))
+      .map((key) => [key, stringifyLogValue(args[key])])
+  );
+  return {
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber,
+    argsArray,
+    argsNamed
+  };
+}
+
+function hydrateEventLog(log: CachedEventLog): EventLog {
+  const args: any = log.argsArray.map(parseLogValue);
+  for (const [key, value] of Object.entries(log.argsNamed)) {
+    args[key] = parseLogValue(value);
+  }
+  return {
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber,
+    args
+  } as EventLog;
+}
 
 async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 9_000): Promise<EventLog[]> {
-  const results: EventLog[] = [];
-  for (let start = fromBlock; start <= toBlock; start += batchSize) {
+  const cacheKey = getLogCacheKey(contract, filter, fromBlock);
+  const cached = readLogCache(cacheKey);
+  const results: EventLog[] = (cached?.data ?? []).map(hydrateEventLog);
+  const scanFrom = Math.max(fromBlock, (cached?.lastScannedBlock ?? fromBlock - 1) + 1);
+
+  if (scanFrom > toBlock) {
+    return results;
+  }
+
+  for (let start = scanFrom; start <= toBlock; start += batchSize) {
     const end = Math.min(start + batchSize - 1, toBlock);
     const logs = await queryFilterWithRetry(contract, filter, start, end);
     results.push(...(logs as EventLog[]));
     if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 300));
   }
+
+  writeLogCache(cacheKey, toBlock, results.map(serializeEventLog));
   return results;
 }
-import { sendTransaction } from "../utils/txHelper";
-import { shortAddress } from "../utils/packageUtils";
 
 async function queryFilterWithRetry(contract: Contract, filter: any, start: number, end: number, retries = 3): Promise<any[]> {
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -35,6 +118,21 @@ async function queryFilterWithRetry(contract: Contract, filter: any, start: numb
     }
   }
   return [];
+}
+
+async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit = 2): Promise<T[]> {
+  const results: T[] = new Array(tasks.length);
+  let index = 0;
+
+  const worker = async () => {
+    while (index < tasks.length) {
+      const current = index++;
+      results[current] = await tasks[current]();
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => worker()));
+  return results;
 }
 
 
@@ -105,11 +203,14 @@ async function loadRebirthEscrowData(): Promise<RebirthEscrowData> {
   const fromBlock = Math.max(NETWORK.startBlock, 149800000);
   const registrationLogs = await batchQueryFilter(core, core.filters.UserRegistered(), fromBlock, currentBlock);
   const rebirthLogs = await batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock);
-  const [allDirectLogs, allLevelLogs, allCrossLogs] = await Promise.all([
-    batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
-    batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
-    batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock)
-  ]) as [EventLog[], EventLog[], EventLog[]];
+  const [allDirectLogs, allLevelLogs, allCrossLogs] = await runWithConcurrency<EventLog[]>(
+    [
+      () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
+      () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
+      () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock)
+    ],
+    2
+  );
 
 
   const registrationEvents = registrationLogs as EventLog[];

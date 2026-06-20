@@ -3,6 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { getPackagePrice } from "../utils/packageUtils";
 
+const ALL_USERS_CACHE_KEY = "mgx_admin_all_users_v1";
+const INCOME_MONITOR_CACHE_KEY = "mgx_admin_income_monitor_v1";
+const INCOME_DISTRIBUTION_CACHE_KEY = "mgx_admin_income_distribution_v1";
+const REBIRTH_MONITOR_CACHE_KEY = "mgx_admin_rebirth_monitor_v1";
+const ALL_TRANSACTIONS_CACHE_KEY = "mgx_admin_all_transactions_v1";
+
 function readBlockCache<T>(key: string): { lastBlock: number; data: T[] } | null {
   try {
     const raw = localStorage.getItem(key);
@@ -21,6 +27,60 @@ function writeBlockCache<T>(key: string, lastBlock: number, data: T[]) {
   } catch {
     // localStorage full or unavailable - silently skip caching
   }
+}
+
+type CachedEventLog = {
+  transactionHash: string;
+  blockNumber: number;
+  argsArray: string[];
+  argsNamed: Record<string, string>;
+  fragmentName?: string;
+};
+
+function stringifyLogValue(value: unknown) {
+  return typeof value === "bigint" ? value.toString() : String(value ?? "");
+}
+
+function parseLogValue(value: string) {
+  return /^-?\d+$/.test(value) ? BigInt(value) : value;
+}
+
+function getLogCacheKey(contract: Contract, filter: any, fromBlock: number) {
+  const address = String(contract.target ?? "unknown").toLowerCase();
+  const topics = (filter?.topics ?? [])
+    .map((topic: unknown) => Array.isArray(topic) ? topic.join("_") : String(topic ?? "null"))
+    .join("-");
+  return `mgx_admin_logs_v1_${NETWORK.chainId}_${address}_${fromBlock}_${topics}`;
+}
+
+function serializeEventLog(log: EventLog): CachedEventLog {
+  const args = log.args as any;
+  const argsArray = Array.from(args ?? []).map(stringifyLogValue);
+  const argsNamed = Object.fromEntries(
+    Object.keys(args ?? {})
+      .filter((key) => Number.isNaN(Number(key)))
+      .map((key) => [key, stringifyLogValue(args[key])])
+  );
+  return {
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber,
+    argsArray,
+    argsNamed,
+    fragmentName: log.fragment?.name
+  };
+}
+
+function hydrateEventLog(log: CachedEventLog): EventLog {
+  const args: any = log.argsArray.map(parseLogValue);
+  for (const [key, value] of Object.entries(log.argsNamed)) {
+    args[key] = parseLogValue(value);
+  }
+  return {
+    transactionHash: log.transactionHash,
+    blockNumber: log.blockNumber,
+    args,
+    fragment: { name: log.fragmentName ?? "" }
+  } as EventLog;
 }
 
 async function queryFilterWithRetry(contract: Contract, filter: any, start: number, end: number, retries = 3): Promise<any[]> {
@@ -52,13 +112,38 @@ async function getCachedBlockTimestamp(provider: JsonRpcProvider, blockNumber: n
 }
 
 async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 10000): Promise<EventLog[]> {
-  const results: EventLog[] = [];
-  for (let start = fromBlock; start <= toBlock; start += batchSize) {
+  const cacheKey = getLogCacheKey(contract, filter, fromBlock);
+  const cached = readBlockCache<CachedEventLog>(cacheKey);
+  const results: EventLog[] = (cached?.data ?? []).map(hydrateEventLog);
+  const scanFrom = Math.max(fromBlock, (cached?.lastBlock ?? fromBlock - 1) + 1);
+
+  if (scanFrom > toBlock) {
+    return results;
+  }
+
+  for (let start = scanFrom; start <= toBlock; start += batchSize) {
     const end = Math.min(start + batchSize - 1, toBlock);
     const logs = await queryFilterWithRetry(contract, filter, start, end);
     results.push(...(logs as EventLog[]));
     if (start + batchSize <= toBlock) await new Promise((r) => setTimeout(r, 200));
   }
+
+  writeBlockCache(cacheKey, toBlock, results.map(serializeEventLog));
+  return results;
+}
+
+async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit = 2): Promise<T[]> {
+  const results: T[] = [];
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < tasks.length) {
+      const index = cursor++;
+      results[index] = await tasks[index]();
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => worker()));
   return results;
 }
 const PLATFORM_SCALE = 10;
@@ -495,6 +580,28 @@ async function safeBigIntRead(read: () => Promise<bigint>) {
   }
 }
 
+async function safeUserProfileRead(core: Contract, userId: number) {
+  try {
+    return await core.usersById(userId);
+  } catch {
+    return {
+      id: BigInt(userId),
+      account: NULL_ADDRESS,
+      sponsorId: 0n,
+      packageLevel: 0n,
+      originalPackageLevel: 0n,
+      totalContribution: 0n,
+      totalEarnings: 0n,
+      directReferrals: 0n,
+      totalTeamBusiness: 0n,
+      rebirthCount: 0n,
+      xCount: 0n,
+      joinedAt: 0n,
+      surrendered: false
+    };
+  }
+}
+
 async function getUpgradeEscrowOnly(income: Contract, userId: number) {
   const totalEscrow = await safeBigIntRead(() => income.getTotalEscrow(userId));
   if (totalEscrow === 0n) {
@@ -542,9 +649,14 @@ export async function getAllUsers(): Promise<UserSummary[]> {
 
   const provider = getProvider();
   const core = getCoreContract(provider);
-  const events = await getRegistrationEvents(provider);
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
   const currentBlock = await provider.getBlockNumber();
+  const cachedUsers = readBlockCache<UserSummary>(ALL_USERS_CACHE_KEY);
+  if (cachedUsers && cachedUsers.lastBlock >= currentBlock) {
+    return cachedUsers.data;
+  }
+
+  const events = await getRegistrationEvents(provider);
   const directIncomeLogs = isConfigured(CONTRACTS.IncomeRouter)
     ? await batchQueryFilter(router, router.filters.DirectIncomeRecorded(), NETWORK.startBlock, currentBlock)
     : [];
@@ -575,7 +687,9 @@ export async function getAllUsers(): Promise<UserSummary[]> {
     })
   );
 
-  return users.sort((a, b) => b.userId - a.userId);
+  const sortedUsers = users.sort((a, b) => b.userId - a.userId);
+  writeBlockCache(ALL_USERS_CACHE_KEY, currentBlock, sortedUsers);
+  return sortedUsers;
 }
 
 export async function getUserTreePosition(
@@ -735,15 +849,22 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
   const cashback = new Contract(CONTRACTS.CashbackPool, ABIS.CashbackPool, provider);
 
   const currentBlock = await provider.getBlockNumber();
+  const cachedData = readBlockCache<IncomeMonitorData>(INCOME_MONITOR_CACHE_KEY);
+  if (cachedData && cachedData.lastBlock >= currentBlock && cachedData.data[0]) {
+    return cachedData.data[0];
+  }
+
   const fromBlock = NETWORK.startBlock;
 
-  const directLogs = await batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock);
-  await new Promise((r) => setTimeout(r, 1000));
-  const levelLogs = await batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock);
-  await new Promise((r) => setTimeout(r, 1000));
-  const spilloverLogs = await batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock);
-  await new Promise((r) => setTimeout(r, 1000));
-  const crosslineLogs = await batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock);
+  const [directLogs, levelLogs, spilloverLogs, crosslineLogs] = await runWithConcurrency<EventLog[]>(
+    [
+      () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
+      () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
+      () => batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock),
+      () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock)
+    ],
+    2
+  );
   const registrationEvents = await getRegistrationEvents(provider);
   const platformReserveRaw = await router.platformReserve();
   const cashbackRaw = await cashback.cashbackPoolBalance();
@@ -844,7 +965,7 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
   const totalVolume = registrationEvents.reduce((sum, event) => sum + event.amount, 0);
   const creatorTotal = (totalVolume * Number(creatorFeeBps)) / 10_000;
 
-  return {
+  const data: IncomeMonitorData = {
     totalDirect: eventRecords
       .filter((event) => event.incomeType === "direct")
       .reduce((sum, event) => sum + event.amount, 0),
@@ -866,6 +987,8 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
     })),
     recentFeed: eventRecords.sort((a, b) => b.timestamp - a.timestamp).slice(0, 20)
   };
+  writeBlockCache(INCOME_MONITOR_CACHE_KEY, currentBlock, [data]);
+  return data;
 }
 
 export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
@@ -884,19 +1007,13 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
     return (cached?.data ?? []).slice().sort((a, b) => b.timestamp - a.timestamp);
   }
 
-  const upgradeLogs: EventLog[] = [];
-  const reactivationLogs: EventLog[] = [];
-  const CHUNK_SIZE = 9_999;
-  for (let start = fromBlock; start <= currentBlock; start += CHUNK_SIZE + 1) {
-    const end = Math.min(start + CHUNK_SIZE, currentBlock);
-    const [upgradeChunk, rebirthChunk] = await Promise.all([
-      core.queryFilter(core.filters.PackageUpgraded(), start, end),
-      core.queryFilter(core.filters.RebirthUserCreated(), start, end)
-    ]);
-    upgradeLogs.push(...(upgradeChunk as EventLog[]));
-    reactivationLogs.push(...(rebirthChunk as EventLog[]));
-    if (end < currentBlock) await new Promise((r) => setTimeout(r, 150));
-  }
+  const [upgradeLogs, reactivationLogs] = await runWithConcurrency(
+    [
+      () => batchQueryFilter(core, core.filters.PackageUpgraded(), fromBlock, currentBlock, 9_999),
+      () => batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock, 9_999)
+    ],
+    2
+  );
 
   const allLogs = [...upgradeLogs, ...reactivationLogs];
   const blocks = await Promise.all(allLogs.map((log) => provider.getBlock(log.blockNumber)));
@@ -926,7 +1043,7 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
     }
 
     if (eventLog.fragment.name === "PackageUpgraded") {
-      const user = await core.usersById(Number(args.userId));
+      const user = await safeUserProfileRead(core, Number(args.userId));
       records.push({
         type: "Upgrade",
         userId: Number(args.userId),
@@ -941,7 +1058,7 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
     }
 
     if ("newUserId" in args) {
-      const user = await core.usersById(Number(args.newUserId));
+      const user = await safeUserProfileRead(core, Number(args.newUserId));
       records.push({
         type: "Reactivation",
         userId: Number(args.newUserId),
@@ -1019,10 +1136,13 @@ export async function getCashbackEvents(): Promise<TransactionRecord[]> {
   if (fromBlock > currentBlock) {
     return (cached?.data ?? []) as any;
   }
-  const [claimLogs, surrenderLogs] = await Promise.all([
-    batchQueryFilter(cashback, cashback.filters.CashbackClaimed(), fromBlock, currentBlock),
-    batchQueryFilter(cashback, cashback.filters.UserSurrendered(), fromBlock, currentBlock)
-  ]);
+  const [claimLogs, surrenderLogs] = await runWithConcurrency(
+    [
+      () => batchQueryFilter(cashback, cashback.filters.CashbackClaimed(), fromBlock, currentBlock),
+      () => batchQueryFilter(cashback, cashback.filters.UserSurrendered(), fromBlock, currentBlock)
+    ],
+    2
+  );
   const allLogs = [...claimLogs, ...surrenderLogs];
   const blocks = await Promise.all(allLogs.map((log) => provider.getBlock(log.blockNumber)));
 
@@ -1242,15 +1362,25 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
   const income = getIncomeContract(provider);
   const usdt = new Contract(CONTRACTS.USDT, ["function balanceOf(address) view returns (uint256)"], provider);
   const currentBlock = await provider.getBlockNumber();
+  const cachedData = readBlockCache<IncomeDistributionData>(INCOME_DISTRIBUTION_CACHE_KEY);
+  if (cachedData && cachedData.lastBlock >= currentBlock && cachedData.data[0]) {
+    return cachedData.data[0];
+  }
+
   const fromBlock = NETWORK.startBlock;
   const todayStart = startOfTodayUnix();
 
   const registrations = await getRegistrationEvents(provider);
-  const directLogs = await batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock);
-  const levelLogs = await batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock);
-  const spilloverLogs = await batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock);
-  const crosslineLogs = await batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock);
-  const residualLogs = await batchQueryFilter(router, router.filters.ResidualSweptToCreator(), fromBlock, currentBlock);
+  const [directLogs, levelLogs, spilloverLogs, crosslineLogs, residualLogs] = await runWithConcurrency<EventLog[]>(
+    [
+      () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
+      () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
+      () => batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock),
+      () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock),
+      () => batchQueryFilter(router, router.filters.ResidualSweptToCreator(), fromBlock, currentBlock)
+    ],
+    2
+  );
   const creatorWallet = await router.creatorWallet();
   const creatorFeeBps = await router.creatorFeeBps();
   const cashbackBps = await router.cashbackBps();
@@ -1437,7 +1567,7 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     }
   }
 
-  return {
+  const data: IncomeDistributionData = {
     feed: feed.sort((a, b) => b.timestamp - a.timestamp),
     summaryToday: {
       direct: todayDirect,
@@ -1458,6 +1588,8 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     failedDistributions: 0,
     lastDistributionAt: feed[0]?.timestamp ?? null
   };
+  writeBlockCache(INCOME_DISTRIBUTION_CACHE_KEY, currentBlock, [data]);
+  return data;
 }
 
 export async function getFinancialReportsData(): Promise<FinancialReportsData> {
@@ -1606,8 +1738,13 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
   const core = getCoreContract(provider);
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
   const currentBlock = await provider.getBlockNumber();
+  const cachedData = readBlockCache<RebirthMonitorData>(REBIRTH_MONITOR_CACHE_KEY);
+  if (cachedData && cachedData.lastBlock >= currentBlock && cachedData.data[0]) {
+    return cachedData.data[0];
+  }
+
   const fromBlock = NETWORK.startBlock;
-  const logs = await await batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock);
+  const logs = await batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock);
   const blocks = await Promise.all(logs.map((log) => provider.getBlock(log.blockNumber)));
 
   const recentRebirths = (
@@ -1624,9 +1761,14 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
       let income = 0;
 
       if (sponsorId > 0) {
-        const directLogs = await batchQueryFilter(router, router.filters.DirectIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock);
-        const levelLogs = await batchQueryFilter(router, router.filters.LevelIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock);
-        const crosslineLogs = await batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock);
+        const [directLogs, levelLogs, crosslineLogs] = await runWithConcurrency<EventLog[]>(
+          [
+            () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock),
+            () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock),
+            () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock)
+          ],
+          2
+        );
 
         const directIncome = directLogs.reduce((sum, event) => {
           if (!("args" in event)) {
@@ -1666,10 +1808,12 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
     .filter((item): item is RebirthMonitorRow => item !== null)
     .sort((a, b) => b.timestamp - a.timestamp);
 
-  return {
+  const data: RebirthMonitorData = {
     totalRebirths: recentRebirths.length,
     recentRebirths: recentRebirths.slice(0, 30)
   };
+  writeBlockCache(REBIRTH_MONITOR_CACHE_KEY, currentBlock, [data]);
+  return data;
 }
 
 export async function getStakingMonitorData(): Promise<StakingMonitorData> {
@@ -1801,20 +1945,34 @@ export async function getAllTransactions(): Promise<TransactionRecord[]> {
   const provider = getProvider();
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
   const currentBlock = await provider.getBlockNumber();
+  const cachedTransactions = readBlockCache<TransactionRecord>(ALL_TRANSACTIONS_CACHE_KEY);
+  if (cachedTransactions && cachedTransactions.lastBlock >= currentBlock) {
+    return cachedTransactions.data;
+  }
+
   const incomeFromBlock = NETWORK.startBlock;
-  const [registrationEvents, upgradeEvents, placementEvents, cashbackEvents, directIncomeLogs, levelIncomeLogs] =
-    await Promise.all([
-      getRegistrationEvents(provider),
-      getUpgradeEvents(),
-      getPlacementEvents(),
-      getCashbackEvents(),
-      isConfigured(CONTRACTS.IncomeRouter)
-        ? await batchQueryFilter(router, router.filters.DirectIncomeRecorded(), incomeFromBlock, currentBlock)
-        : Promise.resolve([]),
-      isConfigured(CONTRACTS.IncomeRouter)
-        ? await batchQueryFilter(router, router.filters.LevelIncomeRecorded(), incomeFromBlock, currentBlock)
-        : Promise.resolve([])
-    ]);
+  const [
+    registrationEvents,
+    upgradeEvents,
+    placementEvents,
+    cashbackEvents,
+    directIncomeLogs,
+    levelIncomeLogs
+  ] = await runWithConcurrency<DashboardEvent[] | TransactionRecord[] | EventLog[]>(
+    [
+      () => getRegistrationEvents(provider),
+      () => getUpgradeEvents(),
+      () => getPlacementEvents(),
+      () => getCashbackEvents(),
+      () => isConfigured(CONTRACTS.IncomeRouter)
+        ? batchQueryFilter(router, router.filters.DirectIncomeRecorded(), incomeFromBlock, currentBlock)
+        : Promise.resolve([] as EventLog[]),
+      () => isConfigured(CONTRACTS.IncomeRouter)
+        ? batchQueryFilter(router, router.filters.LevelIncomeRecorded(), incomeFromBlock, currentBlock)
+        : Promise.resolve([] as EventLog[])
+    ],
+    2
+  );
   const core = getCoreContract(provider);
 
   const incomeBlocks = await Promise.all(
@@ -1828,7 +1986,7 @@ export async function getAllTransactions(): Promise<TransactionRecord[]> {
       const block = incomeBlocks[index];
       const isLevel = "level" in log.args;
       const toUserId = Number(log.args.toUserId);
-      const profile = await core.usersById(toUserId);
+      const profile = await safeUserProfileRead(core, toUserId);
       const amount = formatPlatformAmount(log.args.amount);
       return {
         type: "Income",
@@ -1845,7 +2003,7 @@ export async function getAllTransactions(): Promise<TransactionRecord[]> {
     })
   );
 
-  const registrationRecords: TransactionRecord[] = registrationEvents.map((event) => ({
+  const registrationRecords: TransactionRecord[] = (registrationEvents as DashboardEvent[]).map((event) => ({
     type: "Registration",
     userId: event.userId,
     wallet: event.wallet,
@@ -1856,18 +2014,20 @@ export async function getAllTransactions(): Promise<TransactionRecord[]> {
     blockNumber: event.blockNumber
   }));
 
-  return [
+  const transactions = [
     ...registrationRecords,
     ...incomeRecords,
-    ...upgradeEvents,
-    ...placementEvents,
-    ...cashbackEvents
+    ...(upgradeEvents as TransactionRecord[]),
+    ...(placementEvents as TransactionRecord[]),
+    ...(cashbackEvents as TransactionRecord[])
   ].sort((a, b) => {
     if (b.blockNumber !== a.blockNumber) {
       return b.blockNumber - a.blockNumber;
     }
     return b.timestamp - a.timestamp;
   });
+  writeBlockCache(ALL_TRANSACTIONS_CACHE_KEY, currentBlock, transactions);
+  return transactions;
 }
 
 function buildChartData(events: DashboardEvent[]) {
