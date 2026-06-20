@@ -2131,6 +2131,10 @@ function getReadRpcUrls() {
     urls.push("https://opbnb-testnet.publicnode.com");
   }
   if (activeNetworkConfig.chainId === 204) {
+    const fallbackRpc = import.meta.env.VITE_MAINNET_RPC_FALLBACK;
+    if (fallbackRpc && fallbackRpc !== activeNetworkConfig.rpcUrl) {
+      urls.push(fallbackRpc);
+    }
     urls.push("https://opbnb-mainnet-rpc.bnbchain.org");
   }
 
