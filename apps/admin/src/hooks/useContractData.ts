@@ -866,6 +866,19 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
     return cachedData.data[0];
   }
 
+  const safeAmount = (value: unknown) =>
+    value === undefined || value === null ? 0 : formatPlatformAmount(value as bigint | number);
+  const safeNumber = (value: unknown, fallback = 0) => {
+    const next = Number(value);
+    return Number.isFinite(next) ? next : fallback;
+  };
+  const safeUserIdFromLog = (entry: { type: "direct" | "level" | "spillover" | "crossline"; log: EventLog }) => {
+    const args = entry.log.args;
+    const userId = entry.type === "spillover"
+      ? safeNumber(args.receiver ?? args[0])
+      : safeNumber(args.toUserId ?? args[1]);
+    return userId > 0 ? userId : null;
+  };
   const fromBlock = NETWORK.startBlock;
 
   const [directLogs, levelLogs, spilloverLogs, crosslineLogs] = await runWithConcurrency<EventLog[]>(
@@ -885,7 +898,7 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
 
   const levelByTransaction = new Map<string, number>();
   for (const log of levelLogs as EventLog[]) {
-    levelByTransaction.set(log.transactionHash, Number(log.args.level));
+    levelByTransaction.set(log.transactionHash, safeNumber(log.args.level ?? log.args[2]));
   }
 
   const userCache = new Map<number, { wallet: string; packageLevel: number }>();
@@ -916,15 +929,15 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
       if (!args || !block) {
         return null;
       }
-      const userId =
-        entry.type === "spillover"
-          ? Number(args.receiver)
-          : Number(args.toUserId);
+      const userId = safeUserIdFromLog(entry);
+      if (!userId) {
+        return null;
+      }
       const userMeta = await resolveUser(userId);
       return {
         userId,
-        fromUserId: "fromUserId" in args ? Number(args.fromUserId) : 0,
-        amount: formatPlatformAmount(args.amount),
+        fromUserId: "fromUserId" in args ? safeNumber(args.fromUserId) : 0,
+        amount: safeAmount(args.amount ?? (entry.type === "level" ? args[3] : args[2])),
         incomeType: entry.type,
         level: entry.type === "level" ? levelByTransaction.get(entry.log.transactionHash) : undefined,
         timestamp: block.timestamp,
@@ -946,14 +959,14 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
       userId,
       wallet: user.wallet,
       packageLevel: user.packageLevel,
-      direct: formatPlatformAmount(totals.direct),
-      level: formatPlatformAmount(totals.level),
-      spillover: formatPlatformAmount(totals.spillover),
+      direct: safeAmount(totals.direct),
+      level: safeAmount(totals.level),
+      spillover: safeAmount(totals.spillover),
       total:
-        formatPlatformAmount(totals.direct) +
-        formatPlatformAmount(totals.level) +
-        formatPlatformAmount(totals.spillover) +
-        formatPlatformAmount(totals.crossline)
+        safeAmount(totals.direct) +
+        safeAmount(totals.level) +
+        safeAmount(totals.spillover) +
+        safeAmount(totals.crossline)
     });
   }
 
@@ -965,13 +978,16 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
 
   for (const log of levelLogs as EventLog[]) {
     const args = log.args;
-    const level = Number(args.level);
+    const level = safeNumber(args.level ?? args[2]);
     const row = levelRowsBase[level - 1];
     if (!row) {
       continue;
     }
-    row.totalDistributed += formatPlatformAmount(args.amount);
-    row.recipients.add(Number(args.toUserId));
+    row.totalDistributed += safeAmount(args.amount ?? args[3]);
+    const recipient = safeNumber(args.toUserId ?? args[1]);
+    if (recipient > 0) {
+      row.recipients.add(recipient);
+    }
   }
 
   const totalVolume = registrationEvents.reduce((sum, event) => sum + event.amount, 0);
@@ -987,8 +1003,8 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
     totalSpillover: eventRecords
       .filter((event) => event.incomeType === "spillover")
       .reduce((sum, event) => sum + event.amount, 0),
-    platformReserve: formatPlatformAmount(platformReserveRaw),
-    cashbackTotal: formatPlatformAmount(cashbackRaw),
+    platformReserve: safeAmount(platformReserveRaw),
+    cashbackTotal: safeAmount(cashbackRaw),
     creatorTotal,
     perUser: perUser.sort((a, b) => b.total - a.total),
     levelBreakdown: levelRowsBase.map((row) => ({
@@ -1379,6 +1395,12 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     return cachedData.data[0];
   }
 
+  const safeAmount = (value: unknown) =>
+    value === undefined || value === null ? 0 : formatPlatformAmount(value as bigint | number);
+  const safeNumber = (value: unknown, fallback = 0) => {
+    const next = Number(value);
+    return Number.isFinite(next) ? next : fallback;
+  };
   const fromBlock = NETWORK.startBlock;
   const todayStart = startOfTodayUnix();
 
@@ -1453,45 +1475,49 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
       const residualForTx = residualByTx.get(registration.txHash) ?? [];
 
       for (const log of directForTx) {
-        const toUserId = Number(log.args.toUserId);
+        const toUserId = safeNumber(log.args.toUserId ?? log.args[1]);
+        if (toUserId <= 0) continue;
         const profile = await resolveProfile(toUserId);
         lines.push({
           label: "Direct income",
           recipient: `User #${toUserId} (${profile.wallet})`,
-          amount: formatPlatformAmount(log.args.amount),
+          amount: safeAmount(log.args.amount ?? log.args[2]),
           status: "sent"
         });
       }
 
       for (const log of levelForTx) {
-        const toUserId = Number(log.args.toUserId);
+        const toUserId = safeNumber(log.args.toUserId ?? log.args[1]);
+        if (toUserId <= 0) continue;
         const profile = await resolveProfile(toUserId);
         lines.push({
-          label: `Level ${Number(log.args.level)}`,
+          label: `Level ${safeNumber(log.args.level ?? log.args[2])}`,
           recipient: `User #${toUserId} (${profile.wallet})`,
-          amount: formatPlatformAmount(log.args.amount),
+          amount: safeAmount(log.args.amount ?? log.args[3]),
           status: "sent"
         });
       }
 
       for (const log of spilloverForTx) {
-        const receiver = Number(log.args.receiver);
+        const receiver = safeNumber(log.args.receiver ?? log.args[0]);
+        if (receiver <= 0) continue;
         const profile = await resolveProfile(receiver);
         lines.push({
-          label: `Spillover L${Number(log.args.fromLevel)}`,
+          label: `Spillover L${safeNumber(log.args.fromLevel ?? log.args[2])}`,
           recipient: `User #${receiver} (${profile.wallet})`,
-          amount: formatPlatformAmount(log.args.amount),
+          amount: safeAmount(log.args.amount ?? log.args[1]),
           status: "sent"
         });
       }
 
       for (const log of crosslineForTx) {
-        const toUserId = Number(log.args.toUserId);
+        const toUserId = safeNumber(log.args.toUserId ?? log.args[1]);
+        if (toUserId <= 0) continue;
         const profile = await resolveProfile(toUserId);
         lines.push({
           label: "Crossline",
           recipient: `User #${toUserId} (${profile.wallet})`,
-          amount: formatPlatformAmount(log.args.amount),
+          amount: safeAmount(log.args.amount ?? log.args[2]),
           status: "sent"
         });
       }
@@ -1500,7 +1526,7 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
         lines.push({
           label: "Creator fallback",
           recipient: String(creatorWallet),
-          amount: formatPlatformAmount(log.args.amount),
+          amount: safeAmount(log.args.amount ?? log.args[0]),
           status: "fallback"
         });
       }
@@ -1541,19 +1567,19 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
 
   const todayDirect = (directLogs as EventLog[])
     .filter((log) => todayTxHashes.has(log.transactionHash))
-    .reduce((sum, log) => sum + formatPlatformAmount(log.args.amount), 0);
+    .reduce((sum, log) => sum + safeAmount(log.args.amount ?? log.args[2]), 0);
   const todayLevel = (levelLogs as EventLog[])
     .filter((log) => todayTxHashes.has(log.transactionHash))
-    .reduce((sum, log) => sum + formatPlatformAmount(log.args.amount), 0);
+    .reduce((sum, log) => sum + safeAmount(log.args.amount ?? log.args[3]), 0);
   const todaySpillover = (spilloverLogs as EventLog[])
     .filter((log) => todayTxHashes.has(log.transactionHash))
-    .reduce((sum, log) => sum + formatPlatformAmount(log.args.amount), 0);
+    .reduce((sum, log) => sum + safeAmount(log.args.amount ?? log.args[1]), 0);
   const todayCrossline = (crosslineLogs as EventLog[])
     .filter((log) => todayTxHashes.has(log.transactionHash))
-    .reduce((sum, log) => sum + formatPlatformAmount(log.args.amount), 0);
+    .reduce((sum, log) => sum + safeAmount(log.args.amount ?? log.args[2]), 0);
   const todayFallback = (residualLogs as EventLog[])
     .filter((log) => (blocks.get(log.blockNumber) ?? 0) >= todayStart)
-    .reduce((sum, log) => sum + formatPlatformAmount(log.args.amount), 0);
+    .reduce((sum, log) => sum + safeAmount(log.args.amount ?? log.args[0]), 0);
   const todayCashback = todayRegistrations.reduce(
     (sum, row) => sum + (row.amount * Number(cashbackBps)) / 10_000,
     0
@@ -1567,14 +1593,14 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
   let creatorAllTime = registrations.reduce(
     (sum, row) => sum + (row.amount * Number(creatorFeeBps)) / 10_000,
     0
-  ) + (residualLogs as EventLog[]).reduce((sum, log) => sum + formatPlatformAmount(log.args.amount), 0);
+  ) + (residualLogs as EventLog[]).reduce((sum, log) => sum + safeAmount(log.args.amount ?? log.args[0]), 0);
 
   for (let userId = 1; userId < Number(nextUserId); userId += 1) {
     const profile = await core.usersById(userId);
     if (String(profile.account).toLowerCase() === String(creatorWallet).toLowerCase()) {
       const totals = await income.incomesByUser(userId);
       creatorToday += 0;
-      creatorAllTime += formatPlatformAmount(totals.direct) + formatPlatformAmount(totals.level) + formatPlatformAmount(totals.spillover) + formatPlatformAmount(totals.crossline);
+      creatorAllTime += safeAmount(totals.direct) + safeAmount(totals.level) + safeAmount(totals.spillover) + safeAmount(totals.crossline);
       break;
     }
   }
@@ -1595,7 +1621,7 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     creatorWallet: String(creatorWallet),
     creatorToday,
     creatorAllTime,
-    routerBalance: formatPlatformAmount(routerBalanceRaw),
+    routerBalance: safeAmount(routerBalanceRaw),
     totalDistributions: feed.length,
     failedDistributions: 0,
     lastDistributionAt: feed[0]?.timestamp ?? null
