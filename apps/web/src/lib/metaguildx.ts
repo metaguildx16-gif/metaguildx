@@ -1360,7 +1360,7 @@ async function loadUserIncomeHistory(input: {
         router.filters.SpilloverIncome(BigInt(input.userId)),
         OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
         latestBlock,
-        1_999
+        60_000
       ),
       30_000,
       []
@@ -1371,7 +1371,7 @@ async function loadUserIncomeHistory(input: {
         router.filters.CrossLineIncomeRecorded(null, BigInt(input.userId)),
         OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
         latestBlock,
-        1_999
+        60_000
       ),
       30_000,
       []
@@ -1759,7 +1759,7 @@ async function loadCrosslineDisplayIncome(input: {
       core.filters.RebirthUserCreated(null, null, null),
       OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
       currentBlock,
-      1_999
+      60_000
     );
 
     const crosslineRebirthIds = new Set<number>();
@@ -1791,7 +1791,7 @@ async function loadCrosslineDisplayIncome(input: {
             router.filters.CrossLineIncomeRecorded(null, BigInt(input.userId)),
             OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
             currentBlock,
-            1_999
+            60_000
           ),
           30000,
           []
