@@ -879,6 +879,13 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
       : safeNumber(args.toUserId ?? args[1]);
     return userId > 0 ? userId : null;
   };
+  const safeIncomeTotals = async (userId: number) => {
+    try {
+      return await income.incomesByUser(userId);
+    } catch {
+      return { direct: 0n, level: 0n, spillover: 0n, crossline: 0n };
+    }
+  };
   const fromBlock = NETWORK.startBlock;
 
   const [directLogs, levelLogs, spilloverLogs, crosslineLogs] = await runWithConcurrency<EventLog[]>(
@@ -906,7 +913,7 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
     if (userCache.has(userId)) {
       return userCache.get(userId)!;
     }
-    const user = await core.usersById(userId);
+    const user = await safeUserProfileRead(core, userId);
     const resolved = {
       wallet: String(user.account),
       packageLevel: Number(user.packageLevel)
@@ -954,7 +961,7 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
     if (!user.wallet || user.wallet === NULL_ADDRESS) {
       continue;
     }
-    const totals = await income.incomesByUser(userId);
+    const totals = await safeIncomeTotals(userId);
     perUser.push({
       userId,
       wallet: user.wallet,
@@ -1401,6 +1408,13 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     const next = Number(value);
     return Number.isFinite(next) ? next : fallback;
   };
+  const safeIncomeTotals = async (userId: number) => {
+    try {
+      return await income.incomesByUser(userId);
+    } catch {
+      return { direct: 0n, level: 0n, spillover: 0n, crossline: 0n };
+    }
+  };
   const fromBlock = NETWORK.startBlock;
   const todayStart = startOfTodayUnix();
 
@@ -1442,7 +1456,7 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     if (profileCache.has(userId)) {
       return profileCache.get(userId)!;
     }
-    const profile = await core.usersById(userId);
+    const profile = await safeUserProfileRead(core, userId);
     const next = {
       wallet: String(profile.account),
       packageLevel: Number(profile.packageLevel)
@@ -1596,9 +1610,9 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
   ) + (residualLogs as EventLog[]).reduce((sum, log) => sum + safeAmount(log.args.amount ?? log.args[0]), 0);
 
   for (let userId = 1; userId < Number(nextUserId); userId += 1) {
-    const profile = await core.usersById(userId);
+    const profile = await safeUserProfileRead(core, userId);
     if (String(profile.account).toLowerCase() === String(creatorWallet).toLowerCase()) {
-      const totals = await income.incomesByUser(userId);
+      const totals = await safeIncomeTotals(userId);
       creatorToday += 0;
       creatorAllTime += safeAmount(totals.direct) + safeAmount(totals.level) + safeAmount(totals.spillover) + safeAmount(totals.crossline);
       break;
