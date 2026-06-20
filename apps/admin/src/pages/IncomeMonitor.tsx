@@ -129,10 +129,6 @@ export function IncomeMonitor() {
 
   useEffect(() => {
     void loadData();
-    const interval = window.setInterval(() => {
-      void loadData();
-    }, REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(interval);
   }, []);
 
   const filteredUsers = useMemo(() => {

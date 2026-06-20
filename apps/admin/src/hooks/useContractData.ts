@@ -1466,18 +1466,23 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
   const nextUserId = await core.nextUserId();
 
   const blocks = new Map<number, number>();
-  for (const log of [
+  const uniqueBlockNumbers = Array.from(new Set([
     ...(directLogs as EventLog[]),
     ...(levelLogs as EventLog[]),
     ...(spilloverLogs as EventLog[]),
     ...(crosslineLogs as EventLog[]),
     ...(residualLogs as EventLog[])
-  ]) {
-    if (!blocks.has(log.blockNumber)) {
-      const block = await getBlockWithRetry(provider, log.blockNumber);
-      if (block) {
-        blocks.set(log.blockNumber, block.timestamp);
-      }
+  ].map((log) => log.blockNumber)));
+  const fetchedBlocks = await runWithConcurrency<{ blockNumber: number; timestamp: number } | null>(
+    uniqueBlockNumbers.map((blockNumber) => async () => {
+      const block = await getBlockWithRetry(provider, blockNumber);
+      return block ? { blockNumber, timestamp: block.timestamp } : null;
+    }),
+    4
+  );
+  for (const entry of fetchedBlocks) {
+    if (entry) {
+      blocks.set(entry.blockNumber, entry.timestamp);
     }
   }
 
