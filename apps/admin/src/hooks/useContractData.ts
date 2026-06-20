@@ -3,11 +3,11 @@ import { useCallback, useEffect, useState } from "react";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { getPackagePrice } from "../utils/packageUtils";
 
-const ALL_USERS_CACHE_KEY = "mgx_admin_all_users_v1";
-const INCOME_MONITOR_CACHE_KEY = "mgx_admin_income_monitor_v1";
-const INCOME_DISTRIBUTION_CACHE_KEY = "mgx_admin_income_distribution_v1";
-const REBIRTH_MONITOR_CACHE_KEY = "mgx_admin_rebirth_monitor_v1";
-const ALL_TRANSACTIONS_CACHE_KEY = "mgx_admin_all_transactions_v1";
+const ALL_USERS_CACHE_KEY = "mgx_admin_all_users_v2";
+const INCOME_MONITOR_CACHE_KEY = "mgx_admin_income_monitor_v2";
+const INCOME_DISTRIBUTION_CACHE_KEY = "mgx_admin_income_distribution_v2";
+const REBIRTH_MONITOR_CACHE_KEY = "mgx_admin_rebirth_monitor_v2";
+const ALL_TRANSACTIONS_CACHE_KEY = "mgx_admin_all_transactions_v2";
 
 function readBlockCache<T>(key: string): { lastBlock: number; data: T[] } | null {
   try {
