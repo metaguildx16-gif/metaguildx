@@ -6,7 +6,7 @@ import {
   ResponsiveContainer,
   Tooltip
 } from "recharts";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   getIncomeMonitorData,
@@ -107,8 +107,11 @@ export function IncomeMonitor() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"total" | "direct" | "userId">("total");
   const [page, setPage] = useState(1);
+  const isLoadingRef = useRef(false);
 
   const loadData = async () => {
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -120,6 +123,7 @@ export function IncomeMonitor() {
       );
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   };
 

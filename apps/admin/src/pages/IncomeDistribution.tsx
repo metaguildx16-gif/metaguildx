@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NETWORK } from "../config/contracts";
 import {
   getIncomeDistributionData,
@@ -6,7 +6,7 @@ import {
 } from "../hooks/useContractData";
 import { shortAddress } from "../utils/packageUtils";
 
-const REFRESH_INTERVAL_MS = 10_000;
+const REFRESH_INTERVAL_MS = 60_000;
 
 function formatUsdt(amount: number) {
   return `${amount.toFixed(2)} USDT`;
@@ -26,7 +26,10 @@ export function IncomeDistribution() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
+  const isLoadingRef = useRef(false);
   const loadData = async () => {
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -35,6 +38,7 @@ export function IncomeDistribution() {
       setError(loadError instanceof Error ? loadError.message : "Failed to load distribution monitor");
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   };
 
