@@ -125,11 +125,26 @@ async function getBlockNumberWithRetry(provider: JsonRpcProvider, retries = 3): 
   }
   throw new Error("getBlockNumberWithRetry: exhausted retries");
 }
+async function getBlockWithRetry(provider: JsonRpcProvider, blockNumber: number, retries = 3): Promise<any> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await provider.getBlock(blockNumber);
+    } catch (err: any) {
+      const isLimitErr = err?.code === -32005 || /limit exceeded/i.test(err?.message ?? "");
+      if (isLimitErr && attempt < retries - 1) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("getBlockWithRetry: exhausted retries");
+}
 const blockTimestampCache = new Map<number, number>();
 
 async function getCachedBlockTimestamp(provider: JsonRpcProvider, blockNumber: number): Promise<number> {
   if (blockTimestampCache.has(blockNumber)) return blockTimestampCache.get(blockNumber)!;
-  const block = await provider.getBlock(blockNumber);
+  const block = await getBlockWithRetry(provider, blockNumber);
   const ts = block?.timestamp ?? 0;
   blockTimestampCache.set(blockNumber, ts);
   return ts;
@@ -561,7 +576,7 @@ async function getRegistrationEvents(provider: JsonRpcProvider) {
   const logs = await batchQueryFilter(core, core.filters.UserRegistered(), fromBlock, currentBlock);
 
   const blocks = await Promise.all(
-    logs.map((log) => provider.getBlock(log.blockNumber))
+    logs.map((log) => getBlockWithRetry(provider, log.blockNumber))
   );
 
   const newEvents = (logs as EventLog[])
@@ -943,7 +958,7 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
     ...(spilloverLogs as EventLog[]).map((log) => ({ type: "spillover" as const, log })),
     ...(crosslineLogs as EventLog[]).map((log) => ({ type: "crossline" as const, log }))
   ];
-  const routeBlocks = await Promise.all(routeLogs.map((entry) => provider.getBlock(entry.log.blockNumber)));
+  const routeBlocks = await Promise.all(routeLogs.map((entry) => getBlockWithRetry(provider, entry.log.blockNumber)));
   const routeRecords = await Promise.all(
     routeLogs.map(async (entry, index): Promise<IncomeEventRecord | null> => {
       const args = entry.log.args;
@@ -1066,7 +1081,7 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
   );
 
   const allLogs = [...upgradeLogs, ...reactivationLogs];
-  const blocks = await Promise.all(allLogs.map((log) => provider.getBlock(log.blockNumber)));
+  const blocks = await Promise.all(allLogs.map((log) => getBlockWithRetry(provider, log.blockNumber)));
 
   const records: TransactionRecord[] = [];
 
@@ -1143,7 +1158,7 @@ export async function getPlacementEvents(): Promise<TransactionRecord[]> {
     return (cached?.data ?? []) as any;
   }
   const logs = await batchQueryFilter(tree, tree.filters.NodePlaced(), fromBlock, currentBlock);
-  const blocks = await Promise.all(logs.map((log) => provider.getBlock(log.blockNumber)));
+  const blocks = await Promise.all(logs.map((log) => getBlockWithRetry(provider, log.blockNumber)));
 
   const records: TransactionRecord[] = [];
   for (let index = 0; index < logs.length; index++) {
@@ -1194,7 +1209,7 @@ export async function getCashbackEvents(): Promise<TransactionRecord[]> {
     2
   );
   const allLogs = [...claimLogs, ...surrenderLogs];
-  const blocks = await Promise.all(allLogs.map((log) => provider.getBlock(log.blockNumber)));
+  const blocks = await Promise.all(allLogs.map((log) => getBlockWithRetry(provider, log.blockNumber)));
 
   const records: TransactionRecord[] = [];
   for (let index = 0; index < allLogs.length; index++) {
@@ -1296,7 +1311,7 @@ export async function getCashbackClaims(): Promise<CashbackClaimRecord[]> {
     return (cached?.data ?? []) as any;
   }
   const logs = await batchQueryFilter(cashback, cashback.filters.CashbackClaimed(), fromBlock, currentBlock);
-  const blocks = await Promise.all(logs.map((log) => provider.getBlock(log.blockNumber)));
+  const blocks = await Promise.all(logs.map((log) => getBlockWithRetry(provider, log.blockNumber)));
 
   const records: CashbackClaimRecord[] = [];
   for (let index = 0; index < logs.length; index++) {
@@ -1459,7 +1474,7 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     ...(residualLogs as EventLog[])
   ]) {
     if (!blocks.has(log.blockNumber)) {
-      const block = await provider.getBlock(log.blockNumber);
+      const block = await getBlockWithRetry(provider, log.blockNumber);
       if (block) {
         blocks.set(log.blockNumber, block.timestamp);
       }
@@ -1812,7 +1827,7 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
 
   const fromBlock = NETWORK.startBlock;
   const logs = await batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock);
-  const blocks = await Promise.all(logs.map((log) => provider.getBlock(log.blockNumber)));
+  const blocks = await Promise.all(logs.map((log) => getBlockWithRetry(provider, log.blockNumber)));
 
   const recentRebirths = (
     await Promise.all((logs as EventLog[]).map(async (log, index) => {
@@ -2044,7 +2059,7 @@ export async function getAllTransactions(): Promise<TransactionRecord[]> {
 
   const incomeBlocks = await Promise.all(
     [...(directIncomeLogs as EventLog[]), ...(levelIncomeLogs as EventLog[])].map((log) =>
-      provider.getBlock(log.blockNumber)
+      getBlockWithRetry(provider, log.blockNumber)
     )
   );
 
