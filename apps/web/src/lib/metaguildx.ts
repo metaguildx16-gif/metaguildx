@@ -4214,7 +4214,7 @@ export async function loadDashboardSnapshot(
           contract.filters.RebirthUserCreated(null, null, null),
           ACTIVITY_START,
           latestBlock,
-          1_999
+          60_000
         ).catch((error) => {
           console.warn("RebirthUserCreated not available:", error);
           return [];
@@ -4226,14 +4226,14 @@ export async function loadDashboardSnapshot(
       contract.filters.UserRegistered(null, null, null, null, null, null, null),
       ACTIVITY_START,
       latestBlock,
-      1_999
+      60_000
     ),
     queryFilterChunked(
       contract,
       contract.filters.PackageUpgraded(null, null, null, null),
       ACTIVITY_START,
       latestBlock,
-      1_999
+      60_000
     ),
     activityRebirthPromise
   ]);
