@@ -110,6 +110,21 @@ async function queryFilterWithRetry(contract: Contract, filter: any, start: numb
 
 
 
+async function getBlockNumberWithRetry(provider: JsonRpcProvider, retries = 3): Promise<number> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await provider.getBlockNumber();
+    } catch (err: any) {
+      const isLimitErr = err?.code === -32005 || /limit exceeded/i.test(err?.message ?? "");
+      if (isLimitErr && attempt < retries - 1) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("getBlockNumberWithRetry: exhausted retries");
+}
 const blockTimestampCache = new Map<number, number>();
 
 async function getCachedBlockTimestamp(provider: JsonRpcProvider, blockNumber: number): Promise<number> {
@@ -534,7 +549,7 @@ async function getRegistrationEvents(provider: JsonRpcProvider) {
     ABIS.MetaGuildXCore,
     provider
   );
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const CACHE_KEY = "mgx_admin_registration_events_v1";
   const cached = readBlockCache<DashboardEvent>(CACHE_KEY);
   const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
@@ -662,7 +677,7 @@ export async function getAllUsers(): Promise<UserSummary[]> {
   const provider = getProvider();
   const core = getCoreContract(provider);
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const cachedUsers = readBlockCache<UserSummary>(ALL_USERS_CACHE_KEY);
   if (cachedUsers && cachedUsers.lastBlock >= currentBlock) {
     return cachedUsers.data;
@@ -860,7 +875,7 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
   const cashback = new Contract(CONTRACTS.CashbackPool, ABIS.CashbackPool, provider);
 
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const cachedData = readBlockCache<IncomeMonitorData>(INCOME_MONITOR_CACHE_KEY);
   if (cachedData && cachedData.lastBlock >= currentBlock && cachedData.data[0]) {
     return cachedData.data[0];
@@ -1033,7 +1048,7 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
 
   const provider = getProvider();
   const core = getCoreContract(provider);
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const CACHE_KEY = "mgx_admin_upgrade_events_v1";
   const cached = readBlockCache<TransactionRecord>(CACHE_KEY);
   const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
@@ -1120,7 +1135,7 @@ export async function getPlacementEvents(): Promise<TransactionRecord[]> {
   const provider = getProvider();
   const tree = getBinaryTreeContract(provider);
   const core = getCoreContract(provider);
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const CACHE_KEY = "mgx_admin_placement_events_v1";
   const cached = readBlockCache<any>(CACHE_KEY);
   const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
@@ -1164,7 +1179,7 @@ export async function getCashbackEvents(): Promise<TransactionRecord[]> {
   const provider = getProvider();
   const cashback = new Contract(CONTRACTS.CashbackPool, ABIS.CashbackPool, provider);
   const core = getCoreContract(provider);
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const CACHE_KEY = "mgx_admin_cashback_events_v1";
   const cached = readBlockCache<any>(CACHE_KEY);
   const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
@@ -1219,7 +1234,7 @@ export async function getSurrenderedUsers(): Promise<SurrenderedUserRecord[]> {
   const provider = getProvider();
   const cashback = new Contract(CONTRACTS.CashbackPool, ABIS.CashbackPool, provider);
   const core = getCoreContract(provider);
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const CACHE_KEY = "mgx_admin_surrendered_users_v1";
   const cached = readBlockCache<any>(CACHE_KEY);
   const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
@@ -1273,7 +1288,7 @@ export async function getCashbackClaims(): Promise<CashbackClaimRecord[]> {
   const provider = getProvider();
   const cashback = new Contract(CONTRACTS.CashbackPool, ABIS.CashbackPool, provider);
   const core = getCoreContract(provider);
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const CACHE_KEY = "mgx_admin_cashback_claims_v1";
   const cached = readBlockCache<any>(CACHE_KEY);
   const fromBlock = cached ? cached.lastBlock + 1 : NETWORK.startBlock;
@@ -1396,7 +1411,7 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
   const income = getIncomeContract(provider);
   const usdt = new Contract(CONTRACTS.USDT, ["function balanceOf(address) view returns (uint256)"], provider);
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const cachedData = readBlockCache<IncomeDistributionData>(INCOME_DISTRIBUTION_CACHE_KEY);
   if (cachedData && cachedData.lastBlock >= currentBlock && cachedData.data[0]) {
     return cachedData.data[0];
@@ -1789,7 +1804,7 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
   const provider = getProvider();
   const core = getCoreContract(provider);
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const cachedData = readBlockCache<RebirthMonitorData>(REBIRTH_MONITOR_CACHE_KEY);
   if (cachedData && cachedData.lastBlock >= currentBlock && cachedData.data[0]) {
     return cachedData.data[0];
@@ -1996,7 +2011,7 @@ export async function getAllTransactions(): Promise<TransactionRecord[]> {
 
   const provider = getProvider();
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
-  const currentBlock = await provider.getBlockNumber();
+  const currentBlock = await getBlockNumberWithRetry(provider);
   const cachedTransactions = readBlockCache<TransactionRecord>(ALL_TRANSACTIONS_CACHE_KEY);
   if (cachedTransactions && cachedTransactions.lastBlock >= currentBlock) {
     return cachedTransactions.data;
