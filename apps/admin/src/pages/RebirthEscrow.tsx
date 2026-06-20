@@ -11,6 +11,7 @@ type CachedEventLog = {
   blockNumber: number;
   argsArray: string[];
   argsNamed: Record<string, string>;
+  argNames?: string[];
 };
 
 function stringifyLogValue(value: unknown) {
@@ -26,18 +27,19 @@ function getLogCacheKey(contract: Contract, filter: any, fromBlock: number) {
   const topics = (filter?.topics ?? [])
     .map((topic: unknown) => Array.isArray(topic) ? topic.join("_") : String(topic ?? "null"))
     .join("-");
-  return `mgx_admin_rebirth_escrow_logs_v1_${NETWORK.chainId}_${address}_${fromBlock}_${topics}`;
+  return `mgx_admin_rebirth_escrow_logs_v2_${NETWORK.chainId}_${address}_${fromBlock}_${topics}`;
 }
 
 function readLogCache(key: string): { lastScannedBlock: number; data: CachedEventLog[] } | null {
   try {
     const raw = window.localStorage.getItem(key);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { lastScannedBlock?: number; data?: CachedEventLog[] };
-    if (typeof parsed.lastScannedBlock !== "number" || !Array.isArray(parsed.data)) {
+    const parsed = JSON.parse(raw) as { lastScannedBlock?: number | string; data?: CachedEventLog[] };
+    const lastScannedBlock = Number(parsed.lastScannedBlock);
+    if (!Number.isFinite(lastScannedBlock) || !Array.isArray(parsed.data)) {
       return null;
     }
-    return { lastScannedBlock: parsed.lastScannedBlock, data: parsed.data };
+    return { lastScannedBlock, data: parsed.data };
   } catch {
     return null;
   }
@@ -54,21 +56,28 @@ function writeLogCache(key: string, lastScannedBlock: number, data: CachedEventL
 function serializeEventLog(log: EventLog): CachedEventLog {
   const args = log.args as any;
   const argsArray = Array.from(args ?? []).map(stringifyLogValue);
-  const argsNamed = Object.fromEntries(
-    Object.keys(args ?? {})
-      .filter((key) => Number.isNaN(Number(key)))
-      .map((key) => [key, stringifyLogValue(args[key])])
-  );
+  const argNames = (log.fragment?.inputs ?? []).map((input) => input.name).filter(Boolean);
+  const argsNamed: Record<string, string> = {};
+  argNames.forEach((name, index) => {
+    argsNamed[name] = stringifyLogValue(args?.[index]);
+  });
+  for (const key of Object.keys(args ?? {}).filter((key) => Number.isNaN(Number(key)))) {
+    argsNamed[key] = stringifyLogValue(args[key]);
+  }
   return {
     transactionHash: log.transactionHash,
     blockNumber: log.blockNumber,
     argsArray,
-    argsNamed
+    argsNamed,
+    argNames
   };
 }
 
 function hydrateEventLog(log: CachedEventLog): EventLog {
   const args: any = log.argsArray.map(parseLogValue);
+  (log.argNames ?? []).forEach((name, index) => {
+    args[name] = args[index];
+  });
   for (const [key, value] of Object.entries(log.argsNamed)) {
     args[key] = parseLogValue(value);
   }
@@ -80,6 +89,9 @@ function hydrateEventLog(log: CachedEventLog): EventLog {
 }
 
 async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 9_000): Promise<EventLog[]> {
+  if (!Number.isFinite(fromBlock) || !Number.isFinite(toBlock) || toBlock < fromBlock) {
+    return [];
+  }
   const cacheKey = getLogCacheKey(contract, filter, fromBlock);
   const cached = readLogCache(cacheKey);
   const results: EventLog[] = (cached?.data ?? []).map(hydrateEventLog);
