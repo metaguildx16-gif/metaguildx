@@ -688,12 +688,18 @@ function readPersistentDashboardSnapshot(cacheKey: string): { data: DashboardSna
     if (!cached) {
       return null;
     }
-    const parsed = JSON.parse(cached) as { data?: DashboardSnapshot; timestamp?: number };
+    const parsed = JSON.parse(cached, (_key, value) => {
+      if (typeof value === "string" && value.startsWith("__bigint__")) {
+        return BigInt(value.slice("__bigint__".length));
+      }
+      return value;
+    }) as { data?: DashboardSnapshot; timestamp?: number };
     if (!parsed.data || typeof parsed.timestamp !== "number") {
       return null;
     }
     return { data: parsed.data, timestamp: parsed.timestamp };
-  } catch {
+  } catch (error) {
+    console.warn("[MGX] persistent snapshot cache read failed", { cacheKey, error });
     return null;
   }
 }
@@ -704,9 +710,14 @@ function writePersistentDashboardSnapshot(cacheKey: string | null, data: Dashboa
   }
 
   try {
-    window.localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
-  } catch {
-    // Ignore storage quota or privacy-mode failures; in-memory cache still works.
+    window.localStorage.setItem(
+      cacheKey,
+      JSON.stringify({ data, timestamp: Date.now() }, (_key, value) =>
+        typeof value === "bigint" ? `__bigint__${value.toString()}` : value
+      )
+    );
+  } catch (error) {
+    console.warn("[MGX] persistent snapshot cache write failed", { cacheKey, error });
   }
 }
 
