@@ -169,7 +169,8 @@ const binaryTreeAbi = [
   "function getLevelChildren(uint256) view returns (uint256 left, uint256 right)",
   "function getLevelParent(uint256) view returns (uint256)",
   "function isLevelEligible(uint256) view returns (bool)",
-  "function levelRootId() view returns (uint256)"
+  "function levelRootId() view returns (uint256)",
+  "function findNextSlotUnderSponsor(uint256) view returns (uint256 parentId, bool isLeft)"
 ] as const;
 
 const incomeRouterWriteAbi = [
@@ -2771,8 +2772,13 @@ async function findPlacementSlot(
   sponsorId: number
 ): Promise<{ placementParentId: number; isLeft: boolean }> {
   void contract;
-  void sponsorId;
-  return { placementParentId: 0, isLeft: false };
+  const treeContract = await getReadBinaryTreeContract();
+  const [parentIdRaw, isLeft] = await treeContract.findNextSlotUnderSponsor(BigInt(sponsorId));
+  const placementParentId = Number(parentIdRaw);
+  if (!placementParentId) {
+    throw new Error("Unable to find an available placement slot under this sponsor. Please try again or contact support.");
+  }
+  return { placementParentId, isLeft: Boolean(isLeft) };
 }
 
 async function signPlacementInstruction(input: {
