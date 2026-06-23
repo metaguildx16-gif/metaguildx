@@ -170,7 +170,8 @@ const binaryTreeAbi = [
   "function getLevelParent(uint256) view returns (uint256)",
   "function isLevelEligible(uint256) view returns (bool)",
   "function levelRootId() view returns (uint256)",
-  "function findNextSlotUnderSponsor(uint256) view returns (uint256 parentId, bool isLeft)"
+  "function findNextSlotUnderSponsor(uint256) view returns (uint256 parentId, bool isLeft)",
+  "function findNextAvailableSlot(uint256) view returns (uint256 parentId, bool isLeft)"
 ] as const;
 
 const incomeRouterWriteAbi = [
@@ -2773,12 +2774,24 @@ async function findPlacementSlot(
 ): Promise<{ placementParentId: number; isLeft: boolean }> {
   void contract;
   const treeContract = await getReadBinaryTreeContract();
-  const [parentIdRaw, isLeft] = await treeContract.findNextSlotUnderSponsor(BigInt(sponsorId));
-  const placementParentId = Number(parentIdRaw);
+
+  // Try sponsor-specific slot first
+  const [parentIdRaw, isLeftRaw] = await treeContract.findNextSlotUnderSponsor(BigInt(sponsorId));
+  let placementParentId = Number(parentIdRaw);
+  let isLeft = Boolean(isLeftRaw);
+
+  // Fallback: contract BFS bug returns 0 for deeper trees — use findNextAvailableSlot from sponsor
   if (!placementParentId) {
-    throw new Error("Unable to find an available placement slot under this sponsor. Please try again or contact support.");
+    const [fallbackParentIdRaw, fallbackIsLeftRaw] = await treeContract.findNextAvailableSlot(BigInt(sponsorId));
+    placementParentId = Number(fallbackParentIdRaw);
+    isLeft = Boolean(fallbackIsLeftRaw);
   }
-  return { placementParentId, isLeft: Boolean(isLeft) };
+
+  if (!placementParentId) {
+    throw new Error("No available placement slot found under this sponsor. The tree may be full.");
+  }
+
+  return { placementParentId, isLeft };
 }
 
 async function signPlacementInstruction(input: {
