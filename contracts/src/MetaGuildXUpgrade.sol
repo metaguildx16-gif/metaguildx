@@ -45,10 +45,13 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
     mapping(uint256 => uint256[]) public rebirthIdsByUser;
     mapping(uint256 => bool) private upgradeInProgress;
 
+    uint256 private constant MAX_CASCADE_DEPTH = 2;
+
     event PackageUpgraded(uint256 indexed userId, uint256 newLevel);
     event RebirthCreated(uint256 indexed originalId, uint256 indexed newId);
     event MaxLevelEscrowReleased(uint256 indexed userId, uint256 amount);
     event AutoUpgradeTriggerSkipped(uint256 indexed userId, uint256 packageIndex);
+    event CascadeDepthLimitReached(uint256 indexed userId, uint256 depth);
 
     modifier onlyIncomeContract() {
         require(msg.sender == incomeContract, "Only income contract");
@@ -76,9 +79,13 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
             emit AutoUpgradeTriggerSkipped(userId, pkgPrice);
             return;
         }
+        if (!_enterCascade(userId)) {
+            return;
+        }
         upgradeInProgress[userId] = true;
         _doCheckAndTriggerUpgrade(userId, pkgPrice, paymentAsset);
         upgradeInProgress[userId] = false;
+        _exitCascade();
     }
 
     function _doCheckAndTriggerUpgrade(uint256 userId, uint256 pkgPrice, address paymentAsset) internal {
@@ -136,6 +143,9 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
         if (rebirthInProgress[userId]) {
             return false;
         }
+        if (!_enterCascade(userId)) {
+            return false;
+        }
         rebirthInProgress[userId] = true;
 
         address asset = paymentAsset == address(0) ? defaultPaymentAsset : paymentAsset;
@@ -150,7 +160,23 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
             core.payoutUserIncome(userId, remaining, asset);
         }
         rebirthInProgress[userId] = false;
+        _exitCascade();
         return true;
+    }
+
+    function _enterCascade(uint256 userId) internal returns (bool) {
+        if (cascadeDepth >= MAX_CASCADE_DEPTH) {
+            emit CascadeDepthLimitReached(userId, cascadeDepth);
+            return false;
+        }
+        cascadeDepth += 1;
+        return true;
+    }
+
+    function _exitCascade() internal {
+        if (cascadeDepth > 0) {
+            cascadeDepth -= 1;
+        }
     }
 
     function getRebirthIds(uint256 userId) external view returns (uint256[] memory) {
@@ -182,5 +208,6 @@ contract MetaGuildXUpgrade is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     address public routerContract;
     mapping(uint256 => bool) public rebirthInProgress;
-    uint256[45] private __gap;
+    uint256 public cascadeDepth;
+    uint256[44] private __gap;
 }
