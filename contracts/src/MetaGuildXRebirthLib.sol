@@ -179,6 +179,7 @@ library MetaGuildXRebirthLib {
         mapping(uint256 => address) storage userPrimaryAsset,
         mapping(uint256 => uint256) storage rebirthOriginalUserId,
         mapping(uint256 => bool) storage failedDistribution,
+        mapping(uint256 => uint8) storage failedDistributionPackageLevel,
         mapping(address => bool) storage nativePaymentAssets,
         mapping(address => uint256) storage paymentAssetUnitPrice,
         RebirthConfig memory config,
@@ -190,6 +191,7 @@ library MetaGuildXRebirthLib {
             usersById,
             rebirthOriginalUserId,
             failedDistribution,
+            failedDistributionPackageLevel,
             nativePaymentAssets,
             paymentAssetUnitPrice,
             config,
@@ -203,6 +205,7 @@ library MetaGuildXRebirthLib {
         mapping(uint256 => address) storage userPrimaryAsset,
         mapping(uint256 => uint256) storage rebirthOriginalUserId,
         mapping(uint256 => bool) storage failedDistribution,
+        mapping(uint256 => uint8) storage failedDistributionPackageLevel,
         mapping(address => bool) storage nativePaymentAssets,
         mapping(address => uint256) storage paymentAssetUnitPrice,
         RebirthConfig memory config,
@@ -219,6 +222,7 @@ library MetaGuildXRebirthLib {
             usersById,
             rebirthOriginalUserId,
             failedDistribution,
+            failedDistributionPackageLevel,
             nativePaymentAssets,
             paymentAssetUnitPrice,
             config,
@@ -231,6 +235,7 @@ library MetaGuildXRebirthLib {
         mapping(uint256 => MGXTypes.UserProfile) storage usersById,
         mapping(uint256 => uint256) storage rebirthOriginalUserId,
         mapping(uint256 => bool) storage failedDistribution,
+        mapping(uint256 => uint8) storage failedDistributionPackageLevel,
         mapping(address => bool) storage nativePaymentAssets,
         mapping(address => uint256) storage paymentAssetUnitPrice,
         RebirthConfig memory config,
@@ -240,7 +245,11 @@ library MetaGuildXRebirthLib {
         MGXTypes.UserProfile storage profile = usersById[userId];
         if (profile.id == 0) revert UserNotFound(userId);
 
-        uint256 packageAmount = IMetaGuildXRebirthCoreView(address(this)).getPackagePriceByLevel(profile.packageLevel);
+        uint8 retryPackageLevel = failedDistributionPackageLevel[userId];
+        if (retryPackageLevel == 0) {
+            retryPackageLevel = profile.originalPackageLevel;
+        }
+        uint256 packageAmount = IMetaGuildXRebirthCoreView(address(this)).getPackagePriceByLevel(retryPackageLevel);
         uint256 placedUnderId = IMetaGuildXRebirthBinaryTree(config.binaryTreeContract).getParent(userId);
         uint256 originalUserId = profile.rebirthCount > 0 ? rebirthOriginalUserId[userId] : 0;
         uint256 settlementAmt = _platformToSettlement(paymentAssetUnitPrice, paymentAsset, packageAmount);
@@ -249,6 +258,8 @@ library MetaGuildXRebirthLib {
             if (coreBal < settlementAmt) revert InsufficientCoreBalance();
         }
 
+        uint8 currentPackageLevelSnapshot = profile.packageLevel;
+        profile.packageLevel = retryPackageLevel;
         try IMetaGuildXRebirthRouter(config.incomeRouterContract).distributeJoinIncome(
             userId,
             profile.sponsorId,
@@ -257,10 +268,12 @@ library MetaGuildXRebirthLib {
             paymentAsset,
             originalUserId
         ) {
+            profile.packageLevel = currentPackageLevelSnapshot;
             failedDistribution[userId] = false;
             _distributeCashbackAndCreator(nativePaymentAssets, paymentAssetUnitPrice, config, packageAmount, paymentAsset);
             emit DistributionRetried(userId, true);
         } catch (bytes memory reason) {
+            profile.packageLevel = currentPackageLevelSnapshot;
             emit DistributionRetried(userId, false);
             emit DistributionFailedReason(userId, reason);
         }

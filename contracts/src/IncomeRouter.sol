@@ -262,6 +262,57 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
         _sweepResidualToCreator(paymentAsset, balanceBefore);
     }
 
+    event AdminDirectPayoutExecuted(uint256 indexed fromUserId, uint256 indexed toUserId, uint256 amount, uint8 cyclePkgLevel);
+    event AdminRemainderDistributionExecuted(uint256 indexed fromUserId, uint256 indexed sponsorId, uint256 packageAmount, uint8 cyclePkgLevel);
+
+    // Admin-only scoped fix path: pays the sponsor directly via the escrow_direct
+    // routing branch, which bypasses escrow accumulation, auto-upgrade checks,
+    // and auto-rebirth checks entirely when the recipient's current package level
+    // is already above cyclePkgLevel. Used only to resolve stuck failed distributions
+    // without touching normal registration/upgrade/rebirth flows.
+    function adminDirectPayout(
+        uint256 fromUserId,
+        uint256 toUserId,
+        uint256 amount,
+        address paymentAsset,
+        uint8 cyclePkgLevel
+    ) external onlyCore {
+        if (amount == 0 || toUserId == 0) {
+            return;
+        }
+        uint256 balanceBefore = paymentAsset == address(0) ? 0 : IERC20(paymentAsset).balanceOf(address(this));
+        IMetaGuildXIncomeEngine(incomeEngineContract).routeIncome(
+            toUserId, amount, paymentAsset, "escrow_direct", cyclePkgLevel
+        );
+        emit AdminDirectPayoutExecuted(fromUserId, toUserId, amount, cyclePkgLevel);
+        _sweepResidualToCreator(paymentAsset, balanceBefore);
+    }
+
+    // Admin-only scoped fix path: distributes the remainder of a stuck failed
+    // distribution (level income across the upline, cashback, and creator fee)
+    // through the exact same internal routines used by the live, normal
+    // registration flow (_distributeLevelIncome, _distributeCashbackAndCreatorFromRouter).
+    // No bypass logic here - the system's own X-slot/escrow/rebirth eligibility
+    // checks run exactly as they would in a normal registration, so any rebirth
+    // that should naturally trigger as part of this distribution still triggers.
+    function adminRemainderDistribution(
+        uint256 fromUserId,
+        uint256 sponsorId,
+        uint256 placedUnderId,
+        uint8 cyclePkgLevel,
+        uint256 packageAmount,
+        address paymentAsset,
+        uint256 originalUserId
+    ) external onlyCore whenNotPaused {
+        uint256 balanceBefore = paymentAsset == address(0) ? 0 : IERC20(paymentAsset).balanceOf(address(this));
+        _distributeLevelIncome(
+            fromUserId, sponsorId, placedUnderId, cyclePkgLevel, packageAmount, paymentAsset, originalUserId
+        );
+        _distributeCashbackAndCreatorFromRouter(packageAmount, paymentAsset);
+        emit AdminRemainderDistributionExecuted(fromUserId, sponsorId, packageAmount, cyclePkgLevel);
+        _sweepResidualToCreator(paymentAsset, balanceBefore);
+    }
+
     function directIncomeBps() external pure returns (uint256) {
         return DIRECT_INCOME_BPS;
     }

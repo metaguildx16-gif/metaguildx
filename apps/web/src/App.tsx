@@ -17,6 +17,7 @@ import { TeamPage } from "./pages/TeamPage";
 import { UpgradePage } from "./pages/UpgradePage";
 import { UserSearchPage } from "./pages/UserSearchPage";
 import { WalletPage } from "./pages/WalletPage";
+import CrossChainHubPage from "./pages/CrossChainHubPage";
 import { activeNetworkConfig } from "./config/networks";
 import * as metaguildx from "./lib/metaguildx";
 import type { ConnectedWalletHistoryRow, DashboardSnapshot, LiveWalletStakeState, RegistrationResult, TreeNodeDetails, TreePreviewNode } from "./lib/metaguildx";
@@ -47,7 +48,8 @@ type DashboardView =
   | "upgrade"
   | "cashback"
   | "wallet"
-  | "support";
+  | "support"
+  | "crosschain";
 type WalletSubView = "main" | "transfer" | "mgxboxes" | "stakingclaim" | "stake" | "myStake" | "cashback";
 type StakeDurationKey = "30D" | "90D" | "180D" | "1Y" | "2Y";
 type DashboardLoadPhase =
@@ -4181,6 +4183,7 @@ function App() {
               {/* Bottom items */}
               {[
                 { key: "support",  icon: "🎧", label: "Support" },
+                { key: "crosschain", icon: "🔁", label: "Cross-Chain Hub" },
                 { key: "profile",  icon: "👤", label: "My Profile" },
                 { key: "settings", icon: "✔️", label: "Settings" },
               ].map(item => (
@@ -4341,6 +4344,15 @@ function App() {
             >
               <p className="text-lg font-semibold"><span className="nav-icon">🎧</span> Support</p>
             </button>
+            <button
+              type="button"
+              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
+                dashboardView === "crosschain" ? "ring-1 ring-blue-500 bg-gray-800" : ""
+              }`}
+              onClick={() => setDashboardView("crosschain")}
+            >
+              <p className="text-lg font-semibold"><span className="nav-icon">🔁</span> Cross-Chain Hub</p>
+            </button>
 
             <button
               type="button"
@@ -4457,6 +4469,7 @@ function App() {
           </section>
 
           {!isAdminRoute && dashboardView === "overview" ? <OverviewPage {...dashboardPageProps} /> : null}
+          {!isAdminRoute && dashboardView === "crosschain" ? <CrossChainHubPage /> : null}
 
           {dashboardView === "network" || dashboardView === "tree" ? <NetworkPage {...dashboardPageProps} /> : null}
 

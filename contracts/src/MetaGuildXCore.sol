@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IMetaGuildXTokenEngine.sol";
 import {MetaGuildXRebirthLib} from "./MetaGuildXRebirthLib.sol";
 import {MetaGuildXUpgradeFlowLib} from "./MetaGuildXUpgradeFlowLib.sol";
+import {MetaGuildXAdminLib} from "./MetaGuildXAdminLib.sol";
 import "./libs/MetaGuildXPaymentLib.sol";
 import "./libs/MetaGuildXPlacementLib.sol";
 import "./libraries/MGXTypes.sol";
@@ -48,6 +49,22 @@ interface IMetaGuildXRouter {
         address paymentAsset
     ) external;
     function distributeCrosslineIncome(uint256 fromUserId, uint256 toUserId, uint256 amount, address paymentAsset) external;
+    function adminDirectPayout(
+        uint256 fromUserId,
+        uint256 toUserId,
+        uint256 amount,
+        address paymentAsset,
+        uint8 cyclePkgLevel
+    ) external;
+    function adminRemainderDistribution(
+        uint256 fromUserId,
+        uint256 sponsorId,
+        uint256 placedUnderId,
+        uint8 cyclePkgLevel,
+        uint256 packageAmount,
+        address paymentAsset,
+        uint256 originalUserId
+    ) external;
 }
 
 interface IMetaGuildXIncome {
@@ -633,27 +650,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         address newWallet,
         uint256[] calldata rebirthUserIds
     ) external onlyOwner {
-        if (oldWallet == address(0) || newWallet == address(0)) revert InvalidAddress();
-        if (oldWallet == newWallet) revert InvalidAddress();
-        uint256 primaryUserId = userIdByAddress[oldWallet];
-        if (primaryUserId == 0) revert UserNotRegistered();
-        if (userIdByAddress[newWallet] != 0) revert AlreadyRegistered();
-        if (usersById[primaryUserId].account != oldWallet) revert Unauthorized();
-
-        usersById[primaryUserId].account = newWallet;
-        delete userIdByAddress[oldWallet];
-        userIdByAddress[newWallet] = primaryUserId;
-        delete nonces[oldWallet];
-
-        emit WalletMigrated(primaryUserId, oldWallet, newWallet);
-
-        for (uint256 i = 0; i < rebirthUserIds.length; i++) {
-            uint256 rebirthId = rebirthUserIds[i];
-            if (usersById[rebirthId].account == oldWallet) {
-                usersById[rebirthId].account = newWallet;
-                emit WalletMigrated(rebirthId, oldWallet, newWallet);
-            }
-        }
+        MetaGuildXAdminLib.adminMigrateWallet(usersById, userIdByAddress, nonces, oldWallet, newWallet, rebirthUserIds);
     }
 
     function setStakingContract(address target) external onlyOwner {
@@ -681,23 +678,18 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function adminReleaseStrandedEscrow(uint256 userId) external onlyOwner {
-        IMetaGuildXIncome(incomeEngineContract).releaseStrandedEscrow(userId, defaultPaymentAsset);
+        MetaGuildXAdminLib.adminReleaseStrandedEscrow(incomeEngineContract, defaultPaymentAsset, userId);
     }
 
     function adminSweepToCreator(address token) external onlyOwner {
-        uint256 bal = IERC20(token).balanceOf(address(this));
-        if (bal == 0) revert NothingToSweep();
-        _safeTransferExact(token, creatorFeeWallet, bal, "TRANSFER_FAILED");
+        MetaGuildXAdminLib.adminSweepToCreator(token, creatorFeeWallet);
     }
 
     function adminSweepAmountToCreator(
         address token,
         uint256 amount
     ) external onlyOwner {
-        if (amount == 0) revert ZeroAmount();
-        uint256 bal = IERC20(token).balanceOf(address(this));
-        if (bal < amount) revert InsufficientBalance();
-        _safeTransferExact(token, creatorFeeWallet, amount, "TRANSFER_FAILED");
+        MetaGuildXAdminLib.adminSweepAmountToCreator(token, creatorFeeWallet, amount);
     }
 
     function adminResetAndRebuildLevelTree(
@@ -737,10 +729,77 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
             userPrimaryAsset,
             rebirthOriginalUserId,
             failedDistribution,
+            failedDistributionPackageLevel,
             nativePaymentAssets,
             paymentAssetUnitPrice,
             _rebirthConfig(),
             userId
+        );
+    }
+
+    // Scoped, safe resolution path for stuck failed distributions that cannot be
+    // retried via the normal path because the recipient's escrow/rebirth state
+    // would cause cascading gas exhaustion. Pays only the direct-income share
+    // (DIRECT_INCOME_BPS = 46%) straight to the sponsor's wallet via the
+    // escrow_direct routing branch, which skips escrow accumulation, auto-upgrade
+    // checks, and auto-rebirth checks whenever the sponsor's current package
+    // level is already above the original failed package level. Does not touch
+    // level income, binary tree, MGX distribution, or any other live flow.
+    function adminForceResolveFailedDistribution(uint256 userId) external onlyOwnerOrAdmin {
+        if (!failedDistribution[userId]) revert NotFailedDistribution(userId);
+
+        MGXTypes.UserProfile storage profile = usersById[userId];
+        if (profile.id == 0) revert UserNotFound(userId);
+
+        uint8 origLevel = profile.originalPackageLevel;
+        uint256 packageAmount = this.getPackagePriceByLevel(origLevel);
+
+        address paymentAsset = userPrimaryAsset[userId];
+        if (paymentAsset == address(0)) paymentAsset = defaultPaymentAsset;
+
+        uint256 directIncome = (packageAmount * 4600) / 10000;
+
+        IMetaGuildXRouter(incomeRouterContract).adminDirectPayout(
+            userId,
+            profile.sponsorId,
+            directIncome,
+            paymentAsset,
+            origLevel
+        );
+
+        failedDistribution[userId] = false;
+        emit DistributionRetried(userId, true);
+    }
+
+    // Admin-only scoped fix path: distributes the remainder (level income,
+    // cashback, creator fee) of a stuck failed distribution that already had
+    // its direct-income share resolved via adminForceResolveFailedDistribution.
+    // Routes through the exact same internal distribution routines the live
+    // registration flow uses, so X-slot/escrow/rebirth eligibility checks run
+    // unmodified - any rebirth that should naturally trigger still triggers.
+    function adminRemainderDistribution(uint256 userId) external onlyOwnerOrAdmin {
+        MGXTypes.UserProfile storage profile = usersById[userId];
+        if (profile.id == 0) revert UserNotFound(userId);
+
+        uint8 origLevel = profile.originalPackageLevel;
+        uint256 packageAmount = this.getPackagePriceByLevel(origLevel);
+
+        address paymentAsset = userPrimaryAsset[userId];
+        if (paymentAsset == address(0)) paymentAsset = defaultPaymentAsset;
+
+        uint256 placedUnderId = 0;
+        if (binaryTreeContract != address(0)) {
+            placedUnderId = IMetaGuildXBinaryTree(binaryTreeContract).getParent(userId);
+        }
+
+        IMetaGuildXRouter(incomeRouterContract).adminRemainderDistribution(
+            userId,
+            profile.sponsorId,
+            placedUnderId,
+            origLevel,
+            packageAmount,
+            paymentAsset,
+            0
         );
     }
 
@@ -750,6 +809,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
             userPrimaryAsset,
             rebirthOriginalUserId,
             failedDistribution,
+            failedDistributionPackageLevel,
             nativePaymentAssets,
             paymentAssetUnitPrice,
             _rebirthConfig(),
@@ -891,6 +951,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
             _distributeCashbackAndCreator(packageAmount, paymentAsset);
         } catch (bytes memory reason) {
             failedDistribution[userId] = true;
+            failedDistributionPackageLevel[userId] = packageLevel;
             failedUserIds.push(userId);
             emit DistributionFailed(userId, block.timestamp);
             emit DistributionFailedReason(userId, reason);
@@ -1096,6 +1157,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     address public tokenEngineContract;
     address public adminAddress;
     mapping(uint256 => uint256) public rebirthOriginalUserId;
-    uint256[32] private __gap;
+    mapping(uint256 => uint8) public failedDistributionPackageLevel;
+    uint256[31] private __gap;
 }
 
