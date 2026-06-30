@@ -2780,7 +2780,7 @@ async function findPlacementSlot(
   let placementParentId = Number(parentIdRaw);
   let isLeft = Boolean(isLeftRaw);
 
-  // Fallback: contract BFS bug returns 0 for deeper trees — use findNextAvailableSlot from sponsor
+  // Fallback: contract BFS bug returns 0 for deeper trees - use findNextAvailableSlot from sponsor
   if (!placementParentId) {
     const [fallbackParentIdRaw, fallbackIsLeftRaw] = await treeContract.findNextAvailableSlot(BigInt(sponsorId));
     placementParentId = Number(fallbackParentIdRaw);
@@ -3064,7 +3064,7 @@ export async function registerUser(
       signature,
       BigInt(nonce),
       deadline,
-      { gasLimit: 8_000_000n }
+      { gasLimit: 20_000_000n }
     );    await tx.wait();    onProgress?.("success");
 
     return {
