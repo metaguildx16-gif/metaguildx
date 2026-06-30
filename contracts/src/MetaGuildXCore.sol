@@ -8,10 +8,10 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IMetaGuildXTokenEngine.sol";
 import {MetaGuildXRebirthLib} from "./MetaGuildXRebirthLib.sol";
+import {MetaGuildXUpgradeFlowLib} from "./MetaGuildXUpgradeFlowLib.sol";
 import "./libs/MetaGuildXPaymentLib.sol";
 import "./libs/MetaGuildXPlacementLib.sol";
 import "./libraries/MGXTypes.sol";
-import "./libraries/UpgradeCycleLib.sol";
 import "./utils/MetaGuildReentrancyGuardUpgradeable.sol";
 
 interface IMetaGuildXBinaryTree {
@@ -293,56 +293,22 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function upgradePackage(uint256 userId, uint8 newPackageLevel) external payable nonReentrant whenNotPaused {
-        MGXTypes.UserProfile storage profile = usersById[userId];
-        if (profile.account != msg.sender) revert Unauthorized();
-        if (profile.id == 0) revert UserNotFound(userId);
-        if (newPackageLevel != profile.packageLevel + 1) revert UpgradeOnlyToNextLevel();
-        if (isRebirthUser(userId)) revert RebirthCannotUpgrade();
-
-        uint256 upgradeAmount = UpgradeCycleLib.calcUpgradeCost(packagePricesArray[profile.packageLevel - 1]);
-        address paymentAsset = defaultPaymentAsset;
-        uint8 currentPkg = profile.packageLevel;
-        uint256 currentPackageEscrow = IMetaGuildXIncome(incomeEngineContract).getEscrow(userId);
-        uint256 nextPackageEscrow = IMetaGuildXIncome(incomeEngineContract).getEscrowByPkg(userId, currentPkg + 1);
-        uint256 combinedEscrow = currentPackageEscrow + nextPackageEscrow;
-        uint256 walletCharge = upgradeAmount > combinedEscrow ? upgradeAmount - combinedEscrow : 0;
-
-        if (productionMode) {
-            if (walletCharge > 0) {
-                _collectPayment(paymentAsset, walletCharge);
-            }
-        } else {
-            if (msg.value != 0) revert NativePaymentDisabled();
-            paymentAsset = address(0);
-        }
-
-        // Release escrow: drain pkg1 bucket first, then pkg2 bucket
-        uint256 escrowToUse = upgradeAmount < combinedEscrow ? upgradeAmount : combinedEscrow;
-
-        if (currentPackageEscrow > 0 && escrowToUse > 0) {
-            uint256 fromPkg1 = currentPackageEscrow >= escrowToUse ? escrowToUse : currentPackageEscrow;
-            IMetaGuildXIncome(incomeEngineContract).releaseEscrow(userId, fromPkg1);
-            escrowToUse -= fromPkg1;
-        }
-
-        if (nextPackageEscrow > 0 && escrowToUse > 0) {
-            uint256 fromPkg2 = nextPackageEscrow >= escrowToUse ? escrowToUse : nextPackageEscrow;
-            IMetaGuildXIncome(incomeEngineContract).releaseEscrowByPkg(userId, currentPkg + 1, fromPkg2);
-            escrowToUse -= fromPkg2;
-        }
-
-        // Release any remainder from pkg1 bucket to user wallet
-        uint256 pkg1Remainder = IMetaGuildXIncome(incomeEngineContract).getEscrow(userId);
-        if (pkg1Remainder > 0) {
-            IMetaGuildXIncome(incomeEngineContract).releaseEscrow(userId, pkg1Remainder);
-            _payoutSettlement(profile.account, paymentAsset, _platformToSettlement(paymentAsset, pkg1Remainder));
-        }
-
-        // resetIncomeByCore removed — manual upgrade must not reset xSlot cycle
-        // Auto upgrade path (checkAndTriggerUpgrade) already does not reset
-        manuallyUpgraded[userId] = true;
-        _applyPackageUpgrade(userId, newPackageLevel, paymentAsset, upgradeAmount);
-        IMetaGuildXIncome(incomeEngineContract).releaseStrandedEscrow(userId, paymentAsset);
+        uint256 tokenAmount = MetaGuildXUpgradeFlowLib.upgradePackage(
+            usersById,
+            userPrimaryAsset,
+            manuallyUpgraded,
+            activeBoxByUser,
+            tokenAllocationsByUser,
+            referralCountByPkg,
+            enabledPaymentAssets,
+            nativePaymentAssets,
+            paymentAssetUnitPrice,
+            packagePricesArray,
+            _upgradeFlowConfig(),
+            userId,
+            newPackageLevel
+        );
+        totalTokenDistributed += tokenAmount;
     }
 
     function processUpgradeFromEngine(
@@ -351,7 +317,21 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         address paymentAsset,
         uint256 upgradeAmount
     ) external onlyUpgradeEngine {
-        _applyPackageUpgrade(userId, newPackageLevel, paymentAsset, upgradeAmount);
+        uint256 tokenAmount = MetaGuildXUpgradeFlowLib.processUpgradeFromEngine(
+            usersById,
+            userPrimaryAsset,
+            activeBoxByUser,
+            tokenAllocationsByUser,
+            referralCountByPkg,
+            nativePaymentAssets,
+            paymentAssetUnitPrice,
+            _upgradeFlowConfig(),
+            userId,
+            newPackageLevel,
+            paymentAsset,
+            upgradeAmount
+        );
+        totalTokenDistributed += tokenAmount;
     }
 
     function setUserPackageLevel(uint256 userId, uint256 newLevel) external onlyUpgradeEngine {
@@ -798,39 +778,19 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         }
         emit PackagePricesUpdated(prices);
     }
-    function _applyPackageUpgrade(uint256 userId, uint8 newPackageLevel, address paymentAsset, uint256 upgradeAmount) internal {
-        MGXTypes.UserProfile storage profile = usersById[userId];
-        if (profile.id == 0) revert UserNotFound(userId);
-        if (newPackageLevel != profile.packageLevel + 1) revert UpgradeOnlyToNextLevel();
-
-        uint8 previousLevel = profile.packageLevel;
-        profile.packageLevel = newPackageLevel;
-        profile.totalContribution += upgradeAmount;
-        if (paymentAsset != address(0)) {
-            userPrimaryAsset[userId] = paymentAsset;
-        }
-
-        (uint256 tokenAmount, uint8 appliedBoxId) = _allocateTokensForCurrentBox(userId, upgradeAmount);
-        activeBoxByUser[userId] = appliedBoxId;
-        tokenAllocationsByUser[userId] += tokenAmount;
-        totalTokenDistributed += tokenAmount;
-        _transferAllocatedMgx(profile.account, tokenAmount);
-
-        uint256 sponsorId = profile.sponsorId;
-        uint8 newPkg = profile.packageLevel;
-        if (sponsorId != 0) {
-            referralCountByPkg[sponsorId][newPkg] += 1;
-        }
-
-        IMetaGuildXRouter(incomeRouterContract).distributeUpgradeIncome(
-            userId,
-            profile.sponsorId,
-            upgradeAmount,
-            paymentAsset
-        );
-        _distributeCashbackAndCreator(upgradeAmount, paymentAsset);
-
-        emit PackageUpgraded(userId, previousLevel, newPackageLevel, upgradeAmount);
+    function _upgradeFlowConfig() internal view returns (MetaGuildXUpgradeFlowLib.UpgradeConfig memory) {
+        return MetaGuildXUpgradeFlowLib.UpgradeConfig({
+            incomeEngineContract: incomeEngineContract,
+            incomeRouterContract: incomeRouterContract,
+            cashbackPoolContract: cashbackPoolContract,
+            creatorFeeWallet: creatorFeeWallet,
+            defaultPaymentAsset: defaultPaymentAsset,
+            tokenEngineContract: tokenEngineContract,
+            mgxTokenAddress: mgxTokenAddress,
+            productionMode: productionMode,
+            cashbackJoinShareBps: CASHBACK_JOIN_SHARE_BPS,
+            creatorShareBps: CREATOR_SHARE_BPS
+        });
     }
 
     function _rebirthConfig() internal view returns (MetaGuildXRebirthLib.RebirthConfig memory) {
@@ -1138,3 +1098,4 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     mapping(uint256 => uint256) public rebirthOriginalUserId;
     uint256[32] private __gap;
 }
+
