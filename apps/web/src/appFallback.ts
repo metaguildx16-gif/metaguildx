@@ -80,6 +80,8 @@ export const fallbackSnapshot: DashboardSnapshot = {
   mgxAllocated: "0",
   userActiveBoxId: null,
   pendingCashback: "0",
+  incomeDistributionPending: false,
+  incomeDistributionPendingPackageLevel: null,
   isSurrendered: false,
   surrenderStatus: "Not available"
 };

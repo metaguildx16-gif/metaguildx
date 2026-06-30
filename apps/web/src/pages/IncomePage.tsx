@@ -154,6 +154,13 @@ export function IncomePage(props: DashboardPageProps) {
   return (
   <section className="panel dashboard-view w-full max-w-full">
     <p className="section-label">Earnings</p>
+    {snapshot.incomeDistributionPending ? (
+      <div style={{ margin: "0 0 16px", padding: "12px 16px", borderRadius: "14px", background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.22)", color: "#EEF4FF", fontSize: "13px", lineHeight: 1.5 }}>
+        <strong style={{ color: "#C9A84C" }}>Distribution pending.</strong>{" "}
+        Your registration is confirmed. Income distribution is pending and will be processed shortly.
+        {snapshot.incomeDistributionPendingPackageLevel ? ` Package ${snapshot.incomeDistributionPendingPackageLevel}.` : ""}
+      </div>
+    ) : null}
     <div className="stats-grid premium-earnings-strip">
       <article className="stat-card premium-earnings-stat"><p className="stat-card-label">Direct Income</p><p className="stat-card-value">${directIncomeDisplay}</p></article>
       <article className="stat-card premium-earnings-stat"><p className="stat-card-label">Level Income</p><p className="stat-card-value">${levelIncomeDisplay}</p></article>

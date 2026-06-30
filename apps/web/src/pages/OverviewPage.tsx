@@ -171,6 +171,12 @@ export function OverviewPage(props: DashboardPageProps) {
               <>
                 <div className="income-row dashboard-summary-row"><span className="income-label">Direct Income</span><span className="income-amount">${directIncomeDisplay}</span></div>
                 <div className="income-row dashboard-summary-row"><span className="income-label">Level Income</span><span className="income-amount">${levelIncomeDisplay}</span></div>
+                {snapshot.incomeDistributionPending ? (
+                  <div className="income-row dashboard-summary-row" style={{ background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.22)", borderRadius: "10px", padding: "10px 12px" }}>
+                    <span className="income-label">Distribution Pending</span>
+                    <span className="income-amount" style={{ color: "#C9A84C", fontSize: "12px", textAlign: "right" }}>Income will be processed shortly</span>
+                  </div>
+                ) : null}
                 <div className="income-row dashboard-summary-row"><span className="income-label">Frozen</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
                 <div className="dashboard-summary-total">
                   <span>Total</span>

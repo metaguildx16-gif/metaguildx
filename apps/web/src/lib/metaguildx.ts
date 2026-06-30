@@ -99,6 +99,8 @@ const metaGuildXCoreAbi = [
   "function getLevelChildren(uint256) view returns (uint256 left, uint256 right)",
   "function isLevelEligibleUser(uint256) view returns (bool)",
   "function isRebirthUser(uint256) view returns (bool)",
+  "function failedDistribution(uint256) view returns (bool)",
+  "function failedDistributionPackageLevel(uint256) view returns (uint8)",
   "function registerWithPlacement(uint256,uint256,bool,bytes,uint256,uint256) returns (uint256)",
   "function upgradePackage(uint256,uint8)",
   "function stake(uint256,uint256,bool)",
@@ -424,6 +426,8 @@ export type DashboardSnapshot = {
   mgxAllocated: string;
   userActiveBoxId: number | null;
   pendingCashback: string;
+  incomeDistributionPending: boolean;
+  incomeDistributionPendingPackageLevel: number | null;
   isSurrendered: boolean;
   surrenderStatus: string;
 };
@@ -599,6 +603,8 @@ export const fallbackSnapshot: DashboardSnapshot = {
   mgxAllocated: "0",
   userActiveBoxId: null,
   pendingCashback: "0",
+  incomeDistributionPending: false,
+  incomeDistributionPendingPackageLevel: null,
   isSurrendered: false,
   surrenderStatus: "Not available"
 };
@@ -1274,6 +1280,8 @@ async function buildUnregisteredSnapshot(input: {
     mgxAllocated: "0",
     userActiveBoxId: null,
     pendingCashback: "0",
+    incomeDistributionPending: false,
+    incomeDistributionPendingPackageLevel: null,
     isSurrendered: false,
     surrenderStatus: "Register to unlock"
   } satisfies DashboardSnapshot;
@@ -1306,6 +1314,8 @@ async function buildMinimalRegisteredSnapshot(
     sponsorId: input.profile.sponsorId === undefined ? snapshot.sponsorId : Number(input.profile.sponsorId),
     packageLevel: Number(input.profile.packageLevel),
     joinedAt: Number(input.profile.joinedAt),
+    incomeDistributionPending: false,
+    incomeDistributionPendingPackageLevel: null,
     isSurrendered: Boolean(input.profile.surrendered),
     surrenderStatus: input.profile.surrendered ? "ID surrendered" : "Available after 3 months"
   } satisfies DashboardSnapshot;
@@ -4222,7 +4232,9 @@ async function loadQuickSnapshot(input: {
     pendingRewardRaw,
     stakePositionsRaw,
     userTokenAllocationRaw,
-    userActiveBoxIdRaw
+    userActiveBoxIdRaw,
+    incomeDistributionPending,
+    incomeDistributionPendingPackageLevelRaw
   ] = await Promise.all([
     input.contract.usersById(userId),
     input.incomeModule ? safeBigIntRead(() => input.incomeModule!.getTotalAllIncome(userId)) : Promise.resolve(0n),
@@ -4233,7 +4245,9 @@ async function loadQuickSnapshot(input: {
       ? input.stakingModule.getStakePositions(input.walletAddress).catch(() => [] as RawStakePosition[])
       : Promise.resolve([] as RawStakePosition[]),
     input.tokenEngineModule ? safeBigIntRead(() => input.tokenEngineModule!.getTokenAllocation(userId)) : Promise.resolve(0n),
-    safeBigIntRead(() => input.contract.activeBoxByUser(userId))
+    safeBigIntRead(() => input.contract.activeBoxByUser(userId)),
+    input.contract.failedDistribution(userId).catch(() => false),
+    safeBigIntRead(() => input.contract.failedDistributionPackageLevel(userId))
   ]);
 
   const stakePositions = mapStakePositions(stakePositionsRaw);
@@ -4265,6 +4279,8 @@ async function loadQuickSnapshot(input: {
     stakePositions,
     mgxAllocated: formatTokenAmount(availableMgx, 18),
     userActiveBoxId: Number(userActiveBoxIdRaw),
+    incomeDistributionPending: Boolean(incomeDistributionPending),
+    incomeDistributionPendingPackageLevel: Number(incomeDistributionPendingPackageLevelRaw) || null,
     isConnected: true,
     hasContractConfig: true,
     contractReady: true,
@@ -4599,7 +4615,7 @@ export async function loadDashboardSnapshot(
     });
 
   const loadRegisteredSnapshot = async () => {
-      const [profile, isRebirthUserRaw, incomes, totalIncomeRaw, internalWalletBalance, currentPackageEscrowRaw, currentPackageBucketEarningsFallbackRaw, pendingReward, pendingCashback, userTokenAllocation, userActiveBoxId, directReferralIdsRaw, rebirthIdsRaw, primaryAsset, defaultPaymentAsset, externalWalletBalanceRaw, stakePositionsRaw] = await Promise.all([
+      const [profile, isRebirthUserRaw, incomes, totalIncomeRaw, internalWalletBalance, currentPackageEscrowRaw, currentPackageBucketEarningsFallbackRaw, pendingReward, pendingCashback, userTokenAllocation, userActiveBoxId, directReferralIdsRaw, rebirthIdsRaw, primaryAsset, defaultPaymentAsset, externalWalletBalanceRaw, stakePositionsRaw, incomeDistributionPending, incomeDistributionPendingPackageLevelRaw] = await Promise.all([
       Promise.resolve(registeredProfile!),
       contract.isRebirthUser(userId),
       incomeModule
@@ -4632,7 +4648,9 @@ export async function loadDashboardSnapshot(
       provider.getBalance(normalizedWalletAddress),
       stakingModule
         ? stakingModule.getStakePositions(normalizedWalletAddress)
-        : Promise.resolve([] as RawStakePosition[])
+        : Promise.resolve([] as RawStakePosition[]),
+      contract.failedDistribution(userId).catch(() => false),
+      safeBigIntRead(() => contract.failedDistributionPackageLevel(userId))
     ]);
     const directReferralCount = Number(profile.directReferrals);
     const localLevelSummary = buildLevelSummary(directReferralCount);
@@ -4833,6 +4851,8 @@ export async function loadDashboardSnapshot(
       mgxAllocated: formatTokenAmount(availableMgxAllocation, 18),
       userActiveBoxId: Number(userActiveBoxId),
       pendingCashback: formatTokenAmount(pendingCashback),
+      incomeDistributionPending: Boolean(incomeDistributionPending),
+      incomeDistributionPendingPackageLevel: Number(incomeDistributionPendingPackageLevelRaw) || null,
       isSurrendered: Boolean(profile.surrendered),
       surrenderStatus
     };

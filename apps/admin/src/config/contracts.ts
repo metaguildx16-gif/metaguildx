@@ -68,6 +68,7 @@ export const ABIS = {
     "event PackageUpgraded(uint256 indexed userId, uint8 fromLevel, uint8 toLevel, uint256 amount)",
     "event RebirthUserCreated(uint256 indexed originalUserId, uint256 indexed newUserId, address wallet)",
     "function failedDistribution(uint256) view returns (bool)",
+    "function failedDistributionPackageLevel(uint256) view returns (uint8)",
     "function getFailedUserIds() view returns (uint256[])",
     "function adminRetryDistribution(uint256) external",
     "event DistributionFailed(uint256 indexed userId, uint256 timestamp)",

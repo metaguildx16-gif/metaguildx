@@ -207,11 +207,14 @@ async function loadFailedDistributionRows(core: Contract) {
       const uid = Number(id);
       const isFailed = await core.failedDistribution(uid);
       if (isFailed) {
-        const profile = await core.usersById(uid);
+        const [profile, failedPackageLevelRaw] = await Promise.all([
+          core.usersById(uid),
+          core.failedDistributionPackageLevel(uid).catch(() => 0n)
+        ]);
         failedRows.push({
           userId: uid,
           wallet: String(profile.account),
-          packageLevel: Number(profile.packageLevel)
+          packageLevel: Number(failedPackageLevelRaw) || Number(profile.packageLevel)
         });
       }
     }
@@ -605,9 +608,9 @@ export function CoreBalancePage() {
         <section className="rounded-3xl border border-red-500/30 bg-red-500/10 p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-red-200">Stuck Distribution Check</h2>
+              <h2 className="text-lg font-semibold text-red-200">Distribution Pending Check</h2>
               <p className="mt-2 text-sm text-red-100">
-                Active failed distributions detected on-chain.{" "}
+                Recoverable income distributions are pending retry on-chain.{" "}
                 {latestStuckRow ? `Latest related TX: ${shortAddress(latestStuckRow.txHash)}.` : ""}
               </p>
             </div>
@@ -633,9 +636,9 @@ export function CoreBalancePage() {
 
       {(data?.failedRows.length ?? 0) > 0 ? (
         <section className="rounded-3xl border border-red-500/20 bg-red-500/5 p-6">
-          <h2 className="text-xl font-semibold text-white">Failed Distributions</h2>
+          <h2 className="text-xl font-semibold text-white">Distribution Pending</h2>
           <p className="mt-2 text-sm text-gray-400">
-            These users registered but income distribution failed. Admin can retry each one.
+            These users are registered and placed; only income distribution is pending. Admin can retry each one.
           </p>
           <div className="mt-6 overflow-hidden rounded-3xl border border-gray-800">
             <table className="min-w-full divide-y divide-gray-800 text-left text-sm">
@@ -643,7 +646,7 @@ export function CoreBalancePage() {
                 <tr>
                   <th className="px-4 py-3 font-medium">User ID</th>
                   <th className="px-4 py-3 font-medium">Wallet</th>
-                  <th className="px-4 py-3 font-medium">Package</th>
+                  <th className="px-4 py-3 font-medium">Pending Package</th>
                   <th className="px-4 py-3 font-medium">Action</th>
                 </tr>
               </thead>
