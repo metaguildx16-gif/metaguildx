@@ -376,6 +376,11 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         _payoutCreatorAmount(amount, paymentAsset, recipient, 10_000);
     }
 
+    function routeCashbackCreatorRemainder(uint256 packageAmount, address paymentAsset) external {
+        if (msg.sender != incomeRouterContract) revert OnlyRouter();
+        _distributeCashbackAndCreator(packageAmount, paymentAsset);
+    }
+
     function incrementUserTeamBusiness(uint256 userId, uint256 amount) external {
         if (msg.sender != incomeRouterContract) revert OnlyRouter();
         if (userId == 0 || amount == 0) {

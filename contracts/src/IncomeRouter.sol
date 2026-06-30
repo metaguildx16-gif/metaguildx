@@ -45,6 +45,7 @@ interface IIncomeSystemCore {
         address paymentAsset,
         address recipient
     ) external;
+    function routeCashbackCreatorRemainder(uint256 packageAmount, address paymentAsset) external;
 }
 
 interface IMetaGuildXCashbackPool {
@@ -291,7 +292,7 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
     // Admin-only scoped fix path: distributes the remainder of a stuck failed
     // distribution (level income across the upline, cashback, and creator fee)
     // through the exact same internal routines used by the live, normal
-    // registration flow (_distributeLevelIncome, _distributeCashbackAndCreatorFromRouter).
+    // registration flow (_distributeLevelIncome, Core.routeCashbackCreatorRemainder).
     // No bypass logic here - the system's own X-slot/escrow/rebirth eligibility
     // checks run exactly as they would in a normal registration, so any rebirth
     // that should naturally trigger as part of this distribution still triggers.
@@ -308,7 +309,7 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
         _distributeLevelIncome(
             fromUserId, sponsorId, placedUnderId, cyclePkgLevel, packageAmount, paymentAsset, originalUserId
         );
-        _distributeCashbackAndCreatorFromRouter(packageAmount, paymentAsset);
+        IIncomeSystemCore(coreContract).routeCashbackCreatorRemainder(packageAmount, paymentAsset);
         emit AdminRemainderDistributionExecuted(fromUserId, sponsorId, packageAmount, cyclePkgLevel);
         _sweepResidualToCreator(paymentAsset, balanceBefore);
     }
@@ -487,33 +488,6 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
         }
 
         core.routeCreatorFallbackIncome(fromUserId, amount, incomeType, paymentAsset, creatorWallet);
-    }
-
-    function _distributeCashbackAndCreatorFromRouter(
-        uint256 packageAmount,
-        address paymentAsset
-    ) internal {
-        IIncomeSystemCore core = IIncomeSystemCore(coreContract);
-        uint256 unitPrice = core.paymentAssetUnitPrice(paymentAsset);
-        address cashbackPool = core.cashbackPoolContract();
-
-        uint256 cashbackAmt = _calculateBps(packageAmount, CASHBACK_BPS);
-        if (cashbackAmt > 0) {
-            uint256 cashbackSettlement = cashbackAmt * unitPrice;
-            bool hasSurrendered =
-                cashbackPool != address(0) && IMetaGuildXCashbackPool(cashbackPool).totalSurrenderedUsers() > 0;
-            if (hasSurrendered) {
-                _safeTransferExact(paymentAsset, cashbackPool, cashbackSettlement, "CASHBACK_TRANSFER_FAILED");
-            } else {
-                _safeTransferExact(paymentAsset, creatorWallet, cashbackSettlement, "CASHBACK_CREATOR_FAILED");
-            }
-        }
-
-        uint256 creatorAmt = _calculateBps(packageAmount, CREATOR_FEE_BPS);
-        if (creatorAmt > 0) {
-            uint256 creatorSettlement = creatorAmt * unitPrice;
-            _safeTransferExact(paymentAsset, creatorWallet, creatorSettlement, "CREATOR_TRANSFER_FAILED");
-        }
     }
 
     function _payoutUserIncome(
