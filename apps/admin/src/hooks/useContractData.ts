@@ -714,7 +714,7 @@ export async function getAllUsers(): Promise<UserSummary[]> {
       const profile = await core.usersById(event.userId);
       return {
         userId: event.userId,
-        wallet: event.wallet,
+        wallet: event.wallet ?? String(profile.account ?? ""),
         sponsorId: Number(profile.sponsorId),
         packageLevel: Number(profile.packageLevel),
         packagePrice: getPackagePrice(Number(profile.packageLevel)),
@@ -2211,7 +2211,7 @@ export function useContractData(walletAddress?: string | null) {
         ...registrationEvents,
         ...upgradeEvents
       ];
-      const totalVolume = totalVolumeEvents.reduce((sum, event) => sum + (event.amount ?? 0), 0);
+      const totalVolume = totalVolumeEvents.reduce((sum, event) => sum + (event.amount != null && Number.isFinite(event.amount) ? event.amount : 0), 0);
       const todayStart = startOfTodayUnix();
       const todayRegistrations = registrationEvents.filter(
         (event) => event.timestamp >= todayStart
