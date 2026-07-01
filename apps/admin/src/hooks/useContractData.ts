@@ -2061,11 +2061,12 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
       let income = 0;
 
       if (sponsorId > 0) {
+        const incomeFromBlock = NETWORK.startBlock;
         const [directLogs, levelLogs, crosslineLogs] = await runWithConcurrency<EventLog[]>(
           [
-            () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(toSafeBigInt(rebirthUserId), toSafeBigInt(sponsorId)), fromBlock, currentBlock),
-            () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(toSafeBigInt(rebirthUserId), toSafeBigInt(sponsorId)), fromBlock, currentBlock),
-            () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(toSafeBigInt(rebirthUserId), toSafeBigInt(sponsorId)), fromBlock, currentBlock)
+            () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(toSafeBigInt(rebirthUserId), null), incomeFromBlock, currentBlock),
+            () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(toSafeBigInt(rebirthUserId), null), incomeFromBlock, currentBlock),
+            () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(toSafeBigInt(rebirthUserId), null), incomeFromBlock, currentBlock)
           ],
           2
         );
