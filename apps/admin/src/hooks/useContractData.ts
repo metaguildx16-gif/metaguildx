@@ -47,6 +47,13 @@ function parseLogValue(value: string) {
   return /^-?\d+$/.test(value) ? BigInt(value) : value;
 }
 
+function toSafeBigInt(value: unknown, fallback = 0n) {
+  if (typeof value === "bigint") return value;
+  if (value === null || value === undefined) return fallback;
+  const next = Number(value);
+  return Number.isFinite(next) ? BigInt(Math.trunc(next)) : fallback;
+}
+
 function getLogCacheKey(contract: Contract, filter: any, fromBlock: number) {
   const address = String(contract.target ?? "unknown").toLowerCase();
   const topics = (filter?.topics ?? [])
@@ -616,7 +623,7 @@ function getIncomeContract(provider: JsonRpcProvider) {
 
 async function safeBigIntRead(read: () => Promise<bigint>) {
   try {
-    return BigInt(await read());
+    return toSafeBigInt(await read());
   } catch {
     return 0n;
   }
@@ -627,7 +634,7 @@ async function safeUserProfileRead(core: Contract, userId: number) {
     return await core.usersById(userId);
   } catch {
     return {
-      id: BigInt(userId),
+      id: toSafeBigInt(userId),
       account: NULL_ADDRESS,
       sponsorId: 0n,
       packageLevel: 0n,
@@ -648,12 +655,12 @@ async function safeRebirthCountRead(upgrade: Contract, userId: number, fallback:
   try {
     const readRebirthIds = upgrade.getRebirthIds;
     if (typeof readRebirthIds !== "function") {
-      return BigInt(fallback ?? 0);
+      return toSafeBigInt(fallback);
     }
     const ids = await readRebirthIds(userId);
-    return BigInt(Array.isArray(ids) ? ids.length : Number(fallback ?? 0));
+    return toSafeBigInt(Array.isArray(ids) ? ids.length : fallback);
   } catch {
-    return BigInt(fallback ?? 0);
+    return toSafeBigInt(fallback);
   }
 }
 
@@ -722,11 +729,13 @@ export async function getAllUsers(): Promise<UserSummary[]> {
     return map;
   }, new Map<number, number>());
 
+  const validEvents = events.filter((event) => Number.isFinite(Number(event.userId)) && Number(event.userId) > 0);
   const users = await Promise.all(
-    events.map(async (event) => {
-      const profile = await safeUserProfileRead(core, event.userId);
+    validEvents.map(async (event) => {
+      const userId = Number(event.userId);
+      const profile = await safeUserProfileRead(core, userId);
       return {
-        userId: event.userId,
+        userId,
         wallet: event.wallet ?? String(profile.account ?? ""),
         sponsorId: Number(profile.sponsorId),
         packageLevel: Number(profile.packageLevel),
@@ -853,10 +862,10 @@ export async function getUserDetail(userId: number): Promise<UserDetail> {
       isConfigured(CONTRACTS.MetaGuildXIncome)
         ? income.getTotalAllIncome(userId)
         : Promise.resolve(0n),
-      Promise.resolve(BigInt(profile.packageLevel)),
+      Promise.resolve(toSafeBigInt(profile.packageLevel)),
       isConfigured(CONTRACTS.MetaGuildXUpgrade)
         ? safeRebirthCountRead(upgrade, userId, profile.rebirthCount)
-        : Promise.resolve(BigInt(profile.rebirthCount))
+        : Promise.resolve(toSafeBigInt(profile.rebirthCount))
     ]);
 
   let referrerWallet: string | null = null;
@@ -1857,16 +1866,16 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
       }
 
       const rebirthUserId = Number(args.newUserId);
-      const rebirthUser = await core.usersById(BigInt(rebirthUserId));
+      const rebirthUser = await core.usersById(toSafeBigInt(rebirthUserId));
       const sponsorId = Number(rebirthUser.sponsorId ?? rebirthUser[2] ?? 0n);
       let income = 0;
 
       if (sponsorId > 0) {
         const [directLogs, levelLogs, crosslineLogs] = await runWithConcurrency<EventLog[]>(
           [
-            () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock),
-            () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock),
-            () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(BigInt(rebirthUserId), BigInt(sponsorId)), fromBlock, currentBlock)
+            () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(toSafeBigInt(rebirthUserId), toSafeBigInt(sponsorId)), fromBlock, currentBlock),
+            () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(toSafeBigInt(rebirthUserId), toSafeBigInt(sponsorId)), fromBlock, currentBlock),
+            () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(toSafeBigInt(rebirthUserId), toSafeBigInt(sponsorId)), fromBlock, currentBlock)
           ],
           2
         );
@@ -1975,8 +1984,8 @@ export async function getStakingMonitorData(): Promise<StakingMonitorData> {
     mgx.totalSupply()
   ]);
 
-  const treasuryBalanceRaw = BigInt(treasuryStatus[0]);
-  const allowanceRaw = BigInt(treasuryStatus[1]);
+  const treasuryBalanceRaw = toSafeBigInt(treasuryStatus?.[0]);
+  const allowanceRaw = toSafeBigInt(treasuryStatus?.[1]);
 
   const rows = await Promise.all(
     users.map(async (user) => {
