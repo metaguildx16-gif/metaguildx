@@ -2018,25 +2018,45 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
   const core = getCoreContract(provider);
   const router = new Contract(CONTRACTS.IncomeRouter, ABIS.IncomeRouter, provider);
   const currentBlock = await getBlockNumberWithRetry(provider);
-  const cachedData = readBlockCache<RebirthMonitorData>(REBIRTH_MONITOR_CACHE_KEY);
-  if (cachedData && cachedData.lastBlock >= currentBlock && cachedData.data[0]) {
-    return cachedData.data[0];
+  const cachedData = readBlockCache<RebirthMonitorRow>(REBIRTH_MONITOR_CACHE_KEY);
+  const cachedRows = (cachedData?.data ?? []).filter(
+    (row) =>
+      Number.isFinite(Number(row.originalUserId)) &&
+      Number.isFinite(Number(row.rebirthUserId)) &&
+      Number(row.originalUserId) > 0 &&
+      Number(row.rebirthUserId) > 0 &&
+      typeof row.wallet === "string" &&
+      row.wallet.length > 0
+  );
+  const cacheUsable = Boolean(cachedData && cachedRows.length === cachedData.data.length);
+  const fromBlock = cacheUsable ? Math.max(NETWORK.startBlock, (cachedData?.lastBlock ?? NETWORK.startBlock - 1) + 1) : NETWORK.startBlock;
+  const logs: EventLog[] = [];
+
+  if (fromBlock <= currentBlock) {
+    const filter = core.filters.RebirthUserCreated();
+    for (let start = fromBlock; start <= currentBlock; start += 49_000) {
+      const end = Math.min(start + 49_000 - 1, currentBlock);
+      const chunk = await queryFilterWithRetry(core, filter, start, end);
+      logs.push(...(chunk as EventLog[]));
+      if (start + 49_000 <= currentBlock) await new Promise((r) => setTimeout(r, 200));
+    }
   }
+  const blockTimestamps = await getCachedBlockTimestamps(provider, logs.map((log) => log.blockNumber));
 
-  const fromBlock = NETWORK.startBlock;
-  const logs = await batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock);
-  const blocks = await Promise.all(logs.map((log) => getBlockWithRetry(provider, log.blockNumber)));
-
-  const recentRebirths = (
-    await Promise.all((logs as EventLog[]).map(async (log, index) => {
+  const newRebirths = (
+    await Promise.all(logs.map(async (log) => {
       const args = log.args;
-      const block = blocks[index];
-      if (!args || !block) {
+      const timestamp = blockTimestamps.get(log.blockNumber);
+      if (!args || !timestamp) {
         return null;
       }
 
       const rebirthUserId = Number(args.newUserId);
-      const rebirthUser = await core.usersById(toSafeBigInt(rebirthUserId));
+      const originalUserId = Number(args.originalUserId);
+      if (!Number.isFinite(originalUserId) || !Number.isFinite(rebirthUserId)) {
+        return null;
+      }
+      const rebirthUser = await getCachedUserProfile(core, rebirthUserId);
       const sponsorId = Number(rebirthUser.sponsorId ?? rebirthUser[2] ?? 0n);
       let income = 0;
 
@@ -2077,22 +2097,23 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
       }
 
       return {
-        originalUserId: Number(args.originalUserId),
+        originalUserId,
         rebirthUserId,
         wallet: String(args.wallet),
-        timestamp: block.timestamp,
+        timestamp,
         income
       } satisfies RebirthMonitorRow;
     }))
   )
-    .filter((item): item is RebirthMonitorRow => item !== null)
-    .sort((a, b) => b.timestamp - a.timestamp);
+    .filter((item): item is RebirthMonitorRow => item !== null);
+
+  const recentRebirths = [...cachedRows, ...newRebirths].sort((a, b) => b.timestamp - a.timestamp);
 
   const data: RebirthMonitorData = {
     totalRebirths: recentRebirths.length,
     recentRebirths: recentRebirths.slice(0, 30)
   };
-  writeBlockCache(REBIRTH_MONITOR_CACHE_KEY, currentBlock, [data]);
+  writeBlockCache(REBIRTH_MONITOR_CACHE_KEY, currentBlock, recentRebirths);
   return data;
 }
 
