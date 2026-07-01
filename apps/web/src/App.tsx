@@ -1373,6 +1373,26 @@ function App() {
       .catch(() => {});
   }, [dashboardView, snapshot.treePreview]);
 
+  function mergeQuickSnapshot(current: DashboardSnapshot, quick: DashboardSnapshot): DashboardSnapshot {
+    return {
+      ...current,
+      ...quick,
+      packagePrices: quick.packagePrices.length ? quick.packagePrices : current.packagePrices,
+      boxPrices: quick.boxPrices.length ? quick.boxPrices : current.boxPrices,
+      rootUserId: quick.rootUserId ?? current.rootUserId,
+      featuredUsers: quick.featuredUsers.length ? quick.featuredUsers : current.featuredUsers,
+      treePreview: quick.treePreview.length ? quick.treePreview : current.treePreview,
+      activityFeed: quick.activityFeed.length ? quick.activityFeed : current.activityFeed,
+      currentBoxId: quick.currentBoxId || current.currentBoxId,
+      currentBoxPrice: quick.currentBoxPrice !== "1.00" ? quick.currentBoxPrice : current.currentBoxPrice,
+      currentBoxDistributed: quick.currentBoxDistributed !== "0" ? quick.currentBoxDistributed : current.currentBoxDistributed,
+      currentBoxCap: quick.currentBoxCap !== "0" ? quick.currentBoxCap : current.currentBoxCap,
+      currentBoxRemaining: quick.currentBoxRemaining !== "0" ? quick.currentBoxRemaining : current.currentBoxRemaining,
+      packageOneBucketEarnings: quick.packageOneBucketEarnings !== "0" ? quick.packageOneBucketEarnings : current.packageOneBucketEarnings,
+      currentPackageBucketEarnings: quick.currentPackageBucketEarnings !== "0" ? quick.currentPackageBucketEarnings : current.currentPackageBucketEarnings
+    };
+  }
+
   async function refreshSnapshot(walletAddress?: string | null) {
     startLoadingSession("loading user profile", "Loading user profile...");
     setLoadStage("profile");
@@ -1388,6 +1408,18 @@ function App() {
     setLoadStage("complete");
     finishLoadingSession("complete");
     return nextSnapshot;
+  }
+
+  async function refreshPostTransactionSnapshot(walletAddress?: string | null) {
+    const targetWallet = walletAddress ?? snapshot.walletAddress;
+    metaguildx.invalidateDashboardSnapshotCache(targetWallet);
+    const quickSnapshot = await withDashboardTimeout(
+      metaguildx.loadPostTransactionQuickSnapshot(targetWallet),
+      "fetchDashboardData"
+    );
+    setSnapshot((current) => mergeQuickSnapshot(current, quickSnapshot));
+    metaguildx.queueDashboardSnapshotRefresh(quickSnapshot.walletAddress ?? targetWallet);
+    return quickSnapshot;
   }
 
   async function refreshLiveStakeState(walletAddress?: string | null) {
@@ -1596,8 +1628,7 @@ function App() {
 
     try {
       const actionResult = await action();
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const nextSnapshot = await refreshSnapshot();
+      const nextSnapshot = await refreshPostTransactionSnapshot();
       await refreshLiveStakeState(nextSnapshot.walletAddress);
       setStatus(successLabel);
       setActionFeedback(onSuccess ? onSuccess(nextSnapshot, actionResult) : null);
@@ -2847,7 +2878,7 @@ function App() {
       let nextSnapshot = snapshot;
 
       try {
-        nextSnapshot = await refreshSnapshot();
+        nextSnapshot = await refreshPostTransactionSnapshot(snapshot.walletAddress);
         await refreshLiveStakeState(nextSnapshot.walletAddress);
         const registeredUserId = typeof nextSnapshot.userId === "number" ? nextSnapshot.userId : null;
         const distribution =

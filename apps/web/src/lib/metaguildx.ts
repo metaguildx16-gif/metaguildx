@@ -871,6 +871,30 @@ function cacheDashboardSnapshot(
   }
 }
 
+export function invalidateDashboardSnapshotCache(walletAddress?: string | null) {
+  const namespace = getDeploymentCacheNamespace();
+  const keys = new Set<string>([
+    `snapshot-${namespace}-${walletAddress ?? "__guest__"}`,
+    `snapshot-${namespace}-${walletAddress?.toLowerCase() ?? "__guest__"}`
+  ]);
+  for (const key of keys) {
+    snapshotCache.delete(key);
+  }
+
+  const persistentCacheKey = getPersistentSnapshotCacheKey(walletAddress);
+  if (persistentCacheKey && typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(persistentCacheKey);
+    } catch {
+      // Ignore privacy-mode storage failures.
+    }
+  }
+}
+
+export function queueDashboardSnapshotRefresh(walletAddress?: string | null) {
+  queueBackgroundDashboardRefresh(walletAddress);
+}
+
 function queueBackgroundDashboardRefresh(walletAddress?: string | null) {
   const key = walletAddress ?? "__guest__";
   if (backgroundRefreshInFlight.has(key) || backgroundRefreshScheduled.has(key)) {
@@ -3809,9 +3833,6 @@ export async function upgradeUserPackage(input: { userId: number; newPackageLeve
       const receipt = await tx.wait();
       mined = receipt?.status === 1;
       invalidateDashboardAnalytics();
-      // Give the RPC a moment to reflect the upgrade before
-      // the dashboard snapshot refresh reads the new package.
-      await new Promise((resolve) => setTimeout(resolve, 3000));
   } catch (error) {
     if (mined) {
       invalidateDashboardAnalytics();
@@ -4288,6 +4309,45 @@ async function loadQuickSnapshot(input: {
     isSurrendered: Boolean(profile.surrendered),
     isPartialLoad: true
   };
+}
+
+export async function loadPostTransactionQuickSnapshot(walletAddress?: string | null): Promise<DashboardSnapshot> {
+  syncAnalyticsCachesForDeployment();
+  const normalizedWalletAddress = walletAddress ? normalizeAddress(walletAddress) : null;
+  const contractAddress = configuredCoreAddress;
+  if (!normalizedWalletAddress || !contractAddress) {
+    return {
+      ...fallbackSnapshot,
+      walletAddress: normalizedWalletAddress,
+      isConnected: Boolean(normalizedWalletAddress),
+      hasContractConfig: Boolean(contractAddress)
+    };
+  }
+
+  const provider = await getReadProvider();
+  const contract = new Contract(contractAddress, metaGuildXCoreAbi, provider);
+  const incomeModule =
+    configuredIncomeAddress && configuredIncomeAddress !== "0x0000000000000000000000000000000000000000"
+      ? new Contract(configuredIncomeAddress, metaGuildXIncomeAbi, provider)
+      : null;
+  const stakingModule =
+    configuredStakingAddress && configuredStakingAddress !== "0x0000000000000000000000000000000000000000"
+      ? new Contract(configuredStakingAddress, mgxStakingAbi, provider)
+      : null;
+  const tokenEngineModule = createTokenEngineModule(provider);
+  const snapshot = await loadQuickSnapshot({
+    walletAddress: normalizedWalletAddress,
+    contract,
+    incomeModule,
+    stakingModule,
+    tokenEngineModule
+  });
+  cacheDashboardSnapshot(
+    `snapshot-${getDeploymentCacheNamespace()}-${normalizedWalletAddress}`,
+    getPersistentSnapshotCacheKey(normalizedWalletAddress),
+    snapshot
+  );
+  return snapshot;
 }
 
 export async function loadDashboardSnapshot(

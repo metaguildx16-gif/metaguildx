@@ -4776,12 +4776,26 @@ button:disabled {
     flex-direction: column;
   }
 
+  .tree-canvas-shell {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tree-binary-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .tree-binary-canvas {
     min-width: 560px;
+    width: max-content;
   }
 
   .tree-pyramid-canvas {
     min-width: 560px;
+    width: max-content;
   }
 
   .tree-focus-strip,
