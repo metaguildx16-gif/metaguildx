@@ -2035,7 +2035,7 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
         return null;
       }
 
-      const rebirthUserId = Number(args.newUserId);
+      const rebirthUserId = Number(args.newId);
       const rebirthUser = await core.usersById(toSafeBigInt(rebirthUserId));
       const sponsorId = Number(rebirthUser.sponsorId ?? rebirthUser[2] ?? 0n);
       let income = 0;
@@ -2077,7 +2077,7 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
       }
 
       return {
-        originalUserId: Number(args.originalUserId),
+        originalUserId: Number(args.originalId),
         rebirthUserId,
         wallet: String(args.wallet),
         timestamp: block.timestamp,
