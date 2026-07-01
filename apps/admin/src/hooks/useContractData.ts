@@ -842,7 +842,7 @@ export async function getUserDetail(userId: number): Promise<UserDetail> {
         : Promise.resolve(0n),
       Promise.resolve(BigInt(profile.packageLevel)),
       isConfigured(CONTRACTS.MetaGuildXUpgrade)
-        ? upgrade.getRebirthIds(userId).then((ids: bigint[]) => BigInt(ids.length))
+        ? upgrade.getRebirthIds(userId).then((ids: bigint[] | null) => BigInt(ids?.length ?? 0))
         : Promise.resolve(BigInt(profile.rebirthCount))
     ]);
 
