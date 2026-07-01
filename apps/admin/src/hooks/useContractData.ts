@@ -648,12 +648,12 @@ async function safeRebirthCountRead(upgrade: Contract, userId: number, fallback:
   try {
     const readRebirthIds = upgrade.getRebirthIds;
     if (typeof readRebirthIds !== "function") {
-      return BigInt(fallback ?? 0);
+      return BigInt(Number(fallback ?? 0));
     }
     const ids = await readRebirthIds(userId);
     return BigInt(Array.isArray(ids) ? ids.length : Number(fallback ?? 0));
   } catch {
-    return BigInt(fallback ?? 0);
+    return BigInt(Number(fallback ?? 0));
   }
 }
 
