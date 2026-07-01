@@ -1267,7 +1267,7 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
   const [upgradeLogs, reactivationLogs] = await runWithConcurrency(
     [
       () => batchQueryFilter(core, core.filters.PackageUpgraded(), fromBlock, currentBlock, 9_999),
-      () => batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock, 9_999)
+      () => batchQueryFilter(core, core.filters.RebirthCreated(), fromBlock, currentBlock, 9_999)
     ],
     2
   );
@@ -2024,7 +2024,7 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
   }
 
   const fromBlock = NETWORK.startBlock;
-  const logs = await batchQueryFilter(core, core.filters.RebirthUserCreated(), fromBlock, currentBlock);
+  const logs = await batchQueryFilter(core, core.filters.RebirthCreated(), fromBlock, currentBlock);
   const blocks = await Promise.all(logs.map((log) => getBlockWithRetry(provider, log.blockNumber)));
 
   const recentRebirths = (
