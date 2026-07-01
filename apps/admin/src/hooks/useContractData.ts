@@ -644,6 +644,19 @@ async function safeUserProfileRead(core: Contract, userId: number) {
   }
 }
 
+async function safeRebirthCountRead(upgrade: Contract, userId: number, fallback: bigint | number) {
+  try {
+    const readRebirthIds = upgrade.getRebirthIds;
+    if (typeof readRebirthIds !== "function") {
+      return BigInt(fallback ?? 0);
+    }
+    const ids = await readRebirthIds(userId);
+    return BigInt(Array.isArray(ids) ? ids.length : Number(fallback ?? 0));
+  } catch {
+    return BigInt(fallback ?? 0);
+  }
+}
+
 async function getUpgradeEscrowOnly(income: Contract, userId: number) {
   const totalEscrow = await safeBigIntRead(() => income.getTotalEscrow(userId));
   if (totalEscrow === 0n) {
@@ -711,7 +724,7 @@ export async function getAllUsers(): Promise<UserSummary[]> {
 
   const users = await Promise.all(
     events.map(async (event) => {
-      const profile = await core.usersById(event.userId);
+      const profile = await safeUserProfileRead(core, event.userId);
       return {
         userId: event.userId,
         wallet: event.wallet ?? String(profile.account ?? ""),
@@ -842,7 +855,7 @@ export async function getUserDetail(userId: number): Promise<UserDetail> {
         : Promise.resolve(0n),
       Promise.resolve(BigInt(profile.packageLevel)),
       isConfigured(CONTRACTS.MetaGuildXUpgrade)
-        ? upgrade.getRebirthIds(userId).then((ids: bigint[]) => BigInt(ids.length))
+        ? safeRebirthCountRead(upgrade, userId, profile.rebirthCount)
         : Promise.resolve(BigInt(profile.rebirthCount))
     ]);
 
@@ -2202,8 +2215,14 @@ export function useContractData(walletAddress?: string | null) {
           cashback.cashbackPoolBalance(),
           cashback.totalSurrenderedUsers(),
           getRegistrationEvents(provider),
-          getUpgradeEvents().then((rows) => rows.filter((row) => row.type === "Upgrade")),
-          core.creatorFeeWallet().then((address: string) => usdt.balanceOf(address))
+          (async () => {
+            const rows = await getUpgradeEvents();
+            return rows.filter((row) => row.type === "Upgrade");
+          })(),
+          (async () => {
+            const address = await core.creatorFeeWallet();
+            return usdt.balanceOf(address);
+          })()
         ]);
 
       const totalUsers = Math.max(Number(nextUserId) - 1, 0);
