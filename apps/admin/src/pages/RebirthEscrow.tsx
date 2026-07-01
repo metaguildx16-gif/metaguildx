@@ -14,6 +14,15 @@ type CachedEventLog = {
   argNames?: string[];
 };
 
+let sharedReadProvider: JsonRpcProvider | null = null;
+
+function getReadProvider() {
+  if (!sharedReadProvider) {
+    sharedReadProvider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
+  }
+  return sharedReadProvider;
+}
+
 function stringifyLogValue(value: unknown) {
   return typeof value === "bigint" ? value.toString() : String(value ?? "");
 }
@@ -201,7 +210,7 @@ function formatDateTime(timestamp: number) {
 }
 
 async function loadRebirthEscrowData(): Promise<RebirthEscrowData> {
-  const provider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
+  const provider = getReadProvider();
   const core = new Contract(
     CONTRACTS.MetaGuildXCore,
     [...ABIS.MetaGuildXCore, "function getPackagePriceByLevel(uint256) view returns (uint256)"],

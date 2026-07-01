@@ -1,5 +1,5 @@
 import { Contract, JsonRpcProvider, type EventLog } from "ethers";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ABIS, CONTRACTS, NETWORK } from "../config/contracts";
 import { getPackagePrice } from "../utils/packageUtils";
 
@@ -8,6 +8,9 @@ const INCOME_MONITOR_CACHE_KEY = "mgx_admin_income_monitor_v2";
 const INCOME_DISTRIBUTION_CACHE_KEY = "mgx_admin_income_distribution_v2";
 const REBIRTH_MONITOR_CACHE_KEY = "mgx_admin_rebirth_monitor_v2";
 const ALL_TRANSACTIONS_CACHE_KEY = "mgx_admin_all_transactions_v2";
+const INCOME_MONITOR_LOG_CACHE_KEY = "mgx_admin_income_monitor_v1";
+const INCOME_DISTRIBUTION_LOG_CACHE_KEY = "mgx_admin_income_dist_v1";
+const BLOCK_TIMESTAMP_CACHE_KEY = "mgx_admin_block_ts_v1";
 
 function readBlockCache<T>(key: string): { lastBlock: number; data: T[] } | null {
   try {
@@ -37,6 +40,19 @@ type CachedEventLog = {
   argsNamed: Record<string, string>;
   argNames?: string[];
   fragmentName?: string;
+};
+
+type IncomeMonitorLogCache = {
+  lastBlock: number;
+  direct: CachedEventLog[];
+  level: CachedEventLog[];
+  spillover: CachedEventLog[];
+  crossline: CachedEventLog[];
+};
+
+type IncomeDistributionLogCache = {
+  lastBlock: number;
+  residual: CachedEventLog[];
 };
 
 function stringifyLogValue(value: unknown) {
@@ -148,13 +164,60 @@ async function getBlockWithRetry(provider: JsonRpcProvider, blockNumber: number,
   throw new Error("getBlockWithRetry: exhausted retries");
 }
 const blockTimestampCache = new Map<number, number>();
+const userProfileCache = new Map<number, any>();
+let sharedProvider: JsonRpcProvider | null = null;
+let persistentBlockTimestampCacheLoaded = false;
+
+function loadPersistentBlockTimestampCache() {
+  if (persistentBlockTimestampCacheLoaded) return;
+  persistentBlockTimestampCacheLoaded = true;
+  try {
+    const raw = localStorage.getItem(BLOCK_TIMESTAMP_CACHE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Record<string, number>;
+    for (const [block, timestamp] of Object.entries(parsed)) {
+      const blockNumber = Number(block);
+      const ts = Number(timestamp);
+      if (Number.isFinite(blockNumber) && Number.isFinite(ts)) {
+        blockTimestampCache.set(blockNumber, ts);
+      }
+    }
+  } catch {
+    // Corrupt cache should never block admin reads.
+  }
+}
+
+function writePersistentBlockTimestampCache() {
+  try {
+    localStorage.setItem(BLOCK_TIMESTAMP_CACHE_KEY, JSON.stringify(Object.fromEntries(blockTimestampCache)));
+  } catch {
+    // localStorage full or unavailable - silently skip caching
+  }
+}
 
 async function getCachedBlockTimestamp(provider: JsonRpcProvider, blockNumber: number): Promise<number> {
+  loadPersistentBlockTimestampCache();
   if (blockTimestampCache.has(blockNumber)) return blockTimestampCache.get(blockNumber)!;
   const block = await getBlockWithRetry(provider, blockNumber);
   const ts = block?.timestamp ?? 0;
   blockTimestampCache.set(blockNumber, ts);
+  writePersistentBlockTimestampCache();
   return ts;
+}
+
+async function getCachedBlockTimestamps(provider: JsonRpcProvider, blockNumbers: number[]) {
+  const uniqueBlocks = Array.from(new Set(blockNumbers.filter((block) => Number.isFinite(block) && block > 0)));
+  const fetched = await runWithConcurrency(
+    uniqueBlocks.map((blockNumber) => async () => {
+      const timestamp = await getCachedBlockTimestamp(provider, blockNumber);
+      return { blockNumber, timestamp };
+    }),
+    4
+  );
+  return fetched.reduce((map, entry) => {
+    map.set(entry.blockNumber, entry.timestamp);
+    return map;
+  }, new Map<number, number>());
 }
 
 async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract['filters'][string]>, fromBlock: number, toBlock: number, batchSize = 10000): Promise<EventLog[]> {
@@ -179,6 +242,109 @@ async function batchQueryFilter(contract: Contract, filter: ReturnType<Contract[
 
   writeBlockCache(cacheKey, toBlock, results.map(serializeEventLog));
   return results;
+}
+
+function readIncomeMonitorLogCache(): IncomeMonitorLogCache | null {
+  try {
+    const raw = localStorage.getItem(INCOME_MONITOR_LOG_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as IncomeMonitorLogCache;
+    const lastBlock = Number(parsed.lastBlock);
+    if (
+      !Number.isFinite(lastBlock) ||
+      !Array.isArray(parsed.direct) ||
+      !Array.isArray(parsed.level) ||
+      !Array.isArray(parsed.spillover) ||
+      !Array.isArray(parsed.crossline)
+    ) {
+      return null;
+    }
+    return { ...parsed, lastBlock };
+  } catch {
+    return null;
+  }
+}
+
+function writeIncomeMonitorLogCache(cache: IncomeMonitorLogCache) {
+  try {
+    localStorage.setItem(INCOME_MONITOR_LOG_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // localStorage full or unavailable - silently skip caching
+  }
+}
+
+async function loadIncomeMonitorLogs(router: Contract, currentBlock: number) {
+  const cached = readIncomeMonitorLogCache();
+  const fromBlock = Math.max(NETWORK.startBlock, (cached?.lastBlock ?? NETWORK.startBlock - 1) + 1);
+  const direct = (cached?.direct ?? []).map(hydrateEventLog);
+  const level = (cached?.level ?? []).map(hydrateEventLog);
+  const spillover = (cached?.spillover ?? []).map(hydrateEventLog);
+  const crossline = (cached?.crossline ?? []).map(hydrateEventLog);
+
+  if (fromBlock <= currentBlock) {
+    const [newDirect, newLevel, newSpillover, newCrossline] = await runWithConcurrency<EventLog[]>(
+      [
+        () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
+        () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
+        () => batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock),
+        () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock)
+      ],
+      2
+    );
+    direct.push(...newDirect);
+    level.push(...newLevel);
+    spillover.push(...newSpillover);
+    crossline.push(...newCrossline);
+    writeIncomeMonitorLogCache({
+      lastBlock: currentBlock,
+      direct: direct.map(serializeEventLog),
+      level: level.map(serializeEventLog),
+      spillover: spillover.map(serializeEventLog),
+      crossline: crossline.map(serializeEventLog)
+    });
+  }
+
+  return { direct, level, spillover, crossline };
+}
+
+function readIncomeDistributionLogCache(): IncomeDistributionLogCache | null {
+  try {
+    const raw = localStorage.getItem(INCOME_DISTRIBUTION_LOG_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as IncomeDistributionLogCache;
+    const lastBlock = Number(parsed.lastBlock);
+    if (!Number.isFinite(lastBlock) || !Array.isArray(parsed.residual)) {
+      return null;
+    }
+    return { ...parsed, lastBlock };
+  } catch {
+    return null;
+  }
+}
+
+function writeIncomeDistributionLogCache(cache: IncomeDistributionLogCache) {
+  try {
+    localStorage.setItem(INCOME_DISTRIBUTION_LOG_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // localStorage full or unavailable - silently skip caching
+  }
+}
+
+async function loadIncomeDistributionLogs(router: Contract, currentBlock: number) {
+  const [incomeLogs, cached] = [await loadIncomeMonitorLogs(router, currentBlock), readIncomeDistributionLogCache()];
+  const fromBlock = Math.max(NETWORK.startBlock, (cached?.lastBlock ?? NETWORK.startBlock - 1) + 1);
+  const residual = (cached?.residual ?? []).map(hydrateEventLog);
+
+  if (fromBlock <= currentBlock) {
+    const newResidual = await batchQueryFilter(router, router.filters.ResidualSweptToCreator(), fromBlock, currentBlock);
+    residual.push(...newResidual);
+    writeIncomeDistributionLogCache({
+      lastBlock: currentBlock,
+      residual: residual.map(serializeEventLog)
+    });
+  }
+
+  return { ...incomeLogs, residual };
 }
 
 async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit = 2): Promise<T[]> {
@@ -518,7 +684,10 @@ const initialState: HookState = {
 };
 
 function getProvider() {
-  return new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
+  if (!sharedProvider) {
+    sharedProvider = new JsonRpcProvider(NETWORK.rpc, NETWORK.chainId, { batchMaxCount: 1, staticNetwork: true });
+  }
+  return sharedProvider;
 }
 
 function isConfigured(address: string) {
@@ -582,15 +751,13 @@ async function getRegistrationEvents(provider: JsonRpcProvider) {
 
   const logs = await batchQueryFilter(core, core.filters.UserRegistered(), fromBlock, currentBlock);
 
-  const blocks = await Promise.all(
-    logs.map((log) => getBlockWithRetry(provider, log.blockNumber))
-  );
+  const blockTimestamps = await getCachedBlockTimestamps(provider, logs.map((log) => log.blockNumber));
 
   const newEvents = (logs as EventLog[])
     .map((log, index) => {
       const args = log.args;
-      const block = blocks[index];
-      if (!args || !block) {
+      const timestamp = blockTimestamps.get(log.blockNumber);
+      if (!args || !timestamp) {
         return null;
       }
 
@@ -602,7 +769,7 @@ async function getRegistrationEvents(provider: JsonRpcProvider) {
         amount: formatPlatformAmount(args.amount),
         txHash: log.transactionHash,
         blockNumber: log.blockNumber,
-        timestamp: block.timestamp
+        timestamp
       } satisfies DashboardEvent;
     })
     .filter((item): item is DashboardEvent => item !== null);
@@ -649,6 +816,15 @@ async function safeUserProfileRead(core: Contract, userId: number) {
       surrendered: false
     };
   }
+}
+
+async function getCachedUserProfile(core: Contract, userId: number) {
+  if (userProfileCache.has(userId)) {
+    return userProfileCache.get(userId);
+  }
+  const profile = await safeUserProfileRead(core, userId);
+  userProfileCache.set(userId, profile);
+  return profile;
 }
 
 async function safeRebirthCountRead(upgrade: Contract, userId: number, fallback: bigint | number) {
@@ -733,7 +909,7 @@ export async function getAllUsers(): Promise<UserSummary[]> {
   const users = await Promise.all(
     validEvents.map(async (event) => {
       const userId = Number(event.userId);
-      const profile = await safeUserProfileRead(core, userId);
+      const profile = await getCachedUserProfile(core, userId);
       return {
         userId,
         wallet: event.wallet ?? String(profile.account ?? ""),
@@ -938,17 +1114,11 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
       return { direct: 0n, level: 0n, spillover: 0n, crossline: 0n };
     }
   };
-  const fromBlock = NETWORK.startBlock;
-
-  const [directLogs, levelLogs, spilloverLogs, crosslineLogs] = await runWithConcurrency<EventLog[]>(
-    [
-      () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
-      () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
-      () => batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock),
-      () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock)
-    ],
-    2
-  );
+  const incomeLogs = await loadIncomeMonitorLogs(router, currentBlock);
+  const directLogs = incomeLogs.direct;
+  const levelLogs = incomeLogs.level;
+  const spilloverLogs = incomeLogs.spillover;
+  const crosslineLogs = incomeLogs.crossline;
   const registrationEvents = await getRegistrationEvents(provider);
   const platformReserveRaw = await router.platformReserve();
   const cashbackRaw = await cashback.cashbackPoolBalance();
@@ -965,7 +1135,7 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
     if (userCache.has(userId)) {
       return userCache.get(userId)!;
     }
-    const user = await safeUserProfileRead(core, userId);
+    const user = await getCachedUserProfile(core, userId);
     const resolved = {
       wallet: String(user.account),
       packageLevel: Number(user.packageLevel)
@@ -980,12 +1150,12 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
     ...(spilloverLogs as EventLog[]).map((log) => ({ type: "spillover" as const, log })),
     ...(crosslineLogs as EventLog[]).map((log) => ({ type: "crossline" as const, log }))
   ];
-  const routeBlocks = await Promise.all(routeLogs.map((entry) => getBlockWithRetry(provider, entry.log.blockNumber)));
+  const routeBlockTimestamps = await getCachedBlockTimestamps(provider, routeLogs.map((entry) => entry.log.blockNumber));
   const routeRecords = await Promise.all(
     routeLogs.map(async (entry, index): Promise<IncomeEventRecord | null> => {
       const args = entry.log.args;
-      const block = routeBlocks[index];
-      if (!args || !block) {
+      const timestamp = routeBlockTimestamps.get(entry.log.blockNumber);
+      if (!args || !timestamp) {
         return null;
       }
       const userId = safeUserIdFromLog(entry);
@@ -999,7 +1169,7 @@ export async function getIncomeMonitorData(): Promise<IncomeMonitorData> {
         amount: safeAmount(args.amount ?? (entry.type === "level" ? args[3] : args[2])),
         incomeType: entry.type,
         level: entry.type === "level" ? levelByTransaction.get(entry.log.transactionHash) : undefined,
-        timestamp: block.timestamp,
+        timestamp,
         txHash: entry.log.transactionHash,
         wallet: userMeta.wallet
       };
@@ -1103,15 +1273,15 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
   );
 
   const allLogs = [...upgradeLogs, ...reactivationLogs];
-  const blocks = await Promise.all(allLogs.map((log) => getBlockWithRetry(provider, log.blockNumber)));
+  const blockTimestamps = await getCachedBlockTimestamps(provider, allLogs.map((log) => log.blockNumber));
 
   const records: TransactionRecord[] = [];
 
   for (let index = 0; index < allLogs.length; index++) {
     const eventLog = allLogs[index] as EventLog;
-    const block = blocks[index];
+    const timestamp = blockTimestamps.get(eventLog.blockNumber);
     const args = eventLog.args;
-    if (!args || !block) {
+    if (!args || !timestamp) {
       continue;
     }
 
@@ -1122,7 +1292,7 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
         wallet: String(args.wallet),
         amount: getPackagePrice(1),
         details: `Rebirth -> User ${Number(args.newUserId)}`,
-        timestamp: block.timestamp,
+        timestamp,
         txHash: eventLog.transactionHash,
         blockNumber: eventLog.blockNumber
       });
@@ -1130,14 +1300,14 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
     }
 
     if (eventLog.fragment.name === "PackageUpgraded") {
-      const user = await safeUserProfileRead(core, Number(args.userId));
+      const user = await getCachedUserProfile(core, Number(args.userId));
       records.push({
         type: "Upgrade",
         userId: Number(args.userId),
         wallet: String(user.account),
         amount: formatPlatformAmount(args.amount),
         details: `Level ${Number(args.fromLevel)} -> Level ${Number(args.toLevel)}`,
-        timestamp: block.timestamp,
+        timestamp,
         txHash: eventLog.transactionHash,
         blockNumber: eventLog.blockNumber
       });
@@ -1145,14 +1315,14 @@ export async function getUpgradeEvents(): Promise<TransactionRecord[]> {
     }
 
     if ("newUserId" in args) {
-      const user = await safeUserProfileRead(core, Number(args.newUserId));
+      const user = await getCachedUserProfile(core, Number(args.newUserId));
       records.push({
         type: "Reactivation",
         userId: Number(args.newUserId),
         wallet: String(user.account),
         amount: getPackagePrice(1),
         details: `Reactivated from User #${Number(args.originalUserId)}`,
-        timestamp: block.timestamp,
+        timestamp,
         txHash: eventLog.transactionHash,
         blockNumber: eventLog.blockNumber
       });
@@ -1180,24 +1350,24 @@ export async function getPlacementEvents(): Promise<TransactionRecord[]> {
     return (cached?.data ?? []) as any;
   }
   const logs = await batchQueryFilter(tree, tree.filters.NodePlaced(), fromBlock, currentBlock);
-  const blocks = await Promise.all(logs.map((log) => getBlockWithRetry(provider, log.blockNumber)));
+  const blockTimestamps = await getCachedBlockTimestamps(provider, logs.map((log) => log.blockNumber));
 
   const records: TransactionRecord[] = [];
   for (let index = 0; index < logs.length; index++) {
     const eventLog = logs[index] as EventLog;
-    const block = blocks[index];
+    const timestamp = blockTimestamps.get(eventLog.blockNumber);
     const args = eventLog.args;
-    if (!args || !block) {
+    if (!args || !timestamp) {
       continue;
     }
-    const user = await core.usersById(Number(args.userId));
+    const user = await getCachedUserProfile(core, Number(args.userId));
     records.push({
       type: "Placement",
       userId: Number(args.userId),
       wallet: String(user.account),
       amount: null,
       details: `${Boolean(args.isLeft) ? "Left" : "Right"} of User #${Number(args.parentId)}`,
-      timestamp: block.timestamp,
+      timestamp,
       txHash: eventLog.transactionHash,
       blockNumber: eventLog.blockNumber
     });
@@ -1468,25 +1638,30 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
       return { direct: 0n, level: 0n, spillover: 0n, crossline: 0n };
     }
   };
-  const fromBlock = NETWORK.startBlock;
   const todayStart = startOfTodayUnix();
 
-  const registrations = await getRegistrationEvents(provider);
-  const [directLogs, levelLogs, spilloverLogs, crosslineLogs, residualLogs] = await runWithConcurrency<EventLog[]>(
-    [
-      () => batchQueryFilter(router, router.filters.DirectIncomeRecorded(), fromBlock, currentBlock),
-      () => batchQueryFilter(router, router.filters.LevelIncomeRecorded(), fromBlock, currentBlock),
-      () => batchQueryFilter(router, router.filters.SpilloverIncome(), fromBlock, currentBlock),
-      () => batchQueryFilter(router, router.filters.CrossLineIncomeRecorded(), fromBlock, currentBlock),
-      () => batchQueryFilter(router, router.filters.ResidualSweptToCreator(), fromBlock, currentBlock)
-    ],
-    2
-  );
-  const creatorWallet = await router.creatorWallet();
-  const creatorFeeBps = await router.creatorFeeBps();
-  const cashbackBps = await router.cashbackBps();
-  const routerBalanceRaw = await usdt.balanceOf(CONTRACTS.IncomeRouter);
-  const nextUserId = await core.nextUserId();
+  const [
+    registrations,
+    distributionLogs,
+    creatorWallet,
+    creatorFeeBps,
+    cashbackBps,
+    routerBalanceRaw,
+    nextUserId
+  ] = await Promise.all([
+    getRegistrationEvents(provider),
+    loadIncomeDistributionLogs(router, currentBlock),
+    router.creatorWallet(),
+    router.creatorFeeBps(),
+    router.cashbackBps(),
+    usdt.balanceOf(CONTRACTS.IncomeRouter),
+    core.nextUserId()
+  ]);
+  const directLogs = distributionLogs.direct;
+  const levelLogs = distributionLogs.level;
+  const spilloverLogs = distributionLogs.spillover;
+  const crosslineLogs = distributionLogs.crossline;
+  const residualLogs = distributionLogs.residual;
 
   const blocks = new Map<number, number>();
   const uniqueBlockNumbers = Array.from(new Set([
@@ -1496,17 +1671,9 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     ...(crosslineLogs as EventLog[]),
     ...(residualLogs as EventLog[])
   ].map((log) => log.blockNumber)));
-  const fetchedBlocks = await runWithConcurrency<{ blockNumber: number; timestamp: number } | null>(
-    uniqueBlockNumbers.map((blockNumber) => async () => {
-      const block = await getBlockWithRetry(provider, blockNumber);
-      return block ? { blockNumber, timestamp: block.timestamp } : null;
-    }),
-    4
-  );
-  for (const entry of fetchedBlocks) {
-    if (entry) {
-      blocks.set(entry.blockNumber, entry.timestamp);
-    }
+  const fetchedBlocks = await getCachedBlockTimestamps(provider, uniqueBlockNumbers);
+  for (const [blockNumber, timestamp] of fetchedBlocks) {
+    blocks.set(blockNumber, timestamp);
   }
 
   const profileCache = new Map<number, { wallet: string; packageLevel: number }>();
@@ -1514,7 +1681,7 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     if (profileCache.has(userId)) {
       return profileCache.get(userId)!;
     }
-    const profile = await safeUserProfileRead(core, userId);
+    const profile = await getCachedUserProfile(core, userId);
     const next = {
       wallet: String(profile.account),
       packageLevel: Number(profile.packageLevel)
@@ -1633,7 +1800,8 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
     })
   );
 
-  const incomeData = await getIncomeMonitorData();
+  const cachedIncomeData = readBlockCache<IncomeMonitorData>(INCOME_MONITOR_CACHE_KEY);
+  const incomeData = cachedIncomeData?.data[0] ?? await getIncomeMonitorData();
   const todayRegistrations = registrations.filter((row) => row.timestamp >= todayStart);
   const todayTxHashes = new Set(todayRegistrations.map((row) => row.txHash));
 
@@ -1668,7 +1836,7 @@ export async function getIncomeDistributionData(): Promise<IncomeDistributionDat
   ) + (residualLogs as EventLog[]).reduce((sum, log) => sum + safeAmount(log.args.amount ?? log.args[0]), 0);
 
   for (let userId = 1; userId < Number(nextUserId); userId += 1) {
-    const profile = await safeUserProfileRead(core, userId);
+    const profile = await getCachedUserProfile(core, userId);
     if (String(profile.account).toLowerCase() === String(creatorWallet).toLowerCase()) {
       const totals = await safeIncomeTotals(userId);
       creatorToday += 0;
@@ -1793,8 +1961,10 @@ export async function getUpgradeMonitorData(): Promise<UpgradeMonitorData> {
   const provider = getProvider();
   const core = getCoreContract(provider);
   const income = getIncomeContract(provider);
-  const upgrades = await getUpgradeEvents();
-  const users = await getAllUsers();
+  const [upgrades, users] = await Promise.all([
+    getUpgradeEvents(),
+    getAllUsers()
+  ]);
 
   const recentUpgrades = upgrades
     .filter((row) => row.type === "Upgrade")
@@ -1955,8 +2125,8 @@ export async function getStakingMonitorData(): Promise<StakingMonitorData> {
     ],
     provider
   );
-  const users = await getAllUsers();
   const [
+    users,
     rewardPoolRaw,
     totalStakedRaw,
     rewardRateRaw,
@@ -1970,6 +2140,7 @@ export async function getStakingMonitorData(): Promise<StakingMonitorData> {
     deadBalanceRaw,
     totalSupplyRaw
   ] = await Promise.all([
+    getAllUsers(),
     staking.rewardPool(),
     staking.totalStaked(),
     staking.rewardRate(),
@@ -2179,8 +2350,13 @@ function buildChartData(events: DashboardEvent[]) {
 
 export function useContractData(walletAddress?: string | null) {
   const [state, setState] = useState<HookState>(initialState);
+  const isLoadingRef = useRef(false);
 
   const fetchAllData = useCallback(async () => {
+    if (isLoadingRef.current) {
+      return;
+    }
+    isLoadingRef.current = true;
     setState((current) => ({ ...current, loading: true, error: null }));
 
       try {
@@ -2267,6 +2443,8 @@ export function useContractData(walletAddress?: string | null) {
         loading: false,
         error: message
       }));
+    } finally {
+      isLoadingRef.current = false;
     }
   }, [walletAddress]);
 
