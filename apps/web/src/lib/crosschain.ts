@@ -98,7 +98,8 @@ export async function getQuote(params: {
   url.searchParams.set("feeRecipient", TREASURY_WALLET);
   url.searchParams.set("referrer",     TREASURY_WALLET);
 
-  const res = await fetch(url.toString(), { headers: { "Content-Type": "application/json" } });
+  const apiKey = import.meta.env.VITE_LIFI_API_KEY || "";
+  const res = await fetch(url.toString(), { headers: { "Content-Type": "application/json", ...(apiKey ? { "x-lifi-api-key": apiKey } : {}) } });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { message?: string }).message || "Failed to get quote");
