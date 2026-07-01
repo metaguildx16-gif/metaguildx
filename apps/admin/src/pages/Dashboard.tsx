@@ -33,11 +33,11 @@ function formatRelativeTime(timestamp: number) {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
-function formatAmount(value: number | null) {
+function formatAmount(value: number | null | undefined) {
   if (value === null) {
     return "--";
   }
-  return `${value.toFixed(1)} USDT`;
+  return `${(value ?? 0).toFixed(1)} USDT`;
 }
 
 function StatCard({
@@ -241,7 +241,7 @@ export function Dashboard() {
                           L{event.packageLevel}
                         </td>
                         <td className="px-4 py-4 text-gray-300">
-                          {event.amount.toFixed(1)}
+                          {(event.amount ?? 0).toFixed(1)}
                         </td>
                         <td className="px-4 py-4 text-gray-400">
                           {formatRelativeTime(event.timestamp)}

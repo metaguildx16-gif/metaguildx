@@ -23,6 +23,6 @@ export function formatDate(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString();
 }
 
-export function formatUsdt(value: number): string {
-  return `${value.toFixed(1)} USDT`;
+export function formatUsdt(value: number | null | undefined): string {
+  return `${(value ?? 0).toFixed(1)} USDT`;
 }

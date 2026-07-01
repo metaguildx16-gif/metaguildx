@@ -1221,14 +1221,15 @@ export async function getCashbackEvents(): Promise<TransactionRecord[]> {
     }
 
     const user = await core.usersById(Number(args.userId));
+    const cashbackAmount = "amount" in args ? formatPlatformAmount(args.amount) : null;
     records.push({
       type: "Cashback",
       userId: Number(args.userId),
       wallet: String(user.account),
-      amount: "amount" in args ? formatPlatformAmount(args.amount) : null,
+      amount: cashbackAmount,
       details:
         "settlementAmount" in args
-          ? `Cashback claim ${formatPlatformAmount(args.amount).toFixed(1)} USDT`
+          ? `Cashback claim ${(cashbackAmount ?? 0).toFixed(1)} USDT`
           : "Surrender registered",
       timestamp: block.timestamp,
       txHash: eventLog.transactionHash,
@@ -2095,7 +2096,7 @@ export async function getAllTransactions(): Promise<TransactionRecord[]> {
     userId: event.userId,
     wallet: event.wallet,
     amount: event.amount,
-    details: `Level ${event.packageLevel} - $${event.amount.toFixed(1)} USDT`,
+    details: `Level ${event.packageLevel} - $${(event.amount ?? 0).toFixed(1)} USDT`,
     timestamp: event.timestamp,
     txHash: event.txHash,
     blockNumber: event.blockNumber

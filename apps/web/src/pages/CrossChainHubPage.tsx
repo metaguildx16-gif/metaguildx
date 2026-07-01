@@ -25,6 +25,10 @@ const S = {
   arrow: { display:"flex", justifyContent:"center", margin:"12px 0" } as React.CSSProperties,
   arrowBtn: { width:40, height:40, borderRadius:"50%", background:"linear-gradient(135deg,#1e3a5f,#2d1b69)", border:"2px solid rgba(59,130,246,0.4)", color:"#60a5fa", fontSize:18, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", transition:"transform 0.3s" } as React.CSSProperties,
   qbox: { background:"rgba(30,41,59,0.5)", borderRadius:12, padding:"14px 16px", marginBottom:16, border:"1px solid rgba(51,65,85,0.4)" } as React.CSSProperties,
+  bridgeInfo: { background:"rgba(59,130,246,0.12)", border:"1px solid rgba(96,165,250,0.35)", borderRadius:16, padding:"18px", marginBottom:16, color:"#dbeafe" } as React.CSSProperties,
+  bridgeTitle: { margin:"0 0 8px", color:"#93c5fd", fontSize:16, fontWeight:700 } as React.CSSProperties,
+  bridgeMsg: { margin:"0 0 14px", color:"#bfdbfe", fontSize:13, lineHeight:1.55 } as React.CSSProperties,
+  bridgeBtn: { width:"100%", padding:"13px 16px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#2563eb,#0ea5e9)", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 20px rgba(37,99,235,0.28)" } as React.CSSProperties,
   qrow: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"5px 0", fontSize:13 } as React.CSSProperties,
   qlabel: { color:"#64748b" } as React.CSSProperties,
   qval: { color:"#cbd5e1", fontWeight:500 } as React.CSSProperties,
@@ -67,6 +71,7 @@ export default function CrossChainHubPage() {
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
+    if (toChain === "opbnb") { setQuote(null); setError(""); return; }
     if (!amount || parseFloat(amount) <= 0 || !wallet) { setQuote(null); return; }
     timer.current = setTimeout(() => { void doQuote(); }, 800);
     return () => { if (timer.current) clearTimeout(timer.current); };
@@ -74,7 +79,7 @@ export default function CrossChainHubPage() {
   }, [amount, fromChain, toChain, fromToken, toToken, wallet]);
 
   const doQuote = useCallback(async () => {
-    if (!wallet) return;
+    if (!wallet || toChain === "opbnb") return;
     setQL(true); setError("");
     try {
       const fc = SUPPORTED_CHAINS.find(c => c.key === fromChain);
@@ -118,10 +123,11 @@ export default function CrossChainHubPage() {
     setFT(toToken); setTT(fromToken); setQuote(null); setAmount("");
   };
 
+  const isOpbnbBridge = toChain === "opbnb";
   const ttObj   = SUPPORTED_TOKENS.find(t => t.symbol === toToken);
   const toAmt   = quote ? formatTokenAmount(quote.toAmount, ttObj?.decimals??18) : "";
-  const btnDis  = qLoading || sLoading || !amount || parseFloat(amount)<=0 || (!quote && !!wallet);
-  const btnLbl  = !wallet ? "Connect Wallet" : qLoading ? "Getting Quote..." : sLoading ? "Opening Swap..." : !amount||parseFloat(amount)<=0 ? "Enter Amount" : !quote ? "Fetching Route..." : "Swap Now";
+  const btnDis  = isOpbnbBridge ? false : qLoading || sLoading || !amount || parseFloat(amount)<=0 || (!quote && !!wallet);
+  const btnLbl  = isOpbnbBridge ? "Open BNB Bridge ->" : !wallet ? "Connect Wallet" : qLoading ? "Getting Quote..." : sLoading ? "Opening Swap..." : !amount||parseFloat(amount)<=0 ? "Enter Amount" : !quote ? "Fetching Route..." : "Swap Now";
 
   return (
     <div style={S.page}>
@@ -141,7 +147,7 @@ export default function CrossChainHubPage() {
           <button style={S.tab(tab==="swap")} onClick={()=>setTab("swap")}>Swap</button>
           <button style={S.tab(tab==="history")} onClick={()=>setTab("history")}>History {txHist.length>0?`(${txHist.length})`:""}</button>
         </div>
-        {error && <div style={S.err}>&#9888; {error}</div>}
+        {error && !isOpbnbBridge && <div style={S.err}>&#9888; {error}</div>}
         {tab==="swap" && (
           <>
             <div style={S.card}>
@@ -167,9 +173,15 @@ export default function CrossChainHubPage() {
                   {SUPPORTED_TOKENS.map(t=><option key={t.symbol} value={t.symbol}>{t.symbol}</option>)}
                 </select>
               </div>
-              <input type="text" readOnly value={qLoading?"Fetching...":toAmt?`~ ${toAmt}`:""} placeholder="Estimated output" style={{...S.inp,color:"#34d399",cursor:"default",fontSize:20}} />
+              <input type="text" readOnly value={isOpbnbBridge?"Use official bridge":qLoading?"Fetching...":toAmt?`~ ${toAmt}`:""} placeholder="Estimated output" style={{...S.inp,color:isOpbnbBridge?"#93c5fd":"#34d399",cursor:"default",fontSize:20}} />
             </div>
-            {quote && !qLoading && (
+            {isOpbnbBridge ? (
+              <div style={S.bridgeInfo}>
+                <h3 style={S.bridgeTitle}>Bridge to opBNB</h3>
+                <p style={S.bridgeMsg}>To bridge tokens to opBNB Mainnet, use the official BNB Chain Bridge. It supports USDT, BNB and other tokens from BSC to opBNB.</p>
+                <button type="button" style={S.bridgeBtn} onClick={() => window.open("https://opbnb-bridge.bnbchain.org/deposit", "_blank", "noopener,noreferrer")}>Open BNB Bridge -&gt;</button>
+              </div>
+            ) : quote && !qLoading && (
               <div style={S.qbox}>
                 <div style={S.qrow}><span style={S.qlabel}>Route</span><span style={S.qval}>{quote.route}</span></div>
                 <div style={S.qrow}><span style={S.qlabel}>Est. Time</span><span style={S.qval}>{formatDuration(quote.executionDuration)}</span></div>
@@ -179,10 +191,10 @@ export default function CrossChainHubPage() {
                 <div style={S.qrow}><span style={S.qlabel}>Min. Received</span><span style={S.qhi}>~ {formatTokenAmount(quote.toAmountMin,ttObj?.decimals??18)} {toToken}</span></div>
               </div>
             )}
-            <button style={S.btn(btnDis&&!!wallet)} onClick={wallet?doSwap:connectWallet} disabled={btnDis&&!!wallet}>
+            <button style={S.btn(btnDis&&!!wallet)} onClick={isOpbnbBridge ? () => window.open("https://opbnb-bridge.bnbchain.org/deposit", "_blank", "noopener,noreferrer") : wallet ? doSwap : connectWallet} disabled={btnDis&&!!wallet}>
               {(qLoading||sLoading)&&<span style={S.spin}/>}{btnLbl}
             </button>
-            <p style={S.note}>Powered by LI.FI aggregator &bull; Non-custodial &bull; You control your keys</p>
+            <p style={S.note}>{isOpbnbBridge ? "Official BNB Chain Bridge opens in a new tab - Non-custodial - You control your keys" : "Powered by LI.FI aggregator - Non-custodial - You control your keys"}</p>
           </>
         )}
         {tab==="history" && (
@@ -208,3 +220,4 @@ export default function CrossChainHubPage() {
     </div>
   );
 }
+
