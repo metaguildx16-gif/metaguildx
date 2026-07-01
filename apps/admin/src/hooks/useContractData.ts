@@ -853,10 +853,10 @@ export async function getUserDetail(userId: number): Promise<UserDetail> {
       isConfigured(CONTRACTS.MetaGuildXIncome)
         ? income.getTotalAllIncome(userId)
         : Promise.resolve(0n),
-      Promise.resolve(BigInt(profile.packageLevel)),
+      Promise.resolve(BigInt(Number(profile.packageLevel ?? 0))),
       isConfigured(CONTRACTS.MetaGuildXUpgrade)
         ? safeRebirthCountRead(upgrade, userId, profile.rebirthCount)
-        : Promise.resolve(BigInt(profile.rebirthCount))
+        : Promise.resolve(BigInt(Number(profile.rebirthCount ?? 0)))
     ]);
 
   let referrerWallet: string | null = null;
