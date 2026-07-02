@@ -327,6 +327,7 @@ export type DashboardSnapshot = {
   currentPackageEscrow: string;
   currentPackageBucketEarnings: string;
   packageOneBucketEarnings: string;
+  boxEarningsByPackage: Record<number, string>;
   withdrawablePlatformBalance: string;
   withdrawableSettlementBalance: string;
   externalWalletBalance: string;
@@ -544,6 +545,7 @@ export const fallbackSnapshot: DashboardSnapshot = {
   currentPackageEscrow: "0",
   currentPackageBucketEarnings: "0",
   packageOneBucketEarnings: "0",
+  boxEarningsByPackage: {},
   withdrawablePlatformBalance: "0",
   withdrawableSettlementBalance: "0",
   externalWalletBalance: "0",
@@ -727,6 +729,32 @@ function writePersistentDashboardSnapshot(cacheKey: string | null, data: Dashboa
   } catch (error) {
     console.warn("[MGX] persistent snapshot cache write failed", { cacheKey, error });
   }
+}
+
+export function updatePersistentDashboardSnapshotBoxEarnings(
+  walletAddress: string | null | undefined,
+  boxUpdate: {
+    packageOneBucketEarnings: string;
+    currentPackageBucketEarnings: string;
+    boxEarningsByPackage: Record<number, string>;
+  }
+) {
+  const cacheKey = getPersistentSnapshotCacheKey(walletAddress);
+  if (!cacheKey) {
+    return;
+  }
+
+  const cached = readPersistentDashboardSnapshot(cacheKey);
+  if (!cached?.data) {
+    return;
+  }
+
+  writePersistentDashboardSnapshot(cacheKey, {
+    ...cached.data,
+    packageOneBucketEarnings: boxUpdate.packageOneBucketEarnings,
+    currentPackageBucketEarnings: boxUpdate.currentPackageBucketEarnings,
+    boxEarningsByPackage: boxUpdate.boxEarningsByPackage
+  });
 }
 
 function readPersistentJson<T>(cacheKey: string): T | null {
@@ -1755,6 +1783,7 @@ async function loadBoxEarnings(input: {
   const crosslineTopics = modernInterface.encodeFilterTopics("CrossLineIncomeRecorded", [null, BigInt(input.userId)]);
   const legacyDirectTopics = legacyInterface.encodeFilterTopics("DirectIncomeRecorded", [null, BigInt(input.userId)]);
   const legacyLevelTopics = legacyInterface.encodeFilterTopics("LevelIncomeRecorded", [null, BigInt(input.userId)]);
+  let allChunksSucceeded = true;
 
   for (let start = startBlock; start <= currentBlock; start += BLOCK_CHUNK_SIZE) {
     const end = Math.min(start + BLOCK_CHUNK_SIZE - 1, currentBlock);
@@ -1810,6 +1839,7 @@ async function loadBoxEarnings(input: {
         pkgEarnings[1] = (pkgEarnings[1] ?? 0n) + amount;
       }
     } catch {
+      allChunksSucceeded = false;
       // Keep partial results from previous chunks if this range fails twice.
     }
 
@@ -1819,7 +1849,9 @@ async function loadBoxEarnings(input: {
   }
 
   boxEarningsCache.set(cacheKey, { data: pkgEarnings, timestamp: Date.now() });
-  writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, currentBlock);
+  if (allChunksSucceeded) {
+    writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, currentBlock);
+  }
   return pkgEarnings;
 }
 
@@ -1851,9 +1883,9 @@ export async function loadBoxEarningsForUser(input: {
   userId: number;
   provider: BrowserProvider | JsonRpcProvider;
   incomeAddress: string | null;
-}): Promise<{ packageOneBucketEarnings: string; currentPackageBucketEarnings: string; packageLevel: number }> {
+}): Promise<{ packageOneBucketEarnings: string; currentPackageBucketEarnings: string; boxEarningsByPackage: Record<number, string>; packageLevel: number }> {
   if (input.userId <= 0 || !input.incomeAddress || input.incomeAddress === "0x0000000000000000000000000000000000000000") {
-    return { packageOneBucketEarnings: "0", currentPackageBucketEarnings: "0", packageLevel: 0 };
+    return { packageOneBucketEarnings: "0", currentPackageBucketEarnings: "0", boxEarningsByPackage: {}, packageLevel: 0 };
   }
   const incomeModule = new Contract(input.incomeAddress, metaGuildXIncomeAbi, input.provider);
   const coreAddress = configuredCoreAddress;
@@ -1872,6 +1904,11 @@ export async function loadBoxEarningsForUser(input: {
   return {
     packageOneBucketEarnings: formatTokenAmount(packageOneBucketEarningsRaw),
     currentPackageBucketEarnings: formatTokenAmount(currentPackageBucketEarningsRaw),
+    boxEarningsByPackage: Object.fromEntries(
+      Object.entries(boxEarningsByPackage)
+        .filter(([, amount]) => amount > 0n)
+        .map(([pkg, amount]) => [Number(pkg), formatTokenAmount(amount)])
+    ),
     packageLevel: currentPackageLevel
   };
 }
@@ -4519,6 +4556,7 @@ export async function loadDashboardSnapshot(
       currentPackageEscrow: "0",
       currentPackageBucketEarnings: "0",
       packageOneBucketEarnings: "0",
+      boxEarningsByPackage: {},
       mgxAllocated: "0",
       userActiveBoxId: null,
       pendingCashback: "0",
@@ -4832,6 +4870,11 @@ export async function loadDashboardSnapshot(
       const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
       const currentPackageBucketEarningsRaw =
         currentPackageLevel > 0 ? (boxEarningsByPackage[currentPackageLevel] ?? 0n) : 0n;
+      const formattedBoxEarningsByPackage = Object.fromEntries(
+        Object.entries(boxEarningsByPackage)
+          .filter(([, amount]) => amount > 0n)
+          .map(([pkg, amount]) => [Number(pkg), formatTokenAmount(amount)])
+      );
       const snapshot = {
       walletAddress: normalizedWalletAddress,
       userId,
@@ -4849,6 +4892,7 @@ export async function loadDashboardSnapshot(
       currentPackageEscrow: formatTokenAmount(currentPackageEscrowRaw),
       currentPackageBucketEarnings: formatTokenAmount(currentPackageBucketEarningsRaw),
       packageOneBucketEarnings: formatTokenAmount(packageOneBucketEarningsRaw),
+      boxEarningsByPackage: formattedBoxEarningsByPackage,
       withdrawablePlatformBalance: formatTokenAmount(withdrawablePlatformBalanceRaw),
       withdrawableSettlementBalance: formatAmountWithDecimals(withdrawableSettlementBalanceRaw, settlementAssetDecimals),
       externalWalletBalance: formatTokenAmount(externalWalletBalanceRaw, 18),

@@ -21,6 +21,7 @@ export const fallbackSnapshot: DashboardSnapshot = {
   currentPackageEscrow: "0",
   currentPackageBucketEarnings: "0",
   packageOneBucketEarnings: "0",
+  boxEarningsByPackage: {},
   withdrawablePlatformBalance: "0",
   withdrawableSettlementBalance: "0",
   externalWalletBalance: "0",

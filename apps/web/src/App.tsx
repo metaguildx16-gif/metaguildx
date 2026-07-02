@@ -643,13 +643,7 @@ function App() {
                 provider: _boxProvider,
                 incomeAddress: metaguildx.getConfiguredIncomeAddress
               }).then((boxResult) => {
-                if (boxResult.packageOneBucketEarnings !== "0" || boxResult.currentPackageBucketEarnings !== "0") {
-                  setSnapshot((prev) => prev ? {
-                    ...prev,
-                    packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
-                    currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
-                  } : prev);
-                }
+                applyDeferredBoxEarnings(restoredSnapshot.walletAddress, restoredSnapshot.userId!, boxResult);
               }).catch(() => {});
             }
             beginLoadPhase("loading tree", "Loading tree...");
@@ -675,12 +669,8 @@ function App() {
                     incomeAddress: metaguildx.getConfiguredIncomeAddress
                   }).then((boxResult) => {
                     if (isActive) {
-                  setSnapshot((prev) => prev ? {
-                    ...prev,
-                    packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
-                    currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
-                  } : prev);
-                }
+                      applyDeferredBoxEarnings(retrySnapshot.walletAddress, retrySnapshot.userId!, boxResult);
+                    }
                   }).catch(() => {});
                 }
                 setLoadStage('complete');
@@ -719,12 +709,8 @@ function App() {
             incomeAddress: metaguildx.getConfiguredIncomeAddress
           }).then((boxResult) => {
             if (isActive) {
-                  setSnapshot((prev) => prev ? {
-                    ...prev,
-                    packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
-                    currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings
-                  } : prev);
-                }
+              applyDeferredBoxEarnings(nextSnapshot.walletAddress, nextSnapshot.userId!, boxResult);
+            }
           }).catch(() => {});
         }
         beginLoadPhase("loading tree", "Loading tree...");
@@ -871,7 +857,12 @@ function App() {
 
       isDashboardPolling.current = true;
       Promise.resolve(metaguildx.loadDashboardSnapshot(snapshot.walletAddress))
-        .then((newSnap) => setSnapshot((prev) => ({ ...newSnap, packageOneBucketEarnings: newSnap.packageOneBucketEarnings !== "0" ? newSnap.packageOneBucketEarnings : prev.packageOneBucketEarnings, currentPackageBucketEarnings: newSnap.currentPackageBucketEarnings !== "0" ? newSnap.currentPackageBucketEarnings : prev.currentPackageBucketEarnings })))
+        .then((newSnap) => setSnapshot((prev) => ({
+          ...newSnap,
+          packageOneBucketEarnings: newSnap.packageOneBucketEarnings !== "0" ? newSnap.packageOneBucketEarnings : prev.packageOneBucketEarnings,
+          currentPackageBucketEarnings: newSnap.currentPackageBucketEarnings !== "0" ? newSnap.currentPackageBucketEarnings : prev.currentPackageBucketEarnings,
+          boxEarningsByPackage: Object.keys(newSnap.boxEarningsByPackage ?? {}).length ? newSnap.boxEarningsByPackage : prev.boxEarningsByPackage
+        })))
         .catch(() => undefined)
         .finally(() => {
           isDashboardPolling.current = false;
@@ -907,7 +898,10 @@ function App() {
           currentPackageBucketEarnings:
             nextSnapshot.currentPackageBucketEarnings !== "0"
               ? nextSnapshot.currentPackageBucketEarnings
-              : prev.currentPackageBucketEarnings
+              : prev.currentPackageBucketEarnings,
+          boxEarningsByPackage: Object.keys(nextSnapshot.boxEarningsByPackage ?? {}).length
+            ? nextSnapshot.boxEarningsByPackage
+            : prev.boxEarningsByPackage
         };
       });
     };
@@ -1389,8 +1383,52 @@ function App() {
       currentBoxCap: quick.currentBoxCap !== "0" ? quick.currentBoxCap : current.currentBoxCap,
       currentBoxRemaining: quick.currentBoxRemaining !== "0" ? quick.currentBoxRemaining : current.currentBoxRemaining,
       packageOneBucketEarnings: quick.packageOneBucketEarnings !== "0" ? quick.packageOneBucketEarnings : current.packageOneBucketEarnings,
-      currentPackageBucketEarnings: quick.currentPackageBucketEarnings !== "0" ? quick.currentPackageBucketEarnings : current.currentPackageBucketEarnings
+      currentPackageBucketEarnings: quick.currentPackageBucketEarnings !== "0" ? quick.currentPackageBucketEarnings : current.currentPackageBucketEarnings,
+      boxEarningsByPackage: Object.keys(quick.boxEarningsByPackage ?? {}).length
+        ? quick.boxEarningsByPackage
+        : current.boxEarningsByPackage
     };
+  }
+
+  function hasPositiveBoxEarnings(boxResult: {
+    packageOneBucketEarnings: string;
+    currentPackageBucketEarnings: string;
+    boxEarningsByPackage?: Record<number, string>;
+  }) {
+    const values = [
+      boxResult.packageOneBucketEarnings,
+      boxResult.currentPackageBucketEarnings,
+      ...Object.values(boxResult.boxEarningsByPackage ?? {})
+    ];
+    return values.some((value) => Number(String(value).replace(/,/g, "")) > 0);
+  }
+
+  function applyDeferredBoxEarnings(
+    walletAddress: string | null | undefined,
+    userId: number,
+    boxResult: {
+      packageOneBucketEarnings: string;
+      currentPackageBucketEarnings: string;
+      boxEarningsByPackage: Record<number, string>;
+    }
+  ) {
+    const hasPositive = hasPositiveBoxEarnings(boxResult);
+    setSnapshot((prev) => {
+      if (!prev || prev.userId !== userId || !prev.isRegistered) {
+        return prev;
+      }
+      if (!hasPositive) {
+        return prev;
+      }
+      const next = {
+        ...prev,
+        packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
+        currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings,
+        boxEarningsByPackage: boxResult.boxEarningsByPackage
+      };
+      metaguildx.updatePersistentDashboardSnapshotBoxEarnings(walletAddress ?? prev.walletAddress, boxResult);
+      return next;
+    });
   }
 
   async function refreshSnapshot(walletAddress?: string | null) {
@@ -2089,14 +2127,14 @@ function App() {
   const currentPackageEscrow = parseDisplayNumber(snapshot.currentPackageEscrow);
   const pkg1UnitsToRebirth = Math.max(((snapshot.packagePrices?.[0] ?? 10) * 5) - packageOneBucketEarnings, 0);
   const boxEarningsDisplay = (() => {
-    const result: Record<number, string> = {};
+    const result: Record<number, string> = { ...(snapshot.boxEarningsByPackage ?? {}) };
 
-    if (packageOneBucketEarnings > 0) {
+    if (!result[1] && packageOneBucketEarnings > 0) {
       result[1] = packageOneBucketEarnings.toFixed(2);
     }
 
     const currentPackageLevel = snapshot.packageLevel ?? 0;
-    if (currentPackageLevel > 1 && currentBucketEarnings > 0) {
+    if (currentPackageLevel > 1 && !result[currentPackageLevel] && currentBucketEarnings > 0) {
       result[currentPackageLevel] = currentBucketEarnings.toFixed(2);
     }
 
