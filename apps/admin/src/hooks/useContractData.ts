@@ -756,8 +756,8 @@ async function getRegistrationEvents(provider: JsonRpcProvider) {
   const newEvents = (logs as EventLog[])
     .map((log, index) => {
       const args = log.args;
-      const timestamp = blockTimestamps.get(log.blockNumber);
-      if (!args || !timestamp) {
+      const timestamp = blockTimestamps.get(log.blockNumber) ?? log.blockNumber;
+      if (!args) {
         return null;
       }
 
@@ -2046,8 +2046,8 @@ export async function getRebirthMonitorData(): Promise<RebirthMonitorData> {
   const newRebirths = (
     await Promise.all(logs.map(async (log) => {
       const args = log.args;
-      const timestamp = blockTimestamps.get(log.blockNumber);
-      if (!args || !timestamp) {
+      const timestamp = blockTimestamps.get(log.blockNumber) ?? log.blockNumber;
+      if (!args) {
         return null;
       }
 
