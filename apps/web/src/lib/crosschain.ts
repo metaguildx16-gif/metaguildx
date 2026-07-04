@@ -4,7 +4,7 @@
 // ============================================================
 
 export const ENABLE_MGX_SWAP = false;
-export const TREASURY_WALLET = "0xbFF19De173697D07B904a4c7b79e4A524B456991";
+export const TREASURY_WALLET = "0x63450D17A86E41ad7571040105a80c5860C6655b";
 export const PLATFORM_FEE_BPS = 15;
 
 export const SUPPORTED_CHAINS = [
