@@ -1,75 +1,59 @@
-import { BrowserProvider, Contract, formatUnits } from "ethers";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { BrowserProvider, Contract, formatUnits, parseUnits } from "ethers";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
-  BSC_USDT,
-  DEFAULT_SLIPPAGE,
-  OPBNB_USDT,
-  RANGO_REFERRER_ADDRESS,
-  RANGO_REFERRER_FEE,
-  getRangoMeta,
-  getRangoQuote,
-  getRangoStatus,
-  getRangoSwap,
-  type RangoAsset,
-  type RangoBlockchain,
-  type RangoQuoteResponse,
-  type RangoToken
-} from "../lib/rango";
+  TREASURY_WALLET,
+  formatDuration,
+  formatTokenAmount,
+  getLifiChains,
+  getLifiQuote,
+  getLifiTokens,
+  type LifiChain,
+  type LifiQuote,
+  type LifiToken
+} from "../lib/crosschain";
 
 const HISTORY_KEY = "mgx_crosschain_history";
-const MGX_SYMBOL = "MGX";
-const ZERO_NATIVE_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const DEFAULT_FROM_CHAIN = 56;
+const DEFAULT_TO_CHAIN = 1;
+const OPBNB_CHAIN_ID = 204;
+const BSC_USDT = "0x55d398326f99059fF775485246999027B3197955";
+const ETH_USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+const BNB_BRIDGE_URL = "https://opbnb-bridge.bnbchain.org/deposit";
+const NATIVE_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 const ERC20_ABI = [
   "function balanceOf(address) view returns (uint256)",
   "function decimals() view returns (uint8)"
 ];
 
-const POPULAR_CHAIN_ORDER = ["BSC", "ETH", "POLYGON", "OPBNB", "ARBITRUM", "AVAX_CCHAIN", "AVALANCHE"];
-const CHAIN_ALIASES: Record<string, string[]> = {
-  BSC: ["BSC", "BNB", "BNB SMART CHAIN", "BINANCE"],
-  ETH: ["ETH", "ETHEREUM"],
-  POLYGON: ["POLYGON", "MATIC"],
-  OPBNB: ["OPBNB", "OP BNB"],
-  ARBITRUM: ["ARBITRUM", "ARBITRUM ONE"],
-  AVAX_CCHAIN: ["AVAX_CCHAIN", "AVALANCHE", "AVAX"]
-};
-const EXPLORERS: Record<string, string> = {
-  BSC: "https://bscscan.com/tx/",
-  ETH: "https://etherscan.io/tx/",
-  POLYGON: "https://polygonscan.com/tx/",
-  OPBNB: "https://opbnbscan.com/tx/",
-  ARBITRUM: "https://arbiscan.io/tx/",
-  AVAX_CCHAIN: "https://snowtrace.io/tx/"
-};
-
 type SwapHistoryRow = {
-  id: string;
+  txHash: string;
   fromChain: string;
   toChain: string;
   fromToken: string;
   toToken: string;
-  amount: string;
-  outputAmount: string;
-  status: "running" | "success" | "failed";
-  txHash: string;
+  fromAmount: string;
+  toAmount: string;
+  status: "pending" | "success" | "failed";
   timestamp: number;
+  explorerUrl: string;
 };
 
-type ParsedQuote = {
-  outputAmount: string;
-  estimatedTimeInSeconds: number | null;
-  routeName: string;
-  priceImpact: string | null;
-  feeLabel: string | null;
-  requestId: string | null;
-};
-
-type TxModalState = {
+type ModalState = {
   status: "pending" | "success" | "failed";
   title: string;
-  detail: string;
+  message: string;
   txHash?: string;
   explorerUrl?: string;
+};
+
+const POPULAR_CHAIN_IDS = new Set([1, 56, 137, 204, 42161, 43114]);
+const EXPLORERS: Record<number, string> = {
+  1: "https://etherscan.io/tx/",
+  56: "https://bscscan.com/tx/",
+  137: "https://polygonscan.com/tx/",
+  204: "https://opbnbscan.com/tx/",
+  42161: "https://arbiscan.io/tx/",
+  43114: "https://snowtrace.io/tx/"
 };
 
 const S = {
@@ -173,6 +157,14 @@ const S = {
     background: "rgba(56,189,248,.08)",
     border: "1px solid rgba(56,189,248,.22)"
   } as CSSProperties,
+  bridgeBox: {
+    marginTop: 16,
+    padding: 18,
+    borderRadius: 16,
+    background: "rgba(56,189,248,.12)",
+    border: "1px solid rgba(56,189,248,.32)",
+    color: "#dbeafe"
+  } as CSSProperties,
   qrow: { display: "flex", justifyContent: "space-between", gap: 12, padding: "5px 0", color: "#cbd5e1", fontSize: 13 } as CSSProperties,
   qlabel: { color: "#94a3b8" } as CSSProperties,
   error: { marginTop: 12, padding: 12, borderRadius: 12, background: "rgba(239,68,68,.12)", border: "1px solid rgba(239,68,68,.34)", color: "#fecaca", fontSize: 13 } as CSSProperties,
@@ -189,6 +181,22 @@ const S = {
     fontWeight: 800,
     boxShadow: disabled ? "none" : "0 16px 36px rgba(56,189,248,.24)"
   }),
+  linkBtn: {
+    display: "inline-flex",
+    justifyContent: "center",
+    width: "100%",
+    marginTop: 14,
+    border: "none",
+    borderRadius: 14,
+    padding: "13px 16px",
+    cursor: "pointer",
+    color: "#06111f",
+    background: "linear-gradient(135deg,#38bdf8,#60a5fa)",
+    fontSize: 15,
+    fontWeight: 800,
+    textDecoration: "none",
+    boxSizing: "border-box"
+  } as CSSProperties,
   history: { marginTop: 20, background: "rgba(30,41,59,.62)", border: "1px solid #334155", borderRadius: 20, padding: 18 } as CSSProperties,
   historyRow: { display: "grid", gridTemplateColumns: "1fr auto", gap: 10, padding: "12px 0", borderTop: "1px solid rgba(51,65,85,.6)" } as CSSProperties,
   pill: (status: SwapHistoryRow["status"]): CSSProperties => ({
@@ -222,11 +230,6 @@ const S = {
   } as CSSProperties
 } as const;
 
-function getExplorerUrl(blockchain: string, txHash: string) {
-  const base = EXPLORERS[blockchain.toUpperCase()];
-  return base ? `${base}${txHash}` : "";
-}
-
 function readHistory(): SwapHistoryRow[] {
   try {
     return JSON.parse(localStorage.getItem(HISTORY_KEY) ?? "[]") as SwapHistoryRow[];
@@ -239,182 +242,91 @@ function writeHistory(rows: SwapHistoryRow[]) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(rows.slice(0, 5)));
 }
 
-function chainLabel(chain?: RangoBlockchain) {
-  return chain?.displayName || chain?.shortName || chain?.name || "";
-}
-
-function chainLogo(chain?: RangoBlockchain) {
-  return chain?.logo || chain?.logoUrl || chain?.image || "";
-}
-
-function tokenLogo(token?: RangoToken | null) {
-  return token?.image || token?.logoURI || "";
+function chainLabel(chain?: LifiChain) {
+  return chain?.name || `Chain ${chain?.id ?? ""}`;
 }
 
 function normalizeAddress(address?: string | null) {
   return (address || "").toLowerCase();
 }
 
-function isNativeToken(token: RangoToken | null) {
-  const address = normalizeAddress(token?.address);
-  return !address || address === "0x" || address === ZERO_NATIVE_ADDRESS;
+function isNativeToken(token?: LifiToken | null) {
+  return normalizeAddress(token?.address) === NATIVE_TOKEN_ADDRESS;
 }
 
-function tokenUsdValue(token: RangoToken | null, amount: string) {
-  const usdPrice = Number(token?.usdPrice ?? 0);
+function tokenUsdValue(token: LifiToken | null, amount: string) {
+  const usdPrice = Number(token?.priceUSD ?? 0);
   const parsedAmount = Number(amount || "0");
   if (!Number.isFinite(usdPrice) || !Number.isFinite(parsedAmount) || usdPrice <= 0 || parsedAmount <= 0) {
     return "";
   }
-  return `≈ $${(usdPrice * parsedAmount).toFixed(2)}`;
+  return `~ $${(usdPrice * parsedAmount).toFixed(2)}`;
 }
 
-function selectedAsset(token: RangoToken | null, fallback: RangoAsset): RangoAsset {
-  return {
-    blockchain: token?.blockchain || fallback.blockchain,
-    symbol: token?.symbol || fallback.symbol,
-    address: token?.address ?? fallback.address
-  };
+function getExplorerUrl(chainId: number, txHash: string) {
+  const base = EXPLORERS[chainId];
+  return base ? `${base}${txHash}` : "";
 }
 
-function pickDefaultToken(tokens: RangoToken[], blockchain: string, address: string, symbol = "USDT") {
-  const byAddress = tokens.find(
-    (token) => token.blockchain === blockchain && normalizeAddress(token.address) === normalizeAddress(address)
-  );
-  return byAddress || tokens.find((token) => token.blockchain === blockchain && token.symbol === symbol) || null;
-}
-
-function deepFindString(value: unknown, keys: string[]): string | null {
-  if (!value || typeof value !== "object") {
-    return null;
+function getQuoteOutput(quote: LifiQuote | null, toToken: LifiToken | null) {
+  if (!quote?.estimate?.toAmount || !toToken) {
+    return "";
   }
-  const record = value as Record<string, unknown>;
-  for (const key of keys) {
-    const candidate = record[key];
-    if (typeof candidate === "string" || typeof candidate === "number") {
-      return String(candidate);
-    }
+  return formatTokenAmount(quote.estimate.toAmount, toToken.decimals, 6);
+}
+
+function getRouteName(quote: LifiQuote | null) {
+  return quote?.includedSteps?.map((step) => step.toolDetails?.name || step.tool).filter(Boolean).join(" -> ") || quote?.tool || "LI.FI best route";
+}
+
+function getPriceImpact(quote: LifiQuote | null) {
+  const fromUsd = Number(quote?.estimate?.fromAmountUSD ?? 0);
+  const toUsd = Number(quote?.estimate?.toAmountUSD ?? 0);
+  if (!fromUsd || !toUsd) {
+    return "N/A";
   }
-  for (const candidate of Object.values(record)) {
-    const nested = deepFindString(candidate, keys);
-    if (nested) {
-      return nested;
-    }
-  }
-  return null;
+  return `${(((fromUsd - toUsd) / fromUsd) * 100).toFixed(2)}%`;
 }
 
-function parseQuote(quote: RangoQuoteResponse | null): ParsedQuote | null {
-  if (!quote) {
-    return null;
-  }
-  return {
-    outputAmount: deepFindString(quote, ["outputAmount", "toAmount", "amountOut", "expectedOutput"]) ?? "0",
-    estimatedTimeInSeconds: Number(deepFindString(quote, ["estimatedTimeInSeconds", "estimatedTime", "duration"]) ?? 0) || null,
-    routeName: deepFindString(quote, ["swapper", "swapperTitle", "swapperId", "route", "tool"]) ?? "Best Rango route",
-    priceImpact: deepFindString(quote, ["priceImpact", "priceImpactPercent"]),
-    feeLabel: deepFindString(quote, ["fee", "feeAmount", "platformFee"]),
-    requestId: deepFindString(quote, ["requestId"])
-  };
-}
-
-function parseSwapTx(swap: Record<string, unknown>) {
-  const tx = (swap.tx || swap.transaction || swap) as Record<string, unknown>;
-  return {
-    to: deepFindString(tx, ["to", "txTo", "target"]),
-    data: deepFindString(tx, ["data", "txData"]) ?? "0x",
-    value: deepFindString(tx, ["value"]) ?? "0",
-    gasLimit: deepFindString(tx, ["gasLimit", "gas"]),
-    gasPrice: deepFindString(tx, ["gasPrice"]),
-    requestId: deepFindString(swap, ["requestId"])
-  };
-}
-
-function toBigIntValue(value?: string | null) {
-  if (!value) {
-    return undefined;
-  }
-  try {
-    return BigInt(value);
-  } catch {
-    return undefined;
-  }
-}
-
-function isSameChainName(value: string, canonical: string) {
-  const normalized = value.toUpperCase();
-  return normalized === canonical || (CHAIN_ALIASES[canonical] ?? []).includes(normalized);
-}
-
-function sortPopularChains(chains: RangoBlockchain[]) {
-  return POPULAR_CHAIN_ORDER
-    .map((canonical) => chains.find((chain) => isSameChainName(chain.name, canonical)))
-    .filter((chain): chain is RangoBlockchain => Boolean(chain));
-}
-
-function TokenSelector(props: {
+function TokenPanel(props: {
   label: string;
-  chain: string;
-  chains: RangoBlockchain[];
-  tokens: RangoToken[];
-  value: RangoToken | null;
-  search: string;
-  onSearch: (value: string) => void;
-  onChainChange: (chain: string) => void;
-  onTokenChange: (token: RangoToken | null) => void;
+  chains: LifiChain[];
+  chainId: number;
+  token: LifiToken | null;
+  tokens: LifiToken[];
   amount?: string;
-  onAmountChange?: (amount: string) => void;
   outputAmount?: string;
   usdValue?: string;
+  onChainChange: (chainId: number) => void;
+  onTokenChange: (token: LifiToken | null) => void;
+  onAmountChange?: (amount: string) => void;
 }) {
-  const filteredTokens = props.tokens
-    .filter((token) => token.blockchain === props.chain && token.symbol.toUpperCase() !== MGX_SYMBOL)
-    .filter((token) => {
-      const q = props.search.trim().toLowerCase();
-      if (!q) {
-        return true;
-      }
-      return token.symbol.toLowerCase().includes(q) || (token.name ?? "").toLowerCase().includes(q);
-    })
-    .slice(0, 120);
-
   return (
     <div style={S.section}>
       <div style={S.label}>{props.label}</div>
       <div style={S.grid}>
-        <select style={S.input} value={props.chain} onChange={(event) => props.onChainChange(event.target.value)}>
+        <select style={S.input} value={props.chainId} onChange={(event) => props.onChainChange(Number(event.target.value))}>
           {props.chains.map((chain) => (
-            <option key={chain.name} value={chain.name}>
+            <option key={chain.id} value={chain.id}>
               {chainLabel(chain)}
             </option>
           ))}
         </select>
         <select
           style={S.input}
-          value={`${props.value?.blockchain ?? ""}:${props.value?.symbol ?? ""}:${props.value?.address ?? ""}`}
-          onChange={(event) => {
-            const [, symbol, address] = event.target.value.split(":");
-            props.onTokenChange(
-              filteredTokens.find((token) => token.symbol === symbol && String(token.address ?? "") === address) ?? null
-            );
-          }}
+          value={props.token?.address ?? ""}
+          onChange={(event) => props.onTokenChange(props.tokens.find((token) => token.address === event.target.value) ?? null)}
         >
-          {filteredTokens.map((token) => (
-            <option key={`${token.blockchain}:${token.symbol}:${token.address ?? "native"}`} value={`${token.blockchain}:${token.symbol}:${token.address ?? ""}`}>
-              {token.symbol} - {token.name ?? token.symbol}
+          {props.tokens.map((token) => (
+            <option key={`${token.chainId}:${token.address}`} value={token.address}>
+              {token.symbol} - {token.name}
             </option>
           ))}
         </select>
       </div>
-      <input
-        style={{ ...S.input, marginTop: 10 }}
-        value={props.search}
-        onChange={(event) => props.onSearch(event.target.value)}
-        placeholder="Search token..."
-      />
       <div style={S.selectedToken}>
-        {tokenLogo(props.value) ? <img src={tokenLogo(props.value)} alt="" style={S.logo} /> : null}
-        <span>{props.value ? `${props.value.symbol} · ${props.value.name ?? props.value.symbol}` : "Select a token"}</span>
+        {props.token?.logoURI ? <img src={props.token.logoURI} alt="" style={S.logo} /> : null}
+        <span>{props.token ? `${props.token.symbol} · ${props.token.name}` : "Loading token list..."}</span>
       </div>
       {props.onAmountChange ? (
         <>
@@ -439,70 +351,93 @@ function TokenSelector(props: {
 }
 
 export default function CrossChainHubPage() {
-  const [chains, setChains] = useState<RangoBlockchain[]>([]);
-  const [tokens, setTokens] = useState<RangoToken[]>([]);
-  const [fromChain, setFromChain] = useState("BSC");
-  const [toChain, setToChain] = useState("OPBNB");
-  const [fromToken, setFromToken] = useState<RangoToken | null>(null);
-  const [toToken, setToToken] = useState<RangoToken | null>(null);
-  const [fromSearch, setFromSearch] = useState("");
-  const [toSearch, setToSearch] = useState("");
+  const [chains, setChains] = useState<LifiChain[]>([]);
+  const [fromChainId, setFromChainId] = useState(DEFAULT_FROM_CHAIN);
+  const [toChainId, setToChainId] = useState(DEFAULT_TO_CHAIN);
+  const [fromTokens, setFromTokens] = useState<LifiToken[]>([]);
+  const [toTokens, setToTokens] = useState<LifiToken[]>([]);
+  const [fromToken, setFromToken] = useState<LifiToken | null>(null);
+  const [toToken, setToToken] = useState<LifiToken | null>(null);
   const [amount, setAmount] = useState("");
   const [wallet, setWallet] = useState<string | null>(null);
-  const [quote, setQuote] = useState<RangoQuoteResponse | null>(null);
+  const [quote, setQuote] = useState<LifiQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [swapLoading, setSwapLoading] = useState(false);
-  const [error, setError] = useState("");
   const [balance, setBalance] = useState<number | null>(null);
+  const [error, setError] = useState("");
   const [history, setHistory] = useState<SwapHistoryRow[]>([]);
-  const [modal, setModal] = useState<TxModalState | null>(null);
+  const [modal, setModal] = useState<ModalState | null>(null);
   const quoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const parsedQuote = useMemo(() => parseQuote(quote), [quote]);
 
-  const fromChainMeta = chains.find((chain) => chain.name === fromChain);
-  const toChainMeta = chains.find((chain) => chain.name === toChain);
-  const outputAmount = parsedQuote?.outputAmount && parsedQuote.outputAmount !== "0" ? parsedQuote.outputAmount : "";
+  const fromChain = chains.find((chain) => chain.id === fromChainId);
+  const toChain = chains.find((chain) => chain.id === toChainId);
+  const outputAmount = useMemo(() => getQuoteOutput(quote, toToken), [quote, toToken]);
   const amountNumber = Number(amount || "0");
+  const isOpbnbDestination = toChainId === OPBNB_CHAIN_ID;
   const insufficientBalance = balance !== null && amountNumber > balance;
-  const canQuote = Boolean(fromToken && toToken && amountNumber > 0);
-  const canSwap = Boolean(wallet && quote && canQuote && !insufficientBalance && !quoteLoading && !swapLoading);
+  const canQuote = Boolean(wallet && fromToken && toToken && amountNumber > 0 && !isOpbnbDestination);
+  const canSwap = Boolean(quote?.transactionRequest && canQuote && !quoteLoading && !swapLoading && !insufficientBalance);
 
   useEffect(() => {
     let isActive = true;
-    getRangoMeta()
-      .then((meta) => {
-        if (!isActive) {
-          return;
-        }
-        const popularChains = sortPopularChains(meta.blockchains);
-        const safeTokens = (meta.tokens ?? []).filter((token) => token.symbol.toUpperCase() !== MGX_SYMBOL);
-        setChains(popularChains);
-        setTokens(safeTokens);
-        const defaultToChain = popularChains.some((chain) => chain.name === "OPBNB") ? "OPBNB" : "ETH";
-        setFromChain("BSC");
-        setToChain(defaultToChain);
-        setFromToken(pickDefaultToken(safeTokens, "BSC", BSC_USDT));
-        setToToken(pickDefaultToken(safeTokens, defaultToChain, defaultToChain === "OPBNB" ? OPBNB_USDT : "", "USDT"));
+    getLifiChains()
+      .then((items) => {
+        if (!isActive) return;
+        const filtered = items.filter((chain) => POPULAR_CHAIN_IDS.has(chain.id));
+        setChains(filtered);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load cross-chain metadata."));
+      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load LI.FI chains."));
     setHistory(readHistory());
-
     const selectedAddress = (window.ethereum as unknown as { selectedAddress?: string } | undefined)?.selectedAddress;
-    if (selectedAddress) {
-      setWallet(selectedAddress);
-    }
-
+    if (selectedAddress) setWallet(selectedAddress);
     return () => {
       isActive = false;
     };
   }, []);
 
   useEffect(() => {
+    let isActive = true;
+    getLifiTokens(fromChainId)
+      .then((tokens) => {
+        if (!isActive) return;
+        setFromTokens(tokens);
+        setFromToken(
+          tokens.find((token) => normalizeAddress(token.address) === normalizeAddress(BSC_USDT)) ||
+          tokens.find((token) => token.symbol === "USDT") ||
+          tokens[0] ||
+          null
+        );
+      })
+      .catch(() => setFromTokens([]));
+    return () => {
+      isActive = false;
+    };
+  }, [fromChainId]);
+
+  useEffect(() => {
+    let isActive = true;
+    getLifiTokens(toChainId)
+      .then((tokens) => {
+        if (!isActive) return;
+        setToTokens(tokens);
+        setToToken(
+          tokens.find((token) => normalizeAddress(token.address) === normalizeAddress(ETH_USDT)) ||
+          tokens.find((token) => token.symbol === "USDT") ||
+          tokens[0] ||
+          null
+        );
+      })
+      .catch(() => setToTokens([]));
+    return () => {
+      isActive = false;
+    };
+  }, [toChainId]);
+
+  useEffect(() => {
     if (!fromToken || !wallet || !window.ethereum) {
       setBalance(null);
       return;
     }
-
     let isActive = true;
     const ethereum = window.ethereum;
     const loadBalance = async () => {
@@ -510,20 +445,14 @@ export default function CrossChainHubPage() {
         const provider = new BrowserProvider(ethereum);
         if (isNativeToken(fromToken)) {
           const nativeBalance = await provider.getBalance(wallet);
-          if (isActive) {
-            setBalance(Number(formatUnits(nativeBalance, 18)));
-          }
+          if (isActive) setBalance(Number(formatUnits(nativeBalance, fromToken.decimals)));
           return;
         }
-        const token = new Contract(fromToken.address!, ERC20_ABI, provider);
+        const token = new Contract(fromToken.address, ERC20_ABI, provider);
         const [rawBalance, decimals] = await Promise.all([token.balanceOf(wallet), token.decimals()]);
-        if (isActive) {
-          setBalance(Number(formatUnits(rawBalance, Number(decimals))));
-        }
+        if (isActive) setBalance(Number(formatUnits(rawBalance, Number(decimals))));
       } catch {
-        if (isActive) {
-          setBalance(null);
-        }
+        if (isActive) setBalance(null);
       }
     };
     void loadBalance();
@@ -533,51 +462,42 @@ export default function CrossChainHubPage() {
   }, [fromToken, wallet]);
 
   useEffect(() => {
-    if (quoteTimer.current) {
-      clearTimeout(quoteTimer.current);
-    }
-    if (!canQuote) {
-      setQuote(null);
-      return;
-    }
-
+    if (quoteTimer.current) clearTimeout(quoteTimer.current);
+    setQuote(null);
+    if (!canQuote || !fromToken || !toToken || !wallet) return;
     quoteTimer.current = setTimeout(() => {
       void fetchQuote();
     }, 500);
-
     return () => {
-      if (quoteTimer.current) {
-        clearTimeout(quoteTimer.current);
-      }
+      if (quoteTimer.current) clearTimeout(quoteTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [amount, fromChain, toChain, fromToken, toToken]);
+  }, [amount, fromChainId, toChainId, fromToken, toToken, wallet]);
 
-  const fetchQuote = useCallback(async () => {
-    if (!fromToken || !toToken || !canQuote) {
-      return;
-    }
+  async function fetchQuote() {
+    if (!fromToken || !toToken || !wallet || !amount || Number(amount) <= 0) return;
     setQuoteLoading(true);
     setError("");
     try {
-      const nextQuote = await getRangoQuote({
-        from: selectedAsset(fromToken, { blockchain: fromChain, symbol: "USDT", address: BSC_USDT }),
-        to: selectedAsset(toToken, { blockchain: toChain, symbol: "USDT", address: OPBNB_USDT }),
-        amount,
-        slippage: DEFAULT_SLIPPAGE,
-        referrerAddress: RANGO_REFERRER_ADDRESS,
-        referrerFee: RANGO_REFERRER_FEE
+      const fromAmount = parseUnits(amount, fromToken.decimals).toString();
+      const nextQuote = await getLifiQuote({
+        fromChainId,
+        toChainId,
+        fromTokenAddress: fromToken.address,
+        toTokenAddress: toToken.address,
+        fromAmount,
+        fromAddress: wallet
       });
       setQuote(nextQuote);
     } catch (err) {
       setQuote(null);
-      setError(err instanceof Error ? err.message : "No route found for this swap.");
+      setError(err instanceof Error ? err.message : "No LI.FI route found for this swap.");
     } finally {
       setQuoteLoading(false);
     }
-  }, [amount, canQuote, fromChain, fromToken, toChain, toToken]);
+  }
 
-  const connectWallet = async () => {
+  async function connectWallet() {
     if (!window.ethereum) {
       setError("No wallet found. Please open MetaGuildX in a Web3 wallet browser or install MetaMask.");
       return null;
@@ -591,127 +511,93 @@ export default function CrossChainHubPage() {
       setError("Wallet connection was rejected.");
       return null;
     }
-  };
+  }
 
-  const reverseRoute = () => {
-    setFromChain(toChain);
-    setToChain(fromChain);
+  function reverseRoute() {
+    setFromChainId(toChainId);
+    setToChainId(fromChainId);
     setFromToken(toToken);
     setToToken(fromToken);
-    setFromSearch("");
-    setToSearch("");
     setQuote(null);
     setError("");
-  };
+  }
 
-  const updateHistory = (row: SwapHistoryRow) => {
-    const nextHistory = [row, ...readHistory().filter((entry) => entry.id !== row.id)].slice(0, 5);
+  function updateHistory(row: SwapHistoryRow) {
+    const nextHistory = [row, ...readHistory().filter((item) => item.txHash !== row.txHash)].slice(0, 5);
     writeHistory(nextHistory);
     setHistory(nextHistory);
-  };
+  }
 
-  const executeSwap = async () => {
+  async function executeSwap() {
     const activeWallet = wallet || await connectWallet();
-    if (!activeWallet || !fromToken || !toToken) {
-      return;
-    }
-    if (!window.ethereum) {
-      setError("No wallet found. Please open MetaGuildX in a Web3 wallet browser or install MetaMask.");
-      return;
-    }
-
+    if (!activeWallet || !quote?.transactionRequest || !window.ethereum || !fromToken || !toToken) return;
     setSwapLoading(true);
     setError("");
     try {
-      const swap = await getRangoSwap({
-        from: selectedAsset(fromToken, { blockchain: fromChain, symbol: "USDT", address: BSC_USDT }),
-        to: selectedAsset(toToken, { blockchain: toChain, symbol: "USDT", address: OPBNB_USDT }),
-        amount,
-        walletAddress: activeWallet,
-        slippage: DEFAULT_SLIPPAGE,
-        referrerAddress: RANGO_REFERRER_ADDRESS,
-        referrerFee: RANGO_REFERRER_FEE
-      });
-      const tx = parseSwapTx(swap);
-      if (!tx.to) {
-        throw new Error("Rango did not return executable transaction data.");
-      }
-
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      const tx = quote.transactionRequest;
       const sent = await signer.sendTransaction({
         to: tx.to,
-        data: tx.data,
-        value: toBigIntValue(tx.value) ?? 0n,
-        gasLimit: toBigIntValue(tx.gasLimit),
-        gasPrice: toBigIntValue(tx.gasPrice)
+        data: tx.data ?? "0x",
+        value: tx.value ? BigInt(tx.value) : 0n,
+        gasLimit: tx.gasLimit ? BigInt(tx.gasLimit) : undefined,
+        gasPrice: tx.gasPrice ? BigInt(tx.gasPrice) : undefined
       });
-      const explorerUrl = getExplorerUrl(fromChain, sent.hash);
+      const explorerUrl = getExplorerUrl(fromChainId, sent.hash);
       setModal({
         status: "pending",
         title: "Transaction submitted",
-        detail: "Your cross-chain swap is now being processed.",
+        message: "Your LI.FI swap is being processed.",
         txHash: sent.hash,
         explorerUrl
       });
       updateHistory({
-        id: sent.hash,
-        fromChain,
-        toChain,
+        txHash: sent.hash,
+        fromChain: chainLabel(fromChain),
+        toChain: chainLabel(toChain),
         fromToken: fromToken.symbol,
         toToken: toToken.symbol,
-        amount,
-        outputAmount: outputAmount || "Pending",
-        status: "running",
-        txHash: sent.hash,
-        timestamp: Date.now()
+        fromAmount: amount,
+        toAmount: outputAmount || "Pending",
+        status: "pending",
+        timestamp: Date.now(),
+        explorerUrl
       });
-
-      await sent.wait();
-      const requestId = tx.requestId || parsedQuote?.requestId;
-      let finalStatus: SwapHistoryRow["status"] = "success";
-      if (requestId) {
-        try {
-          const status = await getRangoStatus(requestId, sent.hash);
-          finalStatus = status.status === "failed" ? "failed" : status.status === "success" ? "success" : "running";
-        } catch {
-          finalStatus = "success";
-        }
-      }
+      const receipt = await sent.wait();
+      const status: SwapHistoryRow["status"] = receipt?.status === 1 ? "success" : "failed";
       setModal({
-        status: finalStatus === "failed" ? "failed" : "success",
-        title: finalStatus === "failed" ? "Swap status needs attention" : "Swap complete!",
-        detail: finalStatus === "failed" ? "Rango reported this route as failed. Please check your wallet and explorer." : "Your swap transaction has been confirmed.",
+        status,
+        title: status === "success" ? "Swap complete!" : "Swap failed",
+        message: status === "success" ? "Your transaction has been confirmed." : "The transaction was mined but did not succeed.",
         txHash: sent.hash,
         explorerUrl
       });
       updateHistory({
-        id: sent.hash,
-        fromChain,
-        toChain,
+        txHash: sent.hash,
+        fromChain: chainLabel(fromChain),
+        toChain: chainLabel(toChain),
         fromToken: fromToken.symbol,
         toToken: toToken.symbol,
-        amount,
-        outputAmount: outputAmount || "Confirmed",
-        status: finalStatus,
-        txHash: sent.hash,
-        timestamp: Date.now()
+        fromAmount: amount,
+        toAmount: outputAmount || "Confirmed",
+        status,
+        timestamp: Date.now(),
+        explorerUrl
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Swap failed.";
       setError(message);
-      setModal({
-        status: "failed",
-        title: "Swap failed",
-        detail: message
-      });
+      setModal({ status: "failed", title: "Swap failed", message });
     } finally {
       setSwapLoading(false);
     }
-  };
+  }
 
   const actionLabel = !wallet
     ? "Connect Wallet"
+    : isOpbnbDestination
+    ? "Use BNB Bridge"
     : !amount || amountNumber <= 0
     ? "Enter Amount"
     : quoteLoading
@@ -721,14 +607,14 @@ export default function CrossChainHubPage() {
     : canSwap
     ? "Swap"
     : "Getting Quote...";
-  const actionDisabled = Boolean(wallet) && (!canSwap || insufficientBalance);
+  const actionDisabled = Boolean(wallet) && !isOpbnbDestination && (!canSwap || insufficientBalance);
 
   return (
     <div style={S.page}>
       <style>{`
         @keyframes mgx-spin { to { transform: rotate(360deg); } }
         @media (max-width: 640px) {
-          .mgx-rango-grid { grid-template-columns: 1fr !important; }
+          .mgx-lifi-grid { grid-template-columns: 1fr !important; }
         }
         select option { background: #0f172a; color: #f1f5f9; }
         input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -740,76 +626,74 @@ export default function CrossChainHubPage() {
           <p style={S.subtitle}>Swap tokens across chains. Non-custodial. No MGX required.</p>
           <div style={S.badges}>
             {["Multi-Chain", "Non-Custodial", "Wallet Connect", "OPBNB Ready"].map((badge) => (
-              <span key={badge} style={S.badge}>
-                &#10003; {badge}
-              </span>
+              <span key={badge} style={S.badge}>&#10003; {badge}</span>
             ))}
           </div>
         </div>
 
         <div style={S.card}>
-          <div className="mgx-rango-grid" style={{ display: "grid", gap: 14 }}>
-            <TokenSelector
+          <div className="mgx-lifi-grid" style={{ display: "grid", gap: 14 }}>
+            <TokenPanel
               label="From"
-              chain={fromChain}
               chains={chains}
-              tokens={tokens}
-              value={fromToken}
-              search={fromSearch}
-              onSearch={setFromSearch}
-              onChainChange={(chain) => {
-                setFromChain(chain);
-                setFromToken(pickDefaultToken(tokens, chain, chain === "BSC" ? BSC_USDT : "", "USDT"));
+              chainId={fromChainId}
+              token={fromToken}
+              tokens={fromTokens}
+              amount={amount}
+              usdValue={tokenUsdValue(fromToken, amount)}
+              onAmountChange={setAmount}
+              onChainChange={(chainId) => {
+                setFromChainId(chainId);
                 setQuote(null);
               }}
               onTokenChange={(token) => {
                 setFromToken(token);
                 setQuote(null);
               }}
-              amount={amount}
-              onAmountChange={setAmount}
-              usdValue={tokenUsdValue(fromToken, amount)}
             />
 
             <div style={S.reverseWrap}>
-              <button type="button" style={S.reverseBtn} onClick={reverseRoute} title="Reverse route">
-                &#8645;
-              </button>
+              <button type="button" style={S.reverseBtn} onClick={reverseRoute} title="Reverse route">&#8645;</button>
             </div>
 
-            <TokenSelector
+            <TokenPanel
               label="To"
-              chain={toChain}
               chains={chains}
-              tokens={tokens}
-              value={toToken}
-              search={toSearch}
-              onSearch={setToSearch}
-              onChainChange={(chain) => {
-                setToChain(chain);
-                setToToken(pickDefaultToken(tokens, chain, chain === "OPBNB" ? OPBNB_USDT : "", "USDT"));
+              chainId={toChainId}
+              token={toToken}
+              tokens={toTokens}
+              outputAmount={quoteLoading ? "Loading..." : outputAmount}
+              usdValue={tokenUsdValue(toToken, outputAmount)}
+              onChainChange={(chainId) => {
+                setToChainId(chainId);
                 setQuote(null);
               }}
               onTokenChange={(token) => {
                 setToToken(token);
                 setQuote(null);
               }}
-              outputAmount={quoteLoading ? "Loading..." : outputAmount}
-              usdValue={tokenUsdValue(toToken, outputAmount)}
             />
           </div>
 
-          {parsedQuote ? (
+          {isOpbnbDestination ? (
+            <div style={S.bridgeBox}>
+              <h3 style={{ margin: "0 0 8px", color: "#bae6fd" }}>Bridge to opBNB via BNB Chain Bridge</h3>
+              <p style={{ margin: 0, color: "#bfdbfe", fontSize: 13, lineHeight: 1.55 }}>
+                LI.FI currently has no opBNB routes. Use the official BNB Chain Bridge to bring USDT or BNB to opBNB, then return to MetaGuildX.
+              </p>
+              <a href={BNB_BRIDGE_URL} target="_blank" rel="noreferrer" style={S.linkBtn}>Open BNB Bridge</a>
+            </div>
+          ) : quote ? (
             <div style={S.quoteBox}>
-              <div style={S.qrow}><span style={S.qlabel}>Route</span><strong>{parsedQuote.routeName}</strong></div>
-              <div style={S.qrow}><span style={S.qlabel}>Platform fee</span><strong>{RANGO_REFERRER_FEE}%</strong></div>
-              <div style={S.qrow}><span style={S.qlabel}>Estimated time</span><strong>{parsedQuote.estimatedTimeInSeconds ? `~${Math.ceil(parsedQuote.estimatedTimeInSeconds / 60)} min` : "Route dependent"}</strong></div>
-              <div style={S.qrow}><span style={S.qlabel}>Price impact</span><strong>{parsedQuote.priceImpact ?? "N/A"}</strong></div>
-              {parsedQuote.feeLabel ? <div style={S.qrow}><span style={S.qlabel}>Route fee</span><strong>{parsedQuote.feeLabel}</strong></div> : null}
+              <div style={S.qrow}><span style={S.qlabel}>Route</span><strong>{getRouteName(quote)}</strong></div>
+              <div style={S.qrow}><span style={S.qlabel}>Platform fee</span><strong>0.15%</strong></div>
+              <div style={S.qrow}><span style={S.qlabel}>Estimated time</span><strong>{formatDuration(quote.estimate?.executionDuration ?? 0)}</strong></div>
+              <div style={S.qrow}><span style={S.qlabel}>Price impact</span><strong>{getPriceImpact(quote)}</strong></div>
+              <div style={S.qrow}><span style={S.qlabel}>Treasury</span><strong>{TREASURY_WALLET.slice(0, 6)}...{TREASURY_WALLET.slice(-4)}</strong></div>
             </div>
           ) : null}
 
-          {error ? <div style={S.error}>{error}</div> : null}
+          {error && !isOpbnbDestination ? <div style={S.error}>{error}</div> : null}
 
           <button
             type="button"
@@ -818,6 +702,8 @@ export default function CrossChainHubPage() {
             onClick={() => {
               if (!wallet) {
                 void connectWallet();
+              } else if (isOpbnbDestination) {
+                window.open(BNB_BRIDGE_URL, "_blank", "noopener,noreferrer");
               } else {
                 void executeSwap();
               }
@@ -827,7 +713,7 @@ export default function CrossChainHubPage() {
           </button>
 
           <div style={S.helper}>
-            {fromChainMeta ? chainLabel(fromChainMeta) : "Loading chains"} &rarr; {toChainMeta ? chainLabel(toChainMeta) : "Loading destination"}
+            {chainLabel(fromChain)} &rarr; {chainLabel(toChain)}
             {balance !== null && fromToken ? ` · Balance: ${balance.toFixed(4)} ${fromToken.symbol}` : ""}
           </div>
         </div>
@@ -837,19 +723,11 @@ export default function CrossChainHubPage() {
           {history.length === 0 ? (
             <div style={{ color: "#64748b", fontSize: 13 }}>No recent swaps yet.</div>
           ) : history.map((row) => (
-            <div key={row.id} style={S.historyRow}>
+            <div key={row.txHash} style={S.historyRow}>
               <div>
-                <div style={{ fontWeight: 800 }}>
-                  {row.amount} {row.fromToken} &rarr; {row.outputAmount} {row.toToken}
-                </div>
-                <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>
-                  {row.fromChain} &rarr; {row.toChain} - {new Date(row.timestamp).toLocaleString()}
-                </div>
-                {row.txHash ? (
-                  <a href={getExplorerUrl(row.fromChain, row.txHash)} target="_blank" rel="noreferrer" style={{ color: "#38bdf8", fontSize: 12 }}>
-                    View transaction
-                  </a>
-                ) : null}
+                <div style={{ fontWeight: 800 }}>{row.fromAmount} {row.fromToken} &rarr; {row.toAmount} {row.toToken}</div>
+                <div style={{ color: "#64748b", fontSize: 12, marginTop: 4 }}>{row.fromChain} &rarr; {row.toChain} · {new Date(row.timestamp).toLocaleString()}</div>
+                {row.explorerUrl ? <a href={row.explorerUrl} target="_blank" rel="noreferrer" style={{ color: "#38bdf8", fontSize: 12 }}>View transaction</a> : null}
               </div>
               <span style={S.pill(row.status)}>{row.status.toUpperCase()}</span>
             </div>
@@ -860,23 +738,11 @@ export default function CrossChainHubPage() {
       {modal ? (
         <div style={S.overlay}>
           <div style={S.modal}>
-            {modal.status === "pending" ? (
-              <div style={S.spinner} />
-            ) : (
-              <div style={{ fontSize: 42, marginBottom: 10 }}>
-                {modal.status === "success" ? "✓" : "×"}
-              </div>
-            )}
+            {modal.status === "pending" ? <div style={S.spinner} /> : <div style={{ fontSize: 42, marginBottom: 10 }}>{modal.status === "success" ? "✓" : "×"}</div>}
             <h3 style={{ margin: "0 0 8px" }}>{modal.title}</h3>
-            <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.55 }}>{modal.detail}</p>
-            {modal.explorerUrl ? (
-              <a href={modal.explorerUrl} target="_blank" rel="noreferrer" style={{ color: "#38bdf8", fontSize: 13 }}>
-                View on explorer
-              </a>
-            ) : null}
-            <button type="button" style={{ ...S.actionBtn(false), marginTop: 18 }} onClick={() => setModal(null)}>
-              Close
-            </button>
+            <p style={{ color: "#94a3b8", fontSize: 14, lineHeight: 1.55 }}>{modal.message}</p>
+            {modal.explorerUrl ? <a href={modal.explorerUrl} target="_blank" rel="noreferrer" style={{ color: "#38bdf8", fontSize: 13 }}>View on explorer</a> : null}
+            <button type="button" style={{ ...S.actionBtn(false), marginTop: 18 }} onClick={() => setModal(null)}>Close</button>
           </div>
         </div>
       ) : null}

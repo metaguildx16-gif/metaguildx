@@ -81,6 +81,129 @@ export interface TxRecord {
 
 const LIFI_API = "https://li.quest/v1";
 
+export type LifiChain = {
+  id: number;
+  key?: string;
+  name: string;
+  chainType?: string;
+  logoURI?: string;
+  nativeToken?: {
+    address: string;
+    symbol: string;
+    decimals: number;
+    name: string;
+    logoURI?: string;
+    priceUSD?: string;
+  };
+};
+
+export type LifiToken = {
+  chainId: number;
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  logoURI?: string;
+  priceUSD?: string;
+};
+
+export type LifiQuote = {
+  action?: {
+    fromAmount?: string;
+    fromToken?: LifiToken;
+    toToken?: LifiToken;
+  };
+  estimate?: {
+    toAmount?: string;
+    toAmountMin?: string;
+    executionDuration?: number;
+    fromAmountUSD?: string;
+    toAmountUSD?: string;
+    feeCosts?: Array<{ amount?: string; amountUSD?: string; name?: string; token?: LifiToken }>;
+    gasCosts?: Array<{ estimate?: string; amountUSD?: string }>;
+  };
+  includedSteps?: RouteStep[];
+  steps?: RouteStep[];
+  tool?: string;
+  transactionRequest?: {
+    to: string;
+    data?: string;
+    value?: string;
+    gasLimit?: string;
+    gasPrice?: string;
+    from?: string;
+  };
+};
+
+let lifiChainsCache: LifiChain[] | null = null;
+const lifiTokensCache = new Map<number, LifiToken[]>();
+
+function getLifiHeaders() {
+  const apiKey = import.meta.env.VITE_LIFI_API_KEY || "";
+  return {
+    "Content-Type": "application/json",
+    ...(apiKey ? { "x-lifi-api-key": apiKey } : {})
+  };
+}
+
+async function lifiGet<T>(path: string): Promise<T> {
+  const res = await fetch(`${LIFI_API}${path}`, { headers: getLifiHeaders() });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message || `LI.FI request failed (${res.status})`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function getLifiChains(): Promise<LifiChain[]> {
+  if (lifiChainsCache) {
+    return lifiChainsCache;
+  }
+  const data = await lifiGet<{ chains?: LifiChain[] }>("/chains");
+  lifiChainsCache = data.chains ?? [];
+  return lifiChainsCache;
+}
+
+export async function getLifiTokens(chainId: number): Promise<LifiToken[]> {
+  const cached = lifiTokensCache.get(chainId);
+  if (cached) {
+    return cached;
+  }
+  const data = await lifiGet<{ tokens?: Record<string, LifiToken[]> }>(`/tokens?chains=${chainId}`);
+  const tokens = (data.tokens?.[String(chainId)] ?? []).filter((token) => token.symbol.toUpperCase() !== "MGX");
+  lifiTokensCache.set(chainId, tokens);
+  return tokens;
+}
+
+export async function getLifiQuote(params: {
+  fromChainId: number;
+  toChainId: number;
+  fromTokenAddress: string;
+  toTokenAddress: string;
+  fromAmount: string;
+  fromAddress: string;
+}): Promise<LifiQuote> {
+  const url = new URL(`${LIFI_API}/quote`);
+  url.searchParams.set("fromChain", params.fromChainId.toString());
+  url.searchParams.set("toChain", params.toChainId.toString());
+  url.searchParams.set("fromToken", params.fromTokenAddress);
+  url.searchParams.set("toToken", params.toTokenAddress);
+  url.searchParams.set("fromAmount", params.fromAmount);
+  url.searchParams.set("fromAddress", params.fromAddress);
+  url.searchParams.set("integrator", "metaguildx");
+  url.searchParams.set("fee", "0.0015");
+  url.searchParams.set("feeRecipient", TREASURY_WALLET);
+  url.searchParams.set("referrer", TREASURY_WALLET);
+  url.searchParams.set("slippage", "0.01");
+
+  const res = await fetch(url.toString(), { headers: getLifiHeaders() });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message || "Failed to get LI.FI quote");
+  }
+  return res.json() as Promise<LifiQuote>;
+}
+
 export async function getQuote(params: {
   fromChainId: number; toChainId: number;
   fromTokenAddress: string; toTokenAddress: string;
