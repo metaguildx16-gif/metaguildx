@@ -631,6 +631,7 @@ const backgroundRefreshScheduled = new Set<string>();
 const BOX_EARNINGS_CACHE_PREFIX = "mgx_box_earnings_v1";
 const HOT_PATH_CACHE_PREFIX = "mgx_hot_path_v1";
 const HOT_PATH_CACHE_TTL = 5 * 60 * 1000;
+const BRANCH_STATS_CACHE_TTL = 30 * 60 * 1000;
 const BRANCH_STATS_BLOCK_BUCKET = 1_000;
 
 type PersistedBoxEarnings = {
@@ -666,6 +667,12 @@ type PersistedLevelBreakdown = {
   data: LevelBreakdownRow[];
   amountRawByLevel?: Record<string, string>;
   memberIdsByLevel?: Record<string, number[]>;
+  timestamp: number;
+};
+
+type PersistedSponsorMap = {
+  sponsors: Record<string, number>;
+  lastCachedUserId: number;
   timestamp: number;
 };
 
@@ -805,12 +812,68 @@ function isFreshHotPathCache(timestamp: number | undefined) {
   return typeof timestamp === "number" && Date.now() - timestamp < HOT_PATH_CACHE_TTL;
 }
 
+function isFreshBranchStatsCache(timestamp: number | undefined) {
+  return typeof timestamp === "number" && Date.now() - timestamp < BRANCH_STATS_CACHE_TTL;
+}
+
 function getBlockBucket(blockNumber: number) {
   return Math.floor(blockNumber / BRANCH_STATS_BLOCK_BUCKET) * BRANCH_STATS_BLOCK_BUCKET;
 }
 
 function getPersistentBoxEarningsCacheKey(userId: number, routerAddress: string, deployBlock: number) {
   return `${BOX_EARNINGS_CACHE_PREFIX}_${getDeploymentCacheNamespace()}_${routerAddress.toLowerCase()}_${userId}_${deployBlock}`;
+}
+
+async function buildAndCacheSponsorMap(
+  provider: BrowserProvider | JsonRpcProvider,
+  core: Contract,
+  nextUserId: number
+): Promise<Map<number, number>> {
+  void provider;
+  const cacheKey = `mgx_sponsor_map_v1_${getDeploymentCacheNamespace()}`;
+  const cached = readPersistentJson<PersistedSponsorMap>(cacheKey);
+  const sponsors: Record<string, number> = { ...(cached?.sponsors ?? {}) };
+  const maxUserId = Math.max(0, Number(nextUserId) - 1);
+  const lastCachedUserId =
+    cached && Number.isFinite(cached.lastCachedUserId)
+      ? Math.min(Math.max(0, Number(cached.lastCachedUserId)), maxUserId)
+      : 0;
+
+  if (maxUserId > lastCachedUserId) {
+    const BATCH = 10;
+    for (let userId = lastCachedUserId + 1; userId <= maxUserId; userId += BATCH) {
+      const batch = Array.from(
+        { length: Math.min(BATCH, maxUserId - userId + 1) },
+        (_, index) => userId + index
+      );
+      const profiles = await Promise.all(
+        batch.map(async (uid) => {
+          try {
+            return await core.usersById(BigInt(uid));
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      profiles.forEach((profile, index) => {
+        const uid = batch[index];
+        sponsors[String(uid)] = Number(profile?.sponsorId ?? profile?.[2] ?? 0n);
+      });
+    }
+
+    writePersistentJson<PersistedSponsorMap>(cacheKey, {
+      sponsors,
+      lastCachedUserId: maxUserId,
+      timestamp: Date.now()
+    });
+  }
+
+  return new Map(
+    Object.entries(sponsors)
+      .map(([uid, sponsor]) => [Number(uid), Number(sponsor)] as const)
+      .filter(([uid]) => Number.isFinite(uid) && uid > 0)
+  );
 }
 
 function readPersistentBoxEarnings(cacheKey: string): PersistedBoxEarnings | null {
@@ -1646,32 +1709,13 @@ async function loadSpilloverDisplayIncome(input: {
 
     const core = new Contract(input.coreAddress, metaGuildXCoreAbi, input.provider);
     const nextUserId = Number(await core.nextUserId());
-    const sponsorMap: Record<number, number> = {};
-    const BATCH = 10;
-
-    for (let userId = 1; userId < nextUserId; userId += BATCH) {
-      const batch = Array.from({ length: Math.min(BATCH, nextUserId - userId) }, (_, index) => userId + index);
-      const profiles = await Promise.all(
-        batch.map(async (uid) => {
-          try {
-            return await core.usersById(BigInt(uid));
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      profiles.forEach((profile, index) => {
-        sponsorMap[userId + index] = Number(profile?.sponsorId ?? profile?.[2] ?? 0n);
-      });
-    }
+    const sponsorMap = await buildAndCacheSponsorMap(input.provider, core, nextUserId);
 
     const sponsorGenealogy = new Set<number>([input.userId]);
     let added = true;
     while (added) {
       added = false;
-      for (const [uid, sponsor] of Object.entries(sponsorMap)) {
-        const id = Number(uid);
+      for (const [id, sponsor] of sponsorMap.entries()) {
         if (!sponsorGenealogy.has(id) && sponsorGenealogy.has(Number(sponsor))) {
           sponsorGenealogy.add(id);
           added = true;
@@ -1951,25 +1995,7 @@ async function loadCrosslineDisplayIncome(input: {
 
     const core = new Contract(input.coreAddress, metaGuildXCoreAbi, input.provider);
     const nextUserId = Number(await core.nextUserId());
-    const sponsorMap: Record<number, number> = {};
-    const BATCH = 10;
-
-    for (let userId = 1; userId < nextUserId; userId += BATCH) {
-      const batch = Array.from({ length: Math.min(BATCH, nextUserId - userId) }, (_, index) => userId + index);
-      const profiles = await Promise.all(
-        batch.map(async (uid) => {
-          try {
-            return await core.usersById(BigInt(uid));
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      profiles.forEach((profile, index) => {
-        sponsorMap[userId + index] = Number(profile?.sponsorId ?? profile?.[2] ?? 0n);
-      });
-    }
+    const sponsorMap = await buildAndCacheSponsorMap(input.provider, core, nextUserId);
 
     function buildGenealogy(rootId: number) {
       const genealogy = new Set<number>([rootId]);
@@ -1977,8 +2003,7 @@ async function loadCrosslineDisplayIncome(input: {
 
       while (added) {
         added = false;
-        for (const [uid, sponsor] of Object.entries(sponsorMap)) {
-          const id = Number(uid);
+        for (const [id, sponsor] of sponsorMap.entries()) {
           if (!genealogy.has(id) && genealogy.has(Number(sponsor))) {
             genealogy.add(id);
             added = true;
@@ -2561,7 +2586,7 @@ async function loadBranchStats(contract: Contract, userId: number) {
       blockBucket = getBlockBucket(latestBlock);
       cacheKey = getHotPathCacheKey("branch-stats", userId, blockBucket);
       const persisted = readPersistentJson<PersistedBranchStats>(cacheKey);
-      if (persisted && persisted.blockBucket === blockBucket && isFreshHotPathCache(persisted.timestamp)) {
+      if (persisted && persisted.blockBucket === blockBucket && isFreshBranchStatsCache(persisted.timestamp)) {
         return {
           leftDirectChildId: persisted.data.leftDirectChildId,
           rightDirectChildId: persisted.data.rightDirectChildId,
@@ -2640,7 +2665,7 @@ async function loadLevelBranchStats(contract: Contract, userId: number) {
       blockBucket = getBlockBucket(latestBlock);
       cacheKey = getHotPathCacheKey("level-branch-stats", userId, blockBucket);
       const persisted = readPersistentJson<PersistedLevelBranchStats>(cacheKey);
-      if (persisted && persisted.blockBucket === blockBucket && isFreshHotPathCache(persisted.timestamp)) {
+      if (persisted && persisted.blockBucket === blockBucket && isFreshBranchStatsCache(persisted.timestamp)) {
         return persisted.data;
       }
     } catch {
@@ -2677,6 +2702,92 @@ async function loadLevelBranchStats(contract: Contract, userId: number) {
     });
   }
   return stats;
+}
+
+export async function loadDeferredDashboardAnalytics(input: {
+  userId: number;
+  walletAddress?: string | null;
+}): Promise<Partial<DashboardSnapshot>> {
+  if (input.userId <= 0 || !configuredCoreAddress) {
+    return {};
+  }
+
+  const provider = await getReadProvider();
+  const contract = new Contract(configuredCoreAddress, metaGuildXCoreAbi, provider);
+  const incomeRouterAddress = configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS;
+  const directReferralIdsRaw = await withTimeout(
+    contract.getDirectReferralIds(input.userId),
+    5000,
+    [] as bigint[]
+  );
+  const directReferralIds = (directReferralIdsRaw as bigint[]).map((value: bigint) => Number(value));
+
+  const [
+    branchStats,
+    levelBranchStats,
+    { total: crosslineAmount, history: networkBonusHistory },
+    spilloverAmount,
+    directReferralIncomeByUserId
+  ] = await Promise.all([
+    withTimeout(
+      loadBranchStats(contract, input.userId),
+      25000,
+      {
+        leftDirectChildId: 0,
+        rightDirectChildId: 0,
+        leftBranchNodes: 0,
+        rightBranchNodes: 0,
+        leftBranchBusiness: 0n,
+        rightBranchBusiness: 0n
+      }
+    ),
+    withTimeout(
+      loadLevelBranchStats(contract, input.userId),
+      8000,
+      {
+        levelTreeLeft: 0,
+        levelTreeRight: 0
+      }
+    ),
+    loadCrosslineDisplayIncome({
+      provider,
+      userId: input.userId,
+      coreAddress: configuredCoreAddress,
+      incomeRouterAddress
+    }),
+    loadSpilloverDisplayIncome({
+      provider,
+      coreAddress: configuredCoreAddress,
+      userId: input.userId,
+      incomeRouterAddress
+    }),
+    withTimeout(
+      loadDirectReferralIncomeByUserId({
+        provider,
+        sponsorUserId: input.userId,
+        referralIds: directReferralIds,
+        incomeRouterAddress
+      }),
+      30000,
+      {}
+    )
+  ]);
+
+  const totalTeamBusinessRaw = BigInt(branchStats.leftBranchBusiness) + BigInt(branchStats.rightBranchBusiness);
+  return {
+    totalTeamBusiness: formatTokenAmount(totalTeamBusinessRaw),
+    spilloverIncome: formatTokenAmount(spilloverAmount),
+    crossLineIncome: formatTokenAmount(crosslineAmount),
+    directReferralIds,
+    directReferralIncomeByUserId,
+    networkBonusHistory,
+    leftBranchNodes: Number(branchStats.leftBranchNodes),
+    rightBranchNodes: Number(branchStats.rightBranchNodes),
+    leftBranchBusiness: formatTokenAmount(branchStats.leftBranchBusiness),
+    rightBranchBusiness: formatTokenAmount(branchStats.rightBranchBusiness),
+    levelTreeLeft: Number(levelBranchStats.levelTreeLeft),
+    levelTreeRight: Number(levelBranchStats.levelTreeRight)
+  };
 }
 
 async function ensureConfiguredChain() {
@@ -4830,32 +4941,22 @@ export async function loadDashboardSnapshot(
     ]);
     const directReferralCount = Number(profile.directReferrals);
     const localLevelSummary = buildLevelSummary(directReferralCount);
-      const [branchStats, levelBranchStats, levelSummary] = await Promise.all([
-      withTimeout(
-        loadBranchStats(contract, userId),
-        25000,
-        {
-          leftDirectChildId: 0,
-          rightDirectChildId: 0,
-          leftBranchNodes: 0,
-          rightBranchNodes: 0,
-          leftBranchBusiness: 0n,
-          rightBranchBusiness: 0n
-        }
-      ),
-      withTimeout(
-        loadLevelBranchStats(contract, userId),
-        8000,
-        {
-          levelTreeLeft: 0,
-          levelTreeRight: 0
-        }
-      ),
-      Promise.resolve({
-        unlockedLevels: localLevelSummary.unlockedLevels,
-        unlockedStatus: localLevelSummary.unlockedStatus
-      })
-    ]);
+    const branchStats = {
+      leftDirectChildId: 0,
+      rightDirectChildId: 0,
+      leftBranchNodes: 0,
+      rightBranchNodes: 0,
+      leftBranchBusiness: 0n,
+      rightBranchBusiness: 0n
+    };
+    const levelBranchStats = {
+      levelTreeLeft: 0,
+      levelTreeRight: 0
+    };
+    const levelSummary = {
+      unlockedLevels: localLevelSummary.unlockedLevels,
+      unlockedStatus: localLevelSummary.unlockedStatus
+    };
     const effectivePaymentAsset =
       primaryAsset && primaryAsset !== "0x0000000000000000000000000000000000000000" ? primaryAsset : defaultPaymentAsset;
     const paymentUnitPrice = effectivePaymentAsset
@@ -4915,34 +5016,9 @@ export async function loadDashboardSnapshot(
         { history: [], error: null, cursor: null }
       );
       const directReferralIds = directReferralIdsRaw.map((value: bigint) => Number(value));
-      const [
-        { total: crosslineAmount },
-        spilloverAmount,
-        directReferralIncomeByUserId
-      ] = await Promise.all([
-        loadCrosslineDisplayIncome({
-          provider,
-          userId,
-          coreAddress: contractAddress,
-          incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
-        }),
-        loadSpilloverDisplayIncome({
-          provider,
-          coreAddress: contractAddress,
-          userId,
-          incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
-        }),
-        withTimeout(
-          loadDirectReferralIncomeByUserId({
-            provider,
-            sponsorUserId: userId,
-            referralIds: directReferralIds,
-            incomeRouterAddress: configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
-          }),
-          30000,
-          {}
-        )
-      ]);
+      const crosslineAmount = 0n;
+      const spilloverAmount = 0n;
+      const directReferralIncomeByUserId: Record<number, string> = {};
       const boxEarningsByPackage: Record<number, bigint> = {};
       const currentPackageLevel = Number(profile.packageLevel);
       const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;

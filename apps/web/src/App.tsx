@@ -366,6 +366,7 @@ function App() {
   const [liveWalletStakeState, setLiveWalletStakeState] = useState<LiveWalletStakeState | null>(null);
   const isDashboardPolling = useRef(false);
   const isStakePending = useRef(false);
+  const deferredDashboardAnalyticsInFlight = useRef<string | null>(null);
 
   function beginLoadPhase(phase: DashboardLoadPhase, nextStatus?: string) {
     setLoadPhase(phase);
@@ -858,12 +859,7 @@ function App() {
 
       isDashboardPolling.current = true;
       Promise.resolve(metaguildx.loadDashboardSnapshot(snapshot.walletAddress))
-        .then((newSnap) => setSnapshot((prev) => ({
-          ...newSnap,
-          packageOneBucketEarnings: newSnap.packageOneBucketEarnings !== "0" ? newSnap.packageOneBucketEarnings : prev.packageOneBucketEarnings,
-          currentPackageBucketEarnings: newSnap.currentPackageBucketEarnings !== "0" ? newSnap.currentPackageBucketEarnings : prev.currentPackageBucketEarnings,
-          boxEarningsByPackage: Object.keys(newSnap.boxEarningsByPackage ?? {}).length ? newSnap.boxEarningsByPackage : prev.boxEarningsByPackage
-        })))
+        .then((newSnap) => setSnapshot((prev) => mergeSnapshotPreservingDeferredAnalytics(prev, newSnap)))
         .catch(() => undefined)
         .finally(() => {
           isDashboardPolling.current = false;
@@ -890,26 +886,52 @@ function App() {
         if (currentWallet && nextWallet && currentWallet !== nextWallet) {
           return prev;
         }
-        return {
-          ...nextSnapshot,
-          packageOneBucketEarnings:
-            nextSnapshot.packageOneBucketEarnings !== "0"
-              ? nextSnapshot.packageOneBucketEarnings
-              : prev.packageOneBucketEarnings,
-          currentPackageBucketEarnings:
-            nextSnapshot.currentPackageBucketEarnings !== "0"
-              ? nextSnapshot.currentPackageBucketEarnings
-              : prev.currentPackageBucketEarnings,
-          boxEarningsByPackage: Object.keys(nextSnapshot.boxEarningsByPackage ?? {}).length
-            ? nextSnapshot.boxEarningsByPackage
-            : prev.boxEarningsByPackage
-        };
+        return mergeSnapshotPreservingDeferredAnalytics(prev, nextSnapshot);
       });
     };
 
     window.addEventListener(metaguildx.DASHBOARD_SNAPSHOT_REFRESH_EVENT, handleSnapshotRefresh);
     return () => window.removeEventListener(metaguildx.DASHBOARD_SNAPSHOT_REFRESH_EVENT, handleSnapshotRefresh);
   }, []);
+
+  useEffect(() => {
+    if (!snapshot.isRegistered || !snapshot.userId) {
+      return;
+    }
+
+    const key = `${(snapshot.walletAddress ?? "").toLowerCase()}-${snapshot.userId}`;
+    if (deferredDashboardAnalyticsInFlight.current === key) {
+      return;
+    }
+
+    let isActive = true;
+    deferredDashboardAnalyticsInFlight.current = key;
+    const timeoutId = window.setTimeout(() => {
+      metaguildx.loadDeferredDashboardAnalytics({
+        userId: snapshot.userId!,
+        walletAddress: snapshot.walletAddress
+      })
+        .then((analytics) => {
+          if (isActive) {
+            applyDeferredDashboardAnalytics(snapshot.userId!, analytics);
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (deferredDashboardAnalyticsInFlight.current === key) {
+            deferredDashboardAnalyticsInFlight.current = null;
+          }
+        });
+    }, 300);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+      if (deferredDashboardAnalyticsInFlight.current === key) {
+        deferredDashboardAnalyticsInFlight.current = null;
+      }
+    };
+  }, [snapshot.isRegistered, snapshot.userId, snapshot.walletAddress]);
 
   useEffect(() => {
     if (!snapshot?.walletAddress) {
@@ -1424,6 +1446,48 @@ function App() {
     };
   }
 
+  function numericDisplayValue(value: string | number | null | undefined) {
+    return Number(String(value ?? "0").replace(/[$,]/g, ""));
+  }
+
+  function mergeSnapshotPreservingDeferredAnalytics(prev: DashboardSnapshot, next: DashboardSnapshot): DashboardSnapshot {
+    const hasBranchStats =
+      next.leftBranchNodes > 0 ||
+      next.rightBranchNodes > 0 ||
+      next.levelTreeLeft > 0 ||
+      next.levelTreeRight > 0 ||
+      numericDisplayValue(next.totalTeamBusiness) > 0;
+    const hasDeferredIncome =
+      numericDisplayValue(next.spilloverIncome) > 0 ||
+      numericDisplayValue(next.crossLineIncome) > 0 ||
+      Object.keys(next.directReferralIncomeByUserId ?? {}).length > 0 ||
+      (next.networkBonusHistory?.length ?? 0) > 0;
+
+    return {
+      ...next,
+      packageOneBucketEarnings: next.packageOneBucketEarnings !== "0" ? next.packageOneBucketEarnings : prev.packageOneBucketEarnings,
+      currentPackageBucketEarnings: next.currentPackageBucketEarnings !== "0" ? next.currentPackageBucketEarnings : prev.currentPackageBucketEarnings,
+      boxEarningsByPackage: Object.keys(next.boxEarningsByPackage ?? {}).length ? next.boxEarningsByPackage : prev.boxEarningsByPackage,
+      totalTeamBusiness: hasBranchStats ? next.totalTeamBusiness : prev.totalTeamBusiness,
+      leftBranchNodes: hasBranchStats ? next.leftBranchNodes : prev.leftBranchNodes,
+      rightBranchNodes: hasBranchStats ? next.rightBranchNodes : prev.rightBranchNodes,
+      leftBranchBusiness: hasBranchStats ? next.leftBranchBusiness : prev.leftBranchBusiness,
+      rightBranchBusiness: hasBranchStats ? next.rightBranchBusiness : prev.rightBranchBusiness,
+      levelTreeLeft: hasBranchStats ? next.levelTreeLeft : prev.levelTreeLeft,
+      levelTreeRight: hasBranchStats ? next.levelTreeRight : prev.levelTreeRight,
+      spilloverIncome: hasDeferredIncome ? next.spilloverIncome : prev.spilloverIncome,
+      crossLineIncome: hasDeferredIncome ? next.crossLineIncome : prev.crossLineIncome,
+      directReferralIncomeByUserId:
+        Object.keys(next.directReferralIncomeByUserId ?? {}).length > 0
+          ? next.directReferralIncomeByUserId
+          : prev.directReferralIncomeByUserId,
+      networkBonusHistory:
+        (next.networkBonusHistory?.length ?? 0) > 0
+          ? next.networkBonusHistory
+          : prev.networkBonusHistory
+    };
+  }
+
   function hasPositiveBoxEarnings(boxResult: {
     packageOneBucketEarnings: string;
     currentPackageBucketEarnings: string;
@@ -1465,6 +1529,18 @@ function App() {
     });
   }
 
+  function applyDeferredDashboardAnalytics(userId: number, analytics: Partial<DashboardSnapshot>) {
+    setSnapshot((prev) => {
+      if (!prev || prev.userId !== userId || !prev.isRegistered) {
+        return prev;
+      }
+      return {
+        ...prev,
+        ...analytics
+      };
+    });
+  }
+
   async function refreshSnapshot(walletAddress?: string | null) {
     startLoadingSession("loading user profile", "Loading user profile...");
     setLoadStage("profile");
@@ -1474,7 +1550,7 @@ function App() {
     );
     setLoadStage("income");
     beginLoadPhase("loading analytics", "Loading analytics...");
-    setSnapshot(nextSnapshot);
+    setSnapshot((current) => mergeSnapshotPreservingDeferredAnalytics(current, nextSnapshot));
     beginLoadPhase("loading tree", "Loading tree...");
     beginLoadPhase("loading earnings", "Loading earnings...");
     setLoadStage("complete");
