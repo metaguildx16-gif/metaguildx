@@ -193,6 +193,7 @@ function App() {
   const [levelBreakdown, setLevelBreakdown] = useState<{ level: number; amount: string; members: number }[]>([]);
   const [personalTreePreview, setPersonalTreePreview] = useState<TreePreviewNode[]>([]);
   const [isLoadingLevelTree, setIsLoadingLevelTree] = useState(false);
+  const [isBoxEarningsSyncing, setIsBoxEarningsSyncing] = useState(false);
   const [selectedRebirthId, setSelectedRebirthId] = useState<number | null>(null);
   const [rebirthNavStack, setRebirthNavStack] = useState<number[]>([]);
   const [rebirthNodeDetails, setRebirthNodeDetails] = useState<TreeNodeDetails | null>(null);
@@ -1274,7 +1275,7 @@ function App() {
       setLevelBreakdown([]);
       return;
     }
-    if (dashboardView !== "income") {
+    if (dashboardView !== "income" || earningsDashTab !== "levels") {
       return;
     }
     let isActive = true;
@@ -1291,7 +1292,40 @@ function App() {
     });
 
     return () => { isActive = false; };
-  }, [dashboardView, snapshot.userId, snapshot.levelIncome]);
+  }, [dashboardView, earningsDashTab, snapshot.userId, snapshot.levelIncome]);
+
+  useEffect(() => {
+    if (
+      dashboardView !== "income" ||
+      earningsDashTab !== "boxcross" ||
+      !snapshot.isRegistered ||
+      !snapshot.userId ||
+      Object.keys(snapshot.boxEarningsByPackage ?? {}).length > 0
+    ) {
+      return;
+    }
+
+    let isActive = true;
+    setIsBoxEarningsSyncing(true);
+    const _boxProvider = new JsonRpcProvider(activeNetworkConfig.rpcUrl || PUBLIC_TESTNET_RPC);
+    metaguildx.loadBoxEarningsForUser({
+      userId: snapshot.userId,
+      provider: _boxProvider,
+      incomeAddress: metaguildx.getConfiguredIncomeAddress
+    }).then((boxResult) => {
+      if (isActive) {
+        applyDeferredBoxEarnings(snapshot.walletAddress, snapshot.userId!, boxResult);
+      }
+    }).catch(() => {}).finally(() => {
+      if (isActive) {
+        setIsBoxEarningsSyncing(false);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [dashboardView, earningsDashTab, snapshot.isRegistered, snapshot.userId, snapshot.walletAddress, snapshot.boxEarningsByPackage]);
 
   useEffect(() => {
     if (["tree", "network"].includes(dashboardView)) {
@@ -3931,6 +3965,7 @@ function App() {
       asMgx,
       availableStakeAmount,
       boxEarningsDisplay,
+      isBoxEarningsSyncing,
       canSubmitStake,
       canUpgradeCurrentPackage,
       canUseIndexedStakingActions,

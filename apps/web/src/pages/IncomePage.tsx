@@ -7,6 +7,7 @@ export function IncomePage(props: DashboardPageProps) {
     asMgx,
     availableStakeAmount,
     boxEarningsDisplay,
+    isBoxEarningsSyncing,
     canSubmitStake,
     canUpgradeCurrentPackage,
     canUseIndexedStakingActions,
@@ -288,7 +289,9 @@ export function IncomePage(props: DashboardPageProps) {
                   </div>
                 ))}
                 {Object.keys(boxEarningsDisplay).length === 0 ? (
-                  <div className="py-4 text-center text-sm text-gray-500">No box earnings yet</div>
+                  <div className="py-4 text-center text-sm text-gray-500">
+                    {isBoxEarningsSyncing ? "Syncing box earnings..." : "No box earnings yet"}
+                  </div>
                 ) : null}
               </div>
             </article>

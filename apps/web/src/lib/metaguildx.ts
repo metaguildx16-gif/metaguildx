@@ -659,6 +659,16 @@ type PersistedCrosslineIncome = {
   timestamp: number;
 };
 
+type LevelBreakdownRow = { level: number; amount: string; members: number };
+
+type PersistedLevelBreakdown = {
+  lastScannedBlock: number;
+  data: LevelBreakdownRow[];
+  amountRawByLevel?: Record<string, string>;
+  memberIdsByLevel?: Record<string, number[]>;
+  timestamp: number;
+};
+
 type PersistedBranchStats = {
   data: {
     leftDirectChildId: number;
@@ -3610,7 +3620,7 @@ export async function loadLevelTreePreview(connectedUserId: number | null): Prom
 export async function loadLevelIncomeBreakdown(
   userId: number,
   totalLevelIncome = 0
-): Promise<{ level: number; amount: string; members: number }[]> {
+): Promise<LevelBreakdownRow[]> {
   const fallbackRows = Array.from({ length: 10 }, (_, i) => ({
     level: i + 1,
     amount: i === 0 && totalLevelIncome > 0 ? totalLevelIncome.toFixed(2) : "0.00",
@@ -3635,7 +3645,56 @@ export async function loadLevelIncomeBreakdown(
   try {
     const provider = await getReadProvider();
     const currentBlock = await provider.getBlockNumber();
+    const persistentCacheKey = `mgx_level_breakdown_v1_${getDeploymentCacheNamespace()}_${userId}`;
+    const persisted = readPersistentJson<PersistedLevelBreakdown>(persistentCacheKey);
+    if (
+      persisted &&
+      Date.now() - persisted.timestamp < SNAPSHOT_LOCAL_CACHE_TTL &&
+      Number.isFinite(persisted.lastScannedBlock) &&
+      persisted.lastScannedBlock >= currentBlock
+    ) {
+      levelBreakdownCache.set(levelCacheKey, {
+        data: persisted.data,
+        timestamp: Date.now()
+      });
+      return persisted.data;
+    }
+
     const routerAddresses = getHistoricalIncomeRouterAddresses(configuredIncomeRouterAddress);
+    const startBlock = Math.max(
+      persisted && Number.isFinite(persisted.lastScannedBlock) ? persisted.lastScannedBlock + 1 : 0,
+      OPBNB_TESTNET_DEPLOYMENT_START_BLOCK
+    );
+    const amountByLevel: Record<number, bigint> = {};
+    const membersByLevel: Record<number, Set<number>> = {};
+    const persistedAmountRawByLevel = persisted?.amountRawByLevel ?? {};
+    const persistedMemberIdsByLevel = persisted?.memberIdsByLevel ?? {};
+
+    for (let level = 1; level <= 10; level++) {
+      amountByLevel[level] = BigInt(persistedAmountRawByLevel[String(level)] ?? "0");
+      membersByLevel[level] = new Set(persistedMemberIdsByLevel[String(level)] ?? []);
+    }
+
+    if (startBlock > currentBlock) {
+      const rows = persisted?.data ?? fallbackRows.map((row) => ({ ...row, amount: "0.00", members: 0 }));
+      levelBreakdownCache.set(levelCacheKey, {
+        data: rows,
+        timestamp: Date.now()
+      });
+      writePersistentJson<PersistedLevelBreakdown>(persistentCacheKey, {
+        lastScannedBlock: currentBlock,
+        data: rows,
+        amountRawByLevel: Object.fromEntries(
+          Object.entries(amountByLevel).map(([level, amount]) => [level, amount.toString()])
+        ),
+        memberIdsByLevel: Object.fromEntries(
+          Object.entries(membersByLevel).map(([level, members]) => [level, [...members]])
+        ),
+        timestamp: Date.now()
+      });
+      return rows;
+    }
+
     let events: any[] = [];
     try {
       const eventResults = await Promise.all(
@@ -3651,7 +3710,7 @@ export async function loadLevelIncomeBreakdown(
             queryAllEvents(
               router,
               router.filters.LevelIncomeRecorded(null, BigInt(userId)),
-              OPBNB_TESTNET_DEPLOYMENT_START_BLOCK,
+              startBlock,
               currentBlock,
               49000
             ),
@@ -3666,7 +3725,7 @@ export async function loadLevelIncomeBreakdown(
       events = [];
     }
     if (events.length === 0) {
-      const emptyRows = Array.from({ length: 10 }, (_, i) => ({
+      const emptyRows = persisted?.data ?? Array.from({ length: 10 }, (_, i) => ({
         level: i + 1,
         amount: "0.00",
         members: 0
@@ -3675,11 +3734,19 @@ export async function loadLevelIncomeBreakdown(
         data: emptyRows,
         timestamp: Date.now()
       });
+      writePersistentJson<PersistedLevelBreakdown>(persistentCacheKey, {
+        lastScannedBlock: currentBlock,
+        data: emptyRows,
+        amountRawByLevel: Object.fromEntries(
+          Object.entries(amountByLevel).map(([level, amount]) => [level, amount.toString()])
+        ),
+        memberIdsByLevel: Object.fromEntries(
+          Object.entries(membersByLevel).map(([level, members]) => [level, [...members]])
+        ),
+        timestamp: Date.now()
+      });
       return emptyRows;
     }
-
-    const amountByLevel: Record<number, bigint> = {};
-    const membersByLevel: Record<number, Set<number>> = {};
 
     for (const ev of events) {
       if (!("args" in ev)) {
@@ -3710,6 +3777,17 @@ export async function loadLevelIncomeBreakdown(
     });
     levelBreakdownCache.set(levelCacheKey, {
       data: rows,
+      timestamp: Date.now()
+    });
+    writePersistentJson<PersistedLevelBreakdown>(persistentCacheKey, {
+      lastScannedBlock: currentBlock,
+      data: rows,
+      amountRawByLevel: Object.fromEntries(
+        Object.entries(amountByLevel).map(([level, amount]) => [level, amount.toString()])
+      ),
+      memberIdsByLevel: Object.fromEntries(
+        Object.entries(membersByLevel).map(([level, members]) => [level, [...members]])
+      ),
       timestamp: Date.now()
     });
     return rows;
