@@ -10,7 +10,7 @@ import {
   type LifiChain,
   type LifiQuote,
   type LifiToken
-} from "../lib/crosschain";
+} from "../lib/bridge";
 
 const HISTORY_KEY = "mgx_crosschain_history";
 const DEFAULT_FROM_CHAIN = 56;
