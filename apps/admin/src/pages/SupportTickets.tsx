@@ -17,13 +17,11 @@ type SupportTicket = {
 };
 
 const SIGNER_URL = import.meta.env.VITE_PLACEMENT_SIGNER_URL ?? "https://signer.metaguildx.net";
-const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN ?? "";
 const categories: Array<TicketCategory | "all"> = ["all", "Income Issue", "Tree Issue", "Registration", "Upgrade", "Other"];
 const statuses: Array<TicketStatus | "all"> = ["all", "open", "in_review", "resolved"];
 
 async function loadTickets(): Promise<SupportTicket[]> {
   const res = await fetch(`${SIGNER_URL}/support/tickets`, {
-    headers: { "x-admin-token": ADMIN_TOKEN }
   });
   if (!res.ok) {
     throw new Error(`Failed to load tickets: ${res.status}`);
@@ -40,7 +38,6 @@ async function respondToTicket(
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
-      "x-admin-token": ADMIN_TOKEN
     },
     body: JSON.stringify({ adminResponse, status })
   });
