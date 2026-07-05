@@ -46,7 +46,7 @@ The deployed architecture includes:
 | TokenEngine | VERIFIED: `0xD3f119B64B72303F3fd3749a314E902D92fc75cd` |
 | Contract owner | VERIFIED: Gnosis Safe `0x6D01d1E9771193467B5fae47Ce8463d7060098eA` |
 | Active users | VERIFIED: 144+ |
-| Total MGX distributed | VERIFIED: 9,780 MGX across 144 users |
+| Total MGX distributed | VERIFIED: 9,850 MGX across 144 users |
 
 ### MGX Supply
 VERIFIED: Total MGX supply is fixed at 511,750,000 MGX. `launchMinted=true`; no mint after launch.
@@ -112,7 +112,9 @@ VERIFIED:
 VERIFIED:
 
 - MGXStaking is deployed and operational.
-- Reward pool is funded with 10,235,000 MGX.
+- Initial staking rewardPool tranche is funded with 10,235,000 MGX.
+- Full staking pool allocation is 51,175,000 MGX, released in stages.
+- Remaining staking pool to fund is 40,940,000 MGX.
 - totalStaked is 40 MGX, test only.
 - rewardRate is 3 bps, equal to 0.03% per day.
 - Lock periods are 30, 90, 180, 365, and 730 days.
@@ -143,6 +145,8 @@ MGXStaking contract is deployed and operational. The Foundation monitors adoptio
 
 ### Distribution Lifecycle Policy
 Upon full community distribution, the protocol transitions from token distribution incentives to token utility. The Foundation may establish buyback or redistribution mechanisms through governance at that stage.
+
+NoTokensAvailable() is a platform maturity milestone, not a failure.
 
 ### Treasury Refill Policy
 The Foundation monitors Core MGX balance and maintains operational reserves. Refill thresholds are operational decisions that may evolve with growth.
@@ -178,4 +182,3 @@ The following are intentionally not promised in this document:
 - Liquidity deployment schedule.
 - Future governance voting parameters.
 - NFT and gaming launch dates.
-

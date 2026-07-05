@@ -27,16 +27,19 @@ VERIFIED total supply: 511,750,000 MGX.
 | Allocation | Amount | Percent | Current Location / Purpose |
 | --- | ---: | ---: | --- |
 | Community | 307,050,000 MGX | 60% | Core staged funding; Core currently holds 19,990,220 MGX |
-| Liquidity | 102,350,000 MGX | 20% | Includes 10% staking reward pool and 10% future DEX policy split |
+| Liquidity | 102,350,000 MGX | 20% | Subdivided into staking reward pool and future DEX liquidity |
 | Reserve | 102,350,000 MGX | 20% | Deployer staging wallet; future use |
 
-### Liquidity Split Clarification
-The 20% liquidity allocation equals 102,350,000 MGX.
+### Liquidity Allocation
+The 20% liquidity allocation (102,350,000 MGX) is subdivided:
+
+- 50% (51,175,000 MGX): Staking reward pool (initial tranche: 10,235,000 MGX funded).
+- 50% (51,175,000 MGX): Future DEX liquidity (Phase 5).
 
 | Sub-Bucket | Amount | Status |
 | --- | ---: | --- |
-| Staking reward pool | 51,175,000 MGX equivalent policy bucket | 10,235,000 MGX currently funded to MGXStaking rewardPool |
-| Future DEX liquidity | 51,175,000 MGX equivalent policy bucket | Held in deployer staging wallet pending future DEX work |
+| Staking reward pool | 51,175,000 MGX | Initial tranche of 10,235,000 MGX funded; 40,940,000 MGX remaining staged |
+| Future DEX liquidity | 51,175,000 MGX | Held in deployer staging wallet pending future DEX work |
 
 VERIFIED: MGXStaking rewardPool is currently funded with 10,235,000 MGX.
 
@@ -52,17 +55,17 @@ UNKNOWN: The full future release mechanics for the remaining staking bucket and 
 ### Current Distribution Status
 VERIFIED:
 
-- Total distributed: 9,780 MGX.
+- Total distributed: 9,850 MGX.
 - Users receiving distribution: 144 users.
 - Community allocation: 307,050,000 MGX.
 
 | Metric | Value |
 | --- | ---: |
-| Distributed MGX | 9,780 |
+| Distributed MGX | 9,850 |
 | Community allocation | 307,050,000 |
-| Percent distributed | 0.003% |
+| Percent distributed | 0.003208% |
 
-Calculation: 9,780 / 307,050,000 = approximately 0.003%.
+Calculation: 9,850 / 307,050,000 = approximately 0.003208%.
 
 ### Box Release System
 VERIFIED box release system:
@@ -84,6 +87,7 @@ Current box:
 
 - VERIFIED: Current Box is Box 1.
 - VERIFIED: Box 1 price is $1.00/MGX.
+- VERIFIED: Total USD to exhaust all boxes is $569,577,750.
 
 ### Package Ladder
 | Package | Amount |
@@ -127,7 +131,9 @@ VERIFIED:
 VERIFIED:
 
 - MGXStaking address: `0xD18E7b23AeD67340bf974311d490cd4b903e26A3`.
-- Staking rewardPool: 10,235,000 MGX funded.
+- Staking rewardPool initial tranche: 10,235,000 MGX funded.
+- Full staking pool allocation: 51,175,000 MGX.
+- Remaining staking pool to fund: 40,940,000 MGX staged.
 - totalStaked: 40 MGX, test only.
 - rewardRate: 3 bps, equal to 0.03% per day.
 - Lock periods: 30, 90, 180, 365, and 730 days.
@@ -145,6 +151,8 @@ MGXStaking contract is deployed and operational. The Foundation monitors adoptio
 ### Future Tokenomics Evolution
 Upon full community distribution, the protocol transitions from token distribution incentives to token utility. The Foundation may establish buyback or redistribution mechanisms through governance at that stage.
 
+Upon exhaustion of Box 10, the Foundation may establish buyback or redistribution mechanisms through governance. NoTokensAvailable() is a platform maturity milestone, not a failure.
+
 ### Treasury Policy
 The Foundation monitors Core MGX balance and maintains operational reserves. Refill thresholds are operational decisions that may evolve with growth.
 
@@ -153,4 +161,3 @@ The Foundation monitors Core MGX balance and maintains operational reserves. Ref
 - Future DEX launch timing.
 - Reserve release schedule.
 - Final governance parameters.
-

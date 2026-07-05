@@ -19,7 +19,9 @@ This document reflects deployed staking state and separates contract facts from 
 | Address | VERIFIED: `0xD18E7b23AeD67340bf974311d490cd4b903e26A3` |
 | Chain | VERIFIED: opBNB Mainnet |
 | Owner | VERIFIED: Gnosis Safe `0x6D01d1E9771193467B5fae47Ce8463d7060098eA` |
-| Reward pool | VERIFIED: 10,235,000 MGX funded |
+| Initial rewardPool tranche | VERIFIED: 10,235,000 MGX funded |
+| Full staking pool allocation | VERIFIED: 51,175,000 MGX, staged release from liquidity allocation |
+| Remaining staking pool to fund | VERIFIED: 40,940,000 MGX staged |
 | totalStaked | VERIFIED: 40 MGX, test only |
 | rewardRate | VERIFIED: 3 bps, 0.03% per day |
 
@@ -28,7 +30,9 @@ VERIFIED: MGXStaking contract is deployed and operational.
 
 Current state:
 
-- Reward pool is funded.
+- Initial tranche funded: 10,235,000 MGX.
+- Full allocation: 51,175,000 MGX, staged release from liquidity allocation.
+- Remaining staking pool to fund: 40,940,000 MGX.
 - 40 MGX is staked as test activity.
 - The contract supports staking operations.
 - Broader community activation is a Foundation policy decision, not a deployment blocker.
@@ -64,7 +68,7 @@ VERIFIED:
 | Parameter | Value |
 | --- | ---: |
 | rewardRate | 3 bps, equal to 0.03% per day |
-| DAILY_RELEASE_BPS | 10, equal to 0.1% per day release parameter |
+| DAILY_RELEASE_BPS | 10, release parameter separate from staking rewardRate |
 | Action fee | 20% |
 
 ## Foundation Policy (Evolving)
@@ -79,7 +83,8 @@ MGXStaking contract is deployed and operational. The Foundation monitors adoptio
 | Prerequisite | Status |
 | --- | --- |
 | Contract deployed | VERIFIED: complete |
-| RewardPool funded | VERIFIED: complete |
+| Initial RewardPool tranche funded | VERIFIED: 10,235,000 MGX |
+| Full staking pool allocation | VERIFIED: 51,175,000 MGX staged |
 | Test stake present | VERIFIED: 40 MGX |
 | UI completion | FUTURE WORK |
 | Public staking guide | FUTURE WORK |
@@ -118,4 +123,3 @@ FUTURE WORK:
 - Minimum adoption threshold.
 - Final education schedule.
 - Long-term rewardPool refill policy.
-

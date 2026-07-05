@@ -36,12 +36,13 @@ VERIFIED:
 | --- | ---: | --- |
 | Total supply | 511,750,000 MGX | Fixed; no mint after launch |
 | Community allocation | 307,050,000 MGX | 60% |
-| Liquidity allocation | 102,350,000 MGX | 20%; includes staking pool and future DEX policy split |
+| Liquidity allocation | 102,350,000 MGX | 20%; split into 51,175,000 MGX staking pool and 51,175,000 MGX future DEX liquidity |
 | Reserve allocation | 102,350,000 MGX | 20%; held in deployer staging wallet for future use |
 | Deployer staging wallet | 481,515,310 MGX | Operational staging balance |
 | Core | 19,990,220 MGX | Staged community distribution balance |
-| Staking rewardPool | 10,235,000 MGX | Funded |
-| Distributed to users | 9,780 MGX | Across 144 users |
+| Staking rewardPool | 10,235,000 MGX | Initial tranche funded |
+| Remaining staking pool to fund | 40,940,000 MGX | Staged release from liquidity allocation |
+| Distributed to users | 9,850 MGX | Across 144 users |
 
 ### Why Deployer Holds 481M MGX
 VERIFIED: Launch allocations were minted to the deployer address intentionally as an operational staging model.
@@ -49,7 +50,7 @@ VERIFIED: Launch allocations were minted to the deployer address intentionally a
 This staging model currently holds:
 
 - Community allocation not yet staged into Core.
-- Liquidity allocation pending future DEX operations.
+- Liquidity allocation pending staking staged funding and future DEX operations.
 - Reserve allocation pending future reserve policy.
 
 This does not make the deployer wallet the permanent treasury structure.
@@ -69,6 +70,8 @@ Current verified state:
 VERIFIED:
 
 - Liquidity allocation is 102,350,000 MGX.
+- Staking pool subdivision is 51,175,000 MGX, with 10,235,000 MGX initially funded and 40,940,000 MGX remaining staged.
+- Future DEX liquidity subdivision is 51,175,000 MGX.
 - It is currently held in the deployer staging wallet.
 
 Foundation policy:
@@ -116,4 +119,3 @@ No timeline is committed here.
 - Core refill operations should be monitored.
 - Liquidity and reserve movements should be recorded with transaction hashes.
 - Owner-only contract operations should go through Gnosis Safe.
-

@@ -87,7 +87,9 @@ MGXStaking contract is deployed and operational. The Foundation monitors adoptio
 
 #### Verified Facts
 - MGXStaking: `0xD18E7b23AeD67340bf974311d490cd4b903e26A3`.
-- Reward pool: 10,235,000 MGX.
+- Reward pool initial tranche: 10,235,000 MGX.
+- Full staking pool allocation: 51,175,000 MGX.
+- Remaining staking pool to fund: 40,940,000 MGX staged.
 - Reward rate: 3 bps, 0.03% per day.
 - totalStaked: 40 MGX, test only.
 
@@ -99,6 +101,8 @@ MGXStaking contract is deployed and operational. The Foundation monitors adoptio
 
 #### Rationale
 Upon full community distribution, the protocol transitions from token distribution incentives to token utility. The Foundation may establish buyback or redistribution mechanisms through governance at that stage.
+
+NoTokensAvailable() is a platform maturity milestone, not a failure.
 
 #### Future Review Trigger
 Review as Box 10 completion approaches and utility products mature.
@@ -142,7 +146,7 @@ Staged funding limits operational exposure and allows Core to hold only the MGX 
 #### Verified Facts
 - Community allocation: 307,050,000 MGX.
 - Core currently holds 19,990,220 MGX.
-- Total distributed: 9,780 MGX across 144 users.
+- Total distributed: 9,850 MGX across 144 users.
 
 ### 2026-07-05: Deployer Staging Treasury Model
 | Field | Value |
@@ -155,10 +159,9 @@ Deployment scripts verified that `mintLaunchAllocations` was called with `deploy
 
 The deployer wallet currently stages:
 
-- Liquidity allocation for future DEX work.
+- Liquidity allocation split between staged staking pool funding and future DEX work.
 - Reserve allocation for future use.
 - Remaining operational MGX not yet staged into Core.
 
 #### Future Review Trigger
 Review when DEX liquidity operations begin or reserve governance policy is finalized.
-

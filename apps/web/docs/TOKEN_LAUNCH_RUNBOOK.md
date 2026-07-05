@@ -6,7 +6,7 @@ This runbook documents the live token deployment and separates completed protoco
 ## Status Legend
 | Label | Meaning |
 | --- | --- |
-| COMPLETE | Verified deployed or already active. |
+| COMPLETED | Verified deployed or already active. |
 | PENDING | Future action required before use. |
 | POLICY | Operational decision managed by the Foundation. |
 | UNKNOWN | Not yet documented or not yet verified. |
@@ -16,14 +16,14 @@ This runbook documents the live token deployment and separates completed protoco
 ### Current Deployment State
 | Component | Address / Value | Status |
 | --- | --- | --- |
-| MGXToken | `0x04103b36Ac638f4156Ca07149942Eb37ffD8bA81` | COMPLETE |
-| Core | `0xE3cD200609E223c96987c9FEa41C6014e8625c2F` | COMPLETE |
-| MGXStaking | `0xD18E7b23AeD67340bf974311d490cd4b903e26A3` | COMPLETE |
-| TokenEngine | `0xD3f119B64B72303F3fd3749a314E902D92fc75cd` | COMPLETE |
-| Gnosis Safe owner | `0x6D01d1E9771193467B5fae47Ce8463d7060098eA` | COMPLETE |
-| Deployer staging wallet | `0xb1F4D1b91eE4159491652230A2d82EDBB9107ACe` | COMPLETE |
-| Active users | 144+ | COMPLETE |
-| Total MGX distributed | 9,780 MGX | COMPLETE |
+| MGXToken | `0x04103b36Ac638f4156Ca07149942Eb37ffD8bA81` | COMPLETED |
+| Core | `0xE3cD200609E223c96987c9FEa41C6014e8625c2F` | COMPLETED |
+| MGXStaking | `0xD18E7b23AeD67340bf974311d490cd4b903e26A3` | COMPLETED |
+| TokenEngine | `0xD3f119B64B72303F3fd3749a314E902D92fc75cd` | COMPLETED |
+| Gnosis Safe owner | `0x6D01d1E9771193467B5fae47Ce8463d7060098eA` | COMPLETED |
+| Deployer staging wallet | `0xb1F4D1b91eE4159491652230A2d82EDBB9107ACe` | COMPLETED |
+| Active users | 144+ | COMPLETED |
+| Total MGX distributed | 9,850 MGX | COMPLETED |
 
 ### Completed Steps
 - MGXToken is deployed.
@@ -32,7 +32,8 @@ This runbook documents the live token deployment and separates completed protoco
 - Core, TokenEngine, and MGXStaking are deployed.
 - All contracts are owned by Gnosis Safe.
 - Core has staged community allocation funding.
-- Staking reward pool is funded with 10,235,000 MGX.
+- Initial staking rewardPool tranche is funded with 10,235,000 MGX.
+- Full staking pool allocation is 51,175,000 MGX, with 40,940,000 MGX remaining staged.
 - MGXStaking is deployed and operational.
 - Community Building Platform is live on opBNB Mainnet.
 
@@ -41,9 +42,11 @@ This runbook documents the live token deployment and separates completed protoco
 | --- | --- |
 | Current Box | VERIFIED: Box 1 |
 | Box 1 price | VERIFIED: $1.00/MGX |
-| MGX distributed | VERIFIED: 9,780 MGX |
+| MGX distributed | VERIFIED: 9,850 MGX |
 | Core MGX balance | VERIFIED: 19,990,220 MGX |
-| Staking rewardPool | VERIFIED: 10,235,000 MGX |
+| Staking rewardPool initial tranche | VERIFIED: 10,235,000 MGX |
+| Full staking pool allocation | VERIFIED: 51,175,000 MGX |
+| Remaining staking pool to fund | VERIFIED: 40,940,000 MGX |
 | totalStaked | VERIFIED: 40 MGX, test only |
 
 ## Foundation Policy (Evolving)
@@ -96,7 +99,7 @@ MGXStaking contract is deployed and operational. The Foundation monitors adoptio
 Operational checklist:
 
 1. Confirm MGXStaking address: `0xD18E7b23AeD67340bf974311d490cd4b903e26A3`.
-2. Confirm rewardPool balance: 10,235,000 MGX funded.
+2. Confirm rewardPool initial tranche balance: 10,235,000 MGX funded.
 3. Confirm current totalStaked and test stake state.
 4. Confirm staking UI and mobile wallet readiness.
 5. Confirm support and monitoring readiness.
@@ -110,7 +113,9 @@ Status: PENDING.
 VERIFIED:
 
 - Liquidity allocation is 102,350,000 MGX.
-- A staking rewardPool of 10,235,000 MGX is already funded.
+- The staking pool subdivision is 51,175,000 MGX.
+- A staking rewardPool initial tranche of 10,235,000 MGX is already funded.
+- Remaining staking pool to fund is 40,940,000 MGX staged.
 - Future DEX liquidity remains future work.
 
 UNKNOWN:
@@ -139,4 +144,3 @@ UNKNOWN:
 - Owner-only operations require multisig coordination.
 - Deployer wallet is operational staging, not a replacement for owner governance.
 - No private keys or signer secrets should be stored in this document.
-
