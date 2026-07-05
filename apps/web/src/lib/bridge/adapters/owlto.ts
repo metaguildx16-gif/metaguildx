@@ -1,5 +1,5 @@
 import { Bridge } from "owlto-sdk";
-import type { Signer } from "ethers";
+import type { Signer, TransactionRequest } from "ethers";
 import type {
   BridgeChain,
   BridgeQuote,
@@ -17,6 +17,7 @@ const POLYGON_CHAIN_ID = 137;
 const BSC_USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 const OPBNB_USDT_ADDRESS = "0x9e5AAC1Ba1a2e6aEd6b32689DFcF62A509Ca96f3";
 const NATIVE_BNB_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+const OWLTO_LIVE_ENABLED = false;
 
 const CHAIN_NAME_BY_ID: Record<number, string> = {
   [BSC_CHAIN_ID]: "BNBChainMainnet",
@@ -26,6 +27,16 @@ const CHAIN_NAME_BY_ID: Record<number, string> = {
 };
 
 const owltoBridge = new Bridge({});
+
+type OwltoExecutionQuote = BridgeQuote & {
+  fromChainId: number;
+  toChainId: number;
+  fromToken: BridgeToken;
+  toToken: BridgeToken;
+  inputAmount: string;
+  outputAmount: string;
+  provider: "owlto";
+};
 
 const BRIDGE_CHAINS: BridgeChain[] = [
   {
@@ -97,9 +108,27 @@ function findToken(chainId: number, address: string) {
   return TOKENS_BY_CHAIN[chainId]?.find((token) => sameAddress(token.address, address));
 }
 
+function getOwltoChainName(chainId: number): string {
+  if (chainId === BSC_CHAIN_ID) return "BNBChainMainnet";
+  if (chainId === OPBNB_CHAIN_ID) return "opBNBMainnet";
+  throw new Error(`Unsupported Owlto chain: ${chainId}`);
+}
+
+function getOwltoTokenName(symbol: string): string {
+  if (symbol === "USDT") return "USDT";
+  if (symbol === "BNB") return "BNB";
+  throw new Error(`Unsupported Owlto token: ${symbol}`);
+}
+
 function hasRouteInPairs(pairs: unknown, params: QuoteParams) {
-  const fromChain = CHAIN_NAME_BY_ID[params.fromChainId];
-  const toChain = CHAIN_NAME_BY_ID[params.toChainId];
+  let fromChain = "";
+  let toChain = "";
+  try {
+    fromChain = getOwltoChainName(params.fromChainId);
+    toChain = getOwltoChainName(params.toChainId);
+  } catch {
+    return false;
+  }
   const fromToken = findToken(params.fromChainId, params.fromTokenAddress)?.symbol;
   const toToken = findToken(params.toChainId, params.toTokenAddress)?.symbol;
   if (!fromChain || !toChain || !fromToken || !toToken || fromToken !== toToken) {
@@ -113,14 +142,27 @@ function hasRouteInPairs(pairs: unknown, params: QuoteParams) {
   );
 }
 
-function normalizeStatus(receipt: unknown): SwapStatus {
-  const status = typeof receipt === "object" && receipt
-    ? String((receipt as { status?: unknown }).status ?? "").toLowerCase()
-    : "";
-  if (["success", "done", "completed", "complete"].includes(status)) return "success";
-  if (["failed", "failure", "error"].includes(status)) return "failed";
-  if (["pending", "running", "processing"].includes(status)) return "pending";
-  return "unknown";
+function normalizeBuildTxBody(body: unknown): TransactionRequest {
+  const tx = (body ?? {}) as Record<string, unknown>;
+  return {
+    to: typeof tx.to === "string" ? tx.to : undefined,
+    data: typeof tx.data === "string" ? tx.data : "0x",
+    value: tx.value !== undefined && tx.value !== null ? BigInt(String(tx.value)) : undefined,
+    gasLimit: tx.gasLimit !== undefined && tx.gasLimit !== null ? BigInt(String(tx.gasLimit)) : undefined,
+    gasPrice: tx.gasPrice !== undefined && tx.gasPrice !== null ? BigInt(String(tx.gasPrice)) : undefined
+  };
+}
+
+function getUserFriendlyOwltoError(error: unknown): Error {
+  const err = error as { code?: unknown; message?: string };
+  const message = err.message ?? "Unknown error";
+  if (err.code === 4001 || err.code === "ACTION_REJECTED") {
+    return new Error("Transaction cancelled by user");
+  }
+  if (message.toLowerCase().includes("insufficient funds")) {
+    return new Error("Insufficient funds for transaction");
+  }
+  return new Error(`Bridge failed: ${message}`);
 }
 
 export class OwltoAdapter implements IBridgeProvider {
@@ -156,8 +198,14 @@ export class OwltoAdapter implements IBridgeProvider {
       if (!pairs || !hasRouteInPairs(pairs, params)) {
         return null;
       }
-      return {
+      const quote: OwltoExecutionQuote = {
         provider: "owlto",
+        fromChainId: params.fromChainId,
+        toChainId: params.toChainId,
+        fromToken,
+        toToken,
+        inputAmount: params.fromAmount,
+        outputAmount: params.fromAmount,
         estimatedOutput: params.fromAmount,
         fee: { protocol: "Gas only", platform: "0%" },
         estimatedTime: "5-15 minutes",
@@ -188,24 +236,96 @@ export class OwltoAdapter implements IBridgeProvider {
         ],
         tool: "Owlto Finance"
       };
+      return quote;
     } catch {
       return null;
     }
   }
 
-  executeSwap(_quote: BridgeQuote, _signer: Signer): Promise<SwapResult> {
-    throw new Error("Phase 3B: Live transactions not yet enabled");
+  async executeSwap(quote: BridgeQuote, signer: Signer): Promise<SwapResult> {
+    if (!OWLTO_LIVE_ENABLED) {
+      throw new Error("Owlto live transactions not yet enabled for production");
+    }
+
+    try {
+      const owltoQuote = quote as Partial<OwltoExecutionQuote>;
+      if (!owltoQuote.fromChainId || !owltoQuote.toChainId || !owltoQuote.fromToken || !owltoQuote.toToken || !owltoQuote.inputAmount) {
+        throw new Error("Invalid Owlto quote");
+      }
+
+      const network = await signer.provider?.getNetwork();
+      const currentChainId = network ? Number(network.chainId) : 0;
+      if (currentChainId !== owltoQuote.fromChainId) {
+        throw new Error(`Wrong network. Please switch to ${getOwltoChainName(owltoQuote.fromChainId)}`);
+      }
+
+      const fromAddress = await signer.getAddress();
+      const bridge = new Bridge({});
+      const tokenName = getOwltoTokenName(owltoQuote.fromToken.symbol);
+      const fromChainName = getOwltoChainName(owltoQuote.fromChainId);
+      const toChainName = getOwltoChainName(owltoQuote.toChainId);
+      const buildResult = await bridge.getBuildTx(
+        tokenName,
+        fromChainName,
+        toChainName,
+        owltoQuote.inputAmount.toString(),
+        fromAddress,
+        fromAddress
+      );
+      console.log("[Bridge:Owlto] Build tx result:", buildResult);
+
+      if (buildResult.txs?.approveBody) {
+        console.log("[Bridge:Owlto] Approval required, sending approval tx...");
+        const approveTx = await signer.sendTransaction(normalizeBuildTxBody(buildResult.txs.approveBody));
+        console.log("[Bridge:Owlto] Approval tx hash:", approveTx.hash);
+        await approveTx.wait();
+        console.log("[Bridge:Owlto] Approval confirmed");
+      }
+
+      console.log("[Bridge:Owlto] Sending transfer tx...");
+      const transferTx = await signer.sendTransaction(normalizeBuildTxBody(buildResult.txs?.transferBody));
+      console.log("[Bridge:Owlto] Transfer tx hash:", transferTx.hash);
+      await transferTx.wait();
+      console.log("[Bridge:Owlto] Transfer confirmed on source chain");
+
+      const result: SwapResult & {
+        fromChainId: number;
+        toChainId: number;
+        fromToken: BridgeToken;
+        toToken: BridgeToken;
+        inputAmount: string;
+        outputAmount: string;
+        provider: "owlto";
+      } = {
+        txHash: transferTx.hash,
+        status: "pending",
+        fromChainId: owltoQuote.fromChainId,
+        toChainId: owltoQuote.toChainId,
+        fromToken: owltoQuote.fromToken,
+        toToken: owltoQuote.toToken,
+        inputAmount: owltoQuote.inputAmount,
+        outputAmount: owltoQuote.outputAmount ?? owltoQuote.inputAmount,
+        provider: "owlto"
+      };
+      return result;
+    } catch (error) {
+      throw getUserFriendlyOwltoError(error);
+    }
   }
 
   async getStatus(txHash: string, _fromChainId: number, _toChainId: number): Promise<SwapStatus> {
     try {
-      const receipt = await owltoBridge.getReceipt(txHash);
-      if (receipt?.toChainHash) {
-        return "success";
-      }
-      return normalizeStatus(receipt);
+      const bridge = new Bridge({});
+      const receipt = await bridge.getReceipt(txHash);
+      console.log("[Bridge:Owlto] Status for", txHash, ":", receipt);
+      const code = (receipt as unknown as { code?: number | string | null })?.code;
+      if (receipt === null) return "pending";
+      if (code === 1) return "success";
+      if (code === -1) return "failed";
+      if (code !== 0) return "pending";
+      return "pending";
     } catch {
-      return "unknown";
+      return "pending";
     }
   }
 }
