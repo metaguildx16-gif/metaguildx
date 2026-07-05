@@ -319,10 +319,11 @@ export class OwltoAdapter implements IBridgeProvider {
       const receipt = await bridge.getReceipt(txHash);
       console.log("[Bridge:Owlto] Status for", txHash, ":", receipt);
       const code = (receipt as unknown as { code?: number | string | null })?.code;
+      const toChainHash = (receipt as unknown as { toChainHash?: string | null })?.toChainHash;
       if (receipt === null) return "pending";
+      if (typeof toChainHash === "string" && toChainHash.length > 0) return "success";
       if (code === 1) return "success";
       if (code === -1) return "failed";
-      if (code !== 0) return "pending";
       return "pending";
     } catch {
       return "pending";

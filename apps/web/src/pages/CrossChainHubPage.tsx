@@ -372,7 +372,7 @@ export default function CrossChainHubPage() {
   const toChain = chains.find((chain) => chain.id === toChainId);
   const outputAmount = useMemo(() => getQuoteOutput(quote, toToken), [quote, toToken]);
   const amountNumber = Number(amount || "0");
-  const isBnbBridgeRoute = bridgeProvider.id === "bnbbridge";
+  const isBnbBridgeRoute = bridgeProvider.id === "bnbbridge" || bridgeProvider.id === "owlto";
   const insufficientBalance = balance !== null && amountNumber > balance;
   const canQuote = Boolean(wallet && fromToken && toToken && amountNumber > 0);
   const canSwap = Boolean(quote?.transactionRequest && canQuote && !quoteLoading && !swapLoading && !insufficientBalance);
@@ -529,12 +529,17 @@ export default function CrossChainHubPage() {
 
   async function executeSwap() {
     const activeWallet = wallet || await connectWallet();
-    if (!activeWallet || !quote?.transactionRequest || !window.ethereum || !fromToken || !toToken) return;
+    if (!activeWallet || !quote || !window.ethereum || !fromToken || !toToken) return;
     setSwapLoading(true);
     setError("");
     try {
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      if (bridgeProvider.id !== "lifi") {
+        await bridgeProvider.executeSwap(quote, signer);
+        return;
+      }
+      if (!quote.transactionRequest) return;
       const tx = quote.transactionRequest;
       const sent = await signer.sendTransaction({
         to: tx.to,

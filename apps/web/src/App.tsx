@@ -743,6 +743,41 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (isAdminRoute || typeof window === "undefined" || !window.ethereum) {
+      return;
+    }
+
+    const ethereum = window.ethereum as {
+      on?: (event: string, handler: (...args: unknown[]) => void) => void;
+      removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+    };
+    if (!ethereum.on || !ethereum.removeListener) {
+      return;
+    }
+
+    const handleAccountsChanged = (accounts: unknown) => {
+      const nextAccount = Array.isArray(accounts) && typeof accounts[0] === "string"
+        ? accounts[0].toLowerCase()
+        : "";
+      const currentAccount = (snapshot.walletAddress ?? localStorage.getItem(WALLET_STORAGE_KEY) ?? "").toLowerCase();
+      if (nextAccount !== currentAccount) {
+        clearWalletSession();
+        window.location.reload();
+      }
+    };
+    const handleChainChanged = () => {
+      window.location.reload();
+    };
+
+    ethereum.on("accountsChanged", handleAccountsChanged);
+    ethereum.on("chainChanged", handleChainChanged);
+    return () => {
+      ethereum.removeListener?.("accountsChanged", handleAccountsChanged);
+      ethereum.removeListener?.("chainChanged", handleChainChanged);
+    };
+  }, [isAdminRoute, snapshot.walletAddress]);
+
+  useEffect(() => {
     if (screen !== "landing" || !window.ethereum) {
       return;
     }
