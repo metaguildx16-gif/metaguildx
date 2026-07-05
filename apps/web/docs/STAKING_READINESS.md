@@ -1,26 +1,40 @@
 # MGX Staking Readiness
 
+## Documentation Version: v1.0 — Architecture Freeze
+This document reflects deployed staking state and separates contract facts from Foundation activation policy.
+
 ## Status Legend
 | Label | Meaning |
 | --- | --- |
-| FACT | Verified from deployment state or provided contract facts. |
-| ASSUMPTION | Operational interpretation that requires final approval. |
+| VERIFIED | Confirmed from deployment state or supplied contract facts. |
 | UNKNOWN | Not yet documented or not yet verified. |
-| PENDING | Future action required. |
+| FUTURE WORK | Future operational or governance decision. |
 
-## Deployment Confirmation
+## Protocol Specification (Immutable)
+
+### Deployment Confirmation
 | Item | Value |
 | --- | --- |
-| Contract | FACT: MGXStaking |
-| Address | FACT: `0xD18E7b23AeD67340bf974311d490cd4b903e26A3` |
-| Chain | FACT: opBNB Mainnet |
-| Owner | FACT: Gnosis Safe `0x6D01d1E9771193467B5fae47Ce8463d7060098eA` |
-| Reward pool | FACT: 10,235,000 MGX funded |
-| totalStaked | FACT: 40 MGX, test only |
-| rewardRate | FACT: 3 bps, 0.03% per day |
+| Contract | VERIFIED: MGXStaking |
+| Address | VERIFIED: `0xD18E7b23AeD67340bf974311d490cd4b903e26A3` |
+| Chain | VERIFIED: opBNB Mainnet |
+| Owner | VERIFIED: Gnosis Safe `0x6D01d1E9771193467B5fae47Ce8463d7060098eA` |
+| Reward pool | VERIFIED: 10,235,000 MGX funded |
+| totalStaked | VERIFIED: 40 MGX, test only |
+| rewardRate | VERIFIED: 3 bps, 0.03% per day |
 
-## Contract Feature List
-FACT: MGXStaking supports the following documented features:
+### Operational Status
+VERIFIED: MGXStaking contract is deployed and operational.
+
+Current state:
+
+- Reward pool is funded.
+- 40 MGX is staked as test activity.
+- The contract supports staking operations.
+- Broader community activation is a Foundation policy decision, not a deployment blocker.
+
+### Contract Feature List
+VERIFIED feature set:
 
 - MGX staking positions.
 - Reward pool funding.
@@ -31,78 +45,65 @@ FACT: MGXStaking supports the following documented features:
 - Action fee for withdraw/add-to-stake.
 - Treasury top-up variables reserved for future use.
 
-## Lock Periods and Multipliers
-FACT:
+### Lock Periods and Multipliers
+VERIFIED:
 
-| Lock Period | Multiplier Range |
+| Lock Period | Multiplier |
 | --- | --- |
 | 30 days | 100% |
-| 90 days | Within 100% to 115% range |
-| 180 days | Within 100% to 115% range |
-| 365 days | Within 100% to 115% range |
+| 90 days | Within verified 100% to 115% range |
+| 180 days | Within verified 100% to 115% range |
+| 365 days | Within verified 100% to 115% range |
 | 730 days | 115% |
 
-UNKNOWN:
+UNKNOWN: A public table mapping every intermediate lock period to its exact deployed multiplier was not included in the supplied verified facts.
 
-- Final public table mapping each exact period to each exact multiplier is not included in the verified facts supplied for this document.
-
-## Release and Fee Parameters
-FACT:
+### Reward and Fee Parameters
+VERIFIED:
 
 | Parameter | Value |
 | --- | ---: |
-| DAILY_RELEASE_BPS | 10, equal to 0.1% per day |
 | rewardRate | 3 bps, equal to 0.03% per day |
+| DAILY_RELEASE_BPS | 10, equal to 0.1% per day release parameter |
 | Action fee | 20% |
 
-## Current State
-FACT:
+## Foundation Policy (Evolving)
 
-- Staking contract is deployed.
-- Reward pool is funded with 10,235,000 MGX.
-- Only 40 MGX is currently staked and this is test activity.
-- Platform has 144+ active users.
+### Staking Rate Policy
+The staking reward rate is currently set at 0.03% per day. The Foundation may adjust this rate through future governance decisions as ecosystem revenue and treasury sustainability evolve.
 
-## Why Staking Is Not Fully Enabled Now
-ASSUMPTION:
+### Community Activation Policy
+MGXStaking contract is deployed and operational. The Foundation monitors adoption metrics to determine optimal timing for broader community staking activation.
 
-Staking should not be broadly promoted until there is enough user adoption to make reward distribution meaningful and operationally stable.
-
-Reasons:
-
-- Current totalStaked is only 40 MGX and marked as test only.
-- Public staking requires education, support, and monitoring readiness.
-- RewardPool depletion monitoring should be visible before full launch.
-- Staking UI and user instructions should be complete before announcement.
-
-## Readiness Prerequisites
+### Readiness Prerequisites
 | Prerequisite | Status |
 | --- | --- |
-| Contract deployed | FACT: complete |
-| RewardPool funded | FACT: complete |
-| UI completion | PENDING |
-| Public staking guide | PENDING |
-| Support readiness | PENDING |
-| RewardPool monitoring | PENDING |
+| Contract deployed | VERIFIED: complete |
+| RewardPool funded | VERIFIED: complete |
+| Test stake present | VERIFIED: 40 MGX |
+| UI completion | FUTURE WORK |
+| Public staking guide | FUTURE WORK |
+| Support readiness | FUTURE WORK |
+| RewardPool monitoring | FUTURE WORK |
 | Minimum adoption threshold | UNKNOWN |
-| Launch announcement | PENDING |
+| Launch announcement | FUTURE WORK |
 
-## Activation Checklist
-Before enabling staking publicly:
+### Activation Checklist
+Before broader public activation:
 
 1. Verify MGXStaking address and owner.
 2. Verify rewardPool balance.
-3. Verify totalStaked and remove or account for test stake context.
+3. Verify totalStaked and test stake context.
 4. Verify front-end staking UI.
 5. Verify mobile wallet compatibility.
 6. Verify claim, compound, withdraw, and add-to-stake flows.
 7. Verify action fee wording.
 8. Publish staking education material.
 9. Set monitoring for rewardPool depletion.
-10. Announce activation.
+10. Announce activation when Foundation policy criteria are met.
 
-## Monitoring Requirements
-PENDING monitoring:
+### Monitoring Requirements
+FUTURE WORK:
 
 - rewardPool balance.
 - totalStaked.
@@ -112,9 +113,9 @@ PENDING monitoring:
 - Failed claim or withdraw transactions.
 - Large individual staking positions.
 
-## Known Unknowns
-- Public staking launch date.
-- Exact adoption threshold.
-- Final marketing and education schedule.
+### Remaining Open Items
+- Public staking activation timing.
+- Minimum adoption threshold.
+- Final education schedule.
 - Long-term rewardPool refill policy.
 

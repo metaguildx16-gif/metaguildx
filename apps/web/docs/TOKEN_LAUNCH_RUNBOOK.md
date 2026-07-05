@@ -1,17 +1,19 @@
 # MGX Token Launch Runbook
 
-## Purpose
-This runbook documents the current MGX token deployment state and future operational procedures. It is documentation only and does not authorize execution of any operation.
+## Documentation Version: v1.0 — Architecture Freeze
+This runbook documents the live token deployment and separates completed protocol state from future Foundation operations.
 
 ## Status Legend
 | Label | Meaning |
 | --- | --- |
 | COMPLETE | Verified deployed or already active. |
 | PENDING | Future action required before use. |
-| DO NOT EXECUTE YET | Operationally available but intentionally deferred. |
+| POLICY | Operational decision managed by the Foundation. |
 | UNKNOWN | Not yet documented or not yet verified. |
 
-## Current Deployment State
+## Protocol Specification (Immutable)
+
+### Current Deployment State
 | Component | Address / Value | Status |
 | --- | --- | --- |
 | MGXToken | `0x04103b36Ac638f4156Ca07149942Eb37ffD8bA81` | COMPLETE |
@@ -23,7 +25,7 @@ This runbook documents the current MGX token deployment state and future operati
 | Active users | 144+ | COMPLETE |
 | Total MGX distributed | 9,780 MGX | COMPLETE |
 
-## What Is Complete
+### Completed Steps
 - MGXToken is deployed.
 - Launch mint is complete.
 - Total supply is fixed at 511,750,000 MGX.
@@ -31,19 +33,32 @@ This runbook documents the current MGX token deployment state and future operati
 - All contracts are owned by Gnosis Safe.
 - Core has staged community allocation funding.
 - Staking reward pool is funded with 10,235,000 MGX.
+- MGXStaking is deployed and operational.
 - Community Building Platform is live on opBNB Mainnet.
 
-## What Requires Future Action
+### Current Token State
+| Item | Value |
+| --- | --- |
+| Current Box | VERIFIED: Box 1 |
+| Box 1 price | VERIFIED: $1.00/MGX |
+| MGX distributed | VERIFIED: 9,780 MGX |
+| Core MGX balance | VERIFIED: 19,990,220 MGX |
+| Staking rewardPool | VERIFIED: 10,235,000 MGX |
+| totalStaked | VERIFIED: 40 MGX, test only |
+
+## Foundation Policy (Evolving)
+
+### Future Action Register
 | Item | Status | Notes |
 | --- | --- | --- |
 | DEX listing | PENDING | Phase 5 MGX DEX is future work. |
-| Liquidity deployment | PENDING | 102,350,000 MGX held in deployer wallet for Phase 5 DEX. |
-| Reserve wallet separation | PENDING | 102,350,000 MGX held in deployer wallet for future use. |
-| Core refill monitoring | PENDING operational routine | Core currently holds 19,990,220 MGX. |
-| Staking public activation | DO NOT EXECUTE YET | Staking contract deployed and funded, but broad activation is deferred. |
+| Liquidity deployment | PENDING | Future DEX component remains policy-controlled. |
+| Reserve wallet separation | PENDING | Reserve currently held in deployer staging wallet. |
+| Core refill monitoring | POLICY | Foundation monitors Core MGX balance and operational reserves. |
+| Broader staking activation | POLICY | Staking is deployed and operational; timing depends on adoption and readiness. |
 | Public liquidity/reserve release schedule | UNKNOWN | No documented release schedule. |
 
-## Future Token Operation Checklist
+### Future Token Operation Checklist
 Before any future token operation:
 
 1. Confirm the target chain is opBNB Mainnet.
@@ -57,10 +72,10 @@ Before any future token operation:
 9. Verify transaction receipt and event logs.
 10. Update this runbook with the result.
 
-## Core Refill Procedure
-Status: PENDING operational routine.
+### Core Refill Procedure
+Status: POLICY.
 
-Use only when Core MGX balance is low enough to require additional staged community allocation.
+The Foundation monitors Core MGX balance and maintains operational reserves. Refill thresholds are operational decisions that may evolve with growth.
 
 Checklist:
 
@@ -68,48 +83,35 @@ Checklist:
 2. Verify MGXToken address: `0x04103b36Ac638f4156Ca07149942Eb37ffD8bA81`.
 3. Verify current Core MGX balance.
 4. Verify deployer staging wallet balance.
-5. Determine refill amount based on expected near-term distribution need.
-6. Transfer MGX from staging wallet to Core.
+5. Determine refill amount based on current operational policy.
+6. Transfer MGX from staging wallet to Core when approved.
 7. Verify Core balance after transfer.
 8. Record transaction hash in operations log.
 
-UNKNOWN:
+### Staking Operations Procedure
+Status: POLICY.
 
-- Minimum Core balance threshold is not documented in this runbook.
-- Refill amount policy is not finalized.
+MGXStaking contract is deployed and operational. The Foundation monitors adoption metrics to determine optimal timing for broader community staking activation.
 
-## Staking Activation Procedure
-Status: DO NOT EXECUTE YET.
+Operational checklist:
 
-Staking contract is deployed and reward pool is funded, but public activation is deferred.
+1. Confirm MGXStaking address: `0xD18E7b23AeD67340bf974311d490cd4b903e26A3`.
+2. Confirm rewardPool balance: 10,235,000 MGX funded.
+3. Confirm current totalStaked and test stake state.
+4. Confirm staking UI and mobile wallet readiness.
+5. Confirm support and monitoring readiness.
+6. Confirm public announcement plan.
+7. Monitor stake, claim, compound, and withdraw activity.
+8. Monitor rewardPool depletion.
 
-Prerequisites:
-
-1. Confirm UI completion.
-2. Confirm staking education material.
-3. Confirm rewardPool balance: 10,235,000 MGX funded.
-4. Confirm current totalStaked and test stake state.
-5. Confirm launch announcement plan.
-6. Confirm support and monitoring readiness.
-7. Confirm operational policy for rewardPool refill or pause conditions.
-
-Activation steps, when approved:
-
-1. Final review of MGXStaking configuration.
-2. Final UI QA on desktop and mobile wallets.
-3. Public announcement.
-4. Enable staking UI if currently hidden or restricted.
-5. Monitor stake, claim, compound, and withdraw activity.
-6. Monitor rewardPool depletion.
-
-## DEX Listing / Liquidity Preparation
+### DEX Listing / Liquidity Preparation
 Status: PENDING.
 
-VERIFIED allocation:
+VERIFIED:
 
-- Liquidity allocation: 102,350,000 MGX.
-- Current holder: deployer staging wallet.
-- Purpose: Phase 5 DEX.
+- Liquidity allocation is 102,350,000 MGX.
+- A staking rewardPool of 10,235,000 MGX is already funded.
+- Future DEX liquidity remains future work.
 
 UNKNOWN:
 
@@ -118,14 +120,13 @@ UNKNOWN:
 - Initial liquidity ratio.
 - Liquidity lock policy.
 
-## Reserve Management
-Status: PENDING.
+### Reserve Management
+Status: POLICY.
 
-VERIFIED allocation:
+VERIFIED:
 
-- Reserve allocation: 102,350,000 MGX.
-- Current holder: deployer staging wallet.
-- Purpose: future use.
+- Reserve allocation is 102,350,000 MGX.
+- Current holder is deployer staging wallet.
 
 UNKNOWN:
 
@@ -133,7 +134,7 @@ UNKNOWN:
 - Reserve use policy.
 - Reserve release schedule.
 
-## Emergency Notes
+### Emergency Notes
 - Contract owner is Gnosis Safe.
 - Owner-only operations require multisig coordination.
 - Deployer wallet is operational staging, not a replacement for owner governance.
