@@ -43,6 +43,14 @@ export type QuoteParams = {
 };
 
 export type BridgeQuote = {
+  provider?: string;
+  estimatedOutput?: string;
+  fee?: {
+    protocol?: string;
+    platform?: string;
+  };
+  estimatedTime?: string;
+  routeName?: string;
   action?: {
     fromAmount?: string;
     fromToken?: BridgeToken;
