@@ -20,7 +20,6 @@ export {
   OPBNB_L1_CROSS_CHAIN_MESSENGER_ADDRESS,
   OPBNB_USDT_ADDRESS
 } from "./adapters/bnbbridge";
-export { OwltoAdapter } from "./adapters/owlto";
 export {
   ENABLE_MGX_SWAP,
   PLATFORM_FEE_BPS,

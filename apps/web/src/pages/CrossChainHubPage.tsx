@@ -1,7 +1,6 @@
 import { BrowserProvider, Contract, formatUnits, parseUnits } from "ethers";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
-  BNB_BRIDGE_URL,
   TREASURY_WALLET,
   formatDuration,
   formatTokenAmount,
@@ -159,8 +158,8 @@ const S = {
     marginTop: 16,
     padding: 18,
     borderRadius: 16,
-    background: "rgba(56,189,248,.12)",
-    border: "1px solid rgba(56,189,248,.32)",
+    background: "linear-gradient(135deg,rgba(56,189,248,.10),rgba(30,41,59,.72))",
+    border: "1px solid rgba(56,189,248,.24)",
     color: "#dbeafe"
   } as CSSProperties,
   qrow: { display: "flex", justifyContent: "space-between", gap: 12, padding: "5px 0", color: "#cbd5e1", fontSize: 13 } as CSSProperties,
@@ -179,22 +178,6 @@ const S = {
     fontWeight: 800,
     boxShadow: disabled ? "none" : "0 16px 36px rgba(56,189,248,.24)"
   }),
-  linkBtn: {
-    display: "inline-flex",
-    justifyContent: "center",
-    width: "100%",
-    marginTop: 14,
-    border: "none",
-    borderRadius: 14,
-    padding: "13px 16px",
-    cursor: "pointer",
-    color: "#06111f",
-    background: "linear-gradient(135deg,#38bdf8,#60a5fa)",
-    fontSize: 15,
-    fontWeight: 800,
-    textDecoration: "none",
-    boxSizing: "border-box"
-  } as CSSProperties,
   history: { marginTop: 20, background: "rgba(30,41,59,.62)", border: "1px solid #334155", borderRadius: 20, padding: 18 } as CSSProperties,
   historyRow: { display: "grid", gridTemplateColumns: "1fr auto", gap: 10, padding: "12px 0", borderTop: "1px solid rgba(51,65,85,.6)" } as CSSProperties,
   pill: (status: SwapHistoryRow["status"]): CSSProperties => ({
@@ -372,9 +355,9 @@ export default function CrossChainHubPage() {
   const toChain = chains.find((chain) => chain.id === toChainId);
   const outputAmount = useMemo(() => getQuoteOutput(quote, toToken), [quote, toToken]);
   const amountNumber = Number(amount || "0");
-  const isBnbBridgeRoute = bridgeProvider.id === "bnbbridge" || bridgeProvider.id === "owlto";
+  const isOpbnbRoute = fromChainId === OPBNB_CHAIN_ID || toChainId === OPBNB_CHAIN_ID;
   const insufficientBalance = balance !== null && amountNumber > balance;
-  const canQuote = Boolean(wallet && fromToken && toToken && amountNumber > 0);
+  const canQuote = Boolean(wallet && fromToken && toToken && amountNumber > 0 && !isOpbnbRoute);
   const canSwap = Boolean(quote?.transactionRequest && canQuote && !quoteLoading && !swapLoading && !insufficientBalance);
 
   useEffect(() => {
@@ -382,7 +365,7 @@ export default function CrossChainHubPage() {
     bridgeProvider.getChains()
       .then((items) => {
         if (!isActive) return;
-        const filtered = bridgeProvider.id === "bnbbridge" ? items : items.filter((chain) => POPULAR_CHAIN_IDS.has(chain.id));
+        const filtered = items.filter((chain) => POPULAR_CHAIN_IDS.has(chain.id));
         setChains(filtered);
       })
       .catch((err) => setError(err instanceof Error ? err.message : `Unable to load ${bridgeProvider.name} chains.`));
@@ -600,8 +583,6 @@ export default function CrossChainHubPage() {
 
   const actionLabel = !wallet
     ? "Connect Wallet"
-    : isBnbBridgeRoute
-    ? "Start Bridge"
     : !amount || amountNumber <= 0
     ? "Enter Amount"
     : quoteLoading
@@ -611,7 +592,7 @@ export default function CrossChainHubPage() {
     : canSwap
     ? "Swap"
     : "Getting Quote...";
-  const actionDisabled = Boolean(wallet) && !isBnbBridgeRoute && (!canSwap || insufficientBalance);
+  const actionDisabled = Boolean(wallet) && (!canSwap || insufficientBalance);
 
   return (
     <div style={S.page}>
@@ -679,21 +660,15 @@ export default function CrossChainHubPage() {
             />
           </div>
 
-          {isBnbBridgeRoute ? (
+          {isOpbnbRoute ? (
             <div style={S.bridgeBox}>
-              <h3 style={{ margin: "0 0 8px", color: "#bae6fd" }}>Bridge via BNB Chain Bridge</h3>
+              <h3 style={{ margin: "0 0 8px", color: "#bae6fd" }}>opBNB Bridge — Coming Soon</h3>
               <p style={{ margin: 0, color: "#bfdbfe", fontSize: 13, lineHeight: 1.55 }}>
-                This route uses the official BNB Chain Bridge. You will bridge 1:1, pay gas only, and settlement usually takes about 5-15 minutes.
+                This bridge route will be enabled once a production-ready provider with opBNB USDT support becomes available.
               </p>
-              {quote ? (
-                <div style={{ marginTop: 12 }}>
-                  <div style={S.qrow}><span style={S.qlabel}>Route</span><strong>{getRouteName(quote)}</strong></div>
-                  <div style={S.qrow}><span style={S.qlabel}>Output</span><strong>{outputAmount || "1:1"}</strong></div>
-                  <div style={S.qrow}><span style={S.qlabel}>Protocol fee</span><strong>Gas only</strong></div>
-                  <div style={S.qrow}><span style={S.qlabel}>Estimated time</span><strong>~5-15 min</strong></div>
-                </div>
-              ) : null}
-              <a href={BNB_BRIDGE_URL} target="_blank" rel="noreferrer" style={S.linkBtn}>Open BNB Bridge</a>
+              <p style={{ margin: "12px 0 0", color: "#94a3b8", fontSize: 13, lineHeight: 1.55 }}>
+                Currently supported: BSC, Ethereum, Polygon, Arbitrum, Avalanche and all other chains via LI.FI.
+              </p>
             </div>
           ) : quote ? (
             <div style={S.quoteBox}>
@@ -705,24 +680,24 @@ export default function CrossChainHubPage() {
             </div>
           ) : null}
 
-          {error && !isBnbBridgeRoute ? <div style={S.error}>{error}</div> : null}
+          {error && !isOpbnbRoute ? <div style={S.error}>{error}</div> : null}
 
-          <button
-            type="button"
-            style={S.actionBtn(actionDisabled)}
-            disabled={actionDisabled}
-            onClick={() => {
-              if (!wallet) {
-                void connectWallet();
-              } else if (isBnbBridgeRoute) {
-                window.open(BNB_BRIDGE_URL, "_blank", "noopener,noreferrer");
-              } else {
-                void executeSwap();
-              }
-            }}
-          >
-            {actionLabel}
-          </button>
+          {!isOpbnbRoute ? (
+            <button
+              type="button"
+              style={S.actionBtn(actionDisabled)}
+              disabled={actionDisabled}
+              onClick={() => {
+                if (!wallet) {
+                  void connectWallet();
+                } else {
+                  void executeSwap();
+                }
+              }}
+            >
+              {actionLabel}
+            </button>
+          ) : null}
 
           <div style={S.helper}>
             {chainLabel(fromChain)} &rarr; {chainLabel(toChain)}
