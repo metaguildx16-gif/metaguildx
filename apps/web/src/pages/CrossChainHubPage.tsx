@@ -1,15 +1,14 @@
 import { BrowserProvider, Contract, formatUnits, parseUnits } from "ethers";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
+  BNB_BRIDGE_URL,
   TREASURY_WALLET,
   formatDuration,
   formatTokenAmount,
-  getLifiChains,
-  getLifiQuote,
-  getLifiTokens,
-  type LifiChain,
-  type LifiQuote,
-  type LifiToken
+  getProvider,
+  type BridgeChain,
+  type BridgeQuote,
+  type BridgeToken
 } from "../lib/bridge";
 
 const HISTORY_KEY = "mgx_crosschain_history";
@@ -18,7 +17,6 @@ const DEFAULT_TO_CHAIN = 1;
 const OPBNB_CHAIN_ID = 204;
 const BSC_USDT = "0x55d398326f99059fF775485246999027B3197955";
 const ETH_USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-const BNB_BRIDGE_URL = "https://opbnb-bridge.bnbchain.org/deposit";
 const NATIVE_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 const ERC20_ABI = [
   "function balanceOf(address) view returns (uint256)",
@@ -242,7 +240,7 @@ function writeHistory(rows: SwapHistoryRow[]) {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(rows.slice(0, 5)));
 }
 
-function chainLabel(chain?: LifiChain) {
+function chainLabel(chain?: BridgeChain) {
   return chain?.name || `Chain ${chain?.id ?? ""}`;
 }
 
@@ -250,11 +248,11 @@ function normalizeAddress(address?: string | null) {
   return (address || "").toLowerCase();
 }
 
-function isNativeToken(token?: LifiToken | null) {
+function isNativeToken(token?: BridgeToken | null) {
   return normalizeAddress(token?.address) === NATIVE_TOKEN_ADDRESS;
 }
 
-function tokenUsdValue(token: LifiToken | null, amount: string) {
+function tokenUsdValue(token: BridgeToken | null, amount: string) {
   const usdPrice = Number(token?.priceUSD ?? 0);
   const parsedAmount = Number(amount || "0");
   if (!Number.isFinite(usdPrice) || !Number.isFinite(parsedAmount) || usdPrice <= 0 || parsedAmount <= 0) {
@@ -268,18 +266,18 @@ function getExplorerUrl(chainId: number, txHash: string) {
   return base ? `${base}${txHash}` : "";
 }
 
-function getQuoteOutput(quote: LifiQuote | null, toToken: LifiToken | null) {
+function getQuoteOutput(quote: BridgeQuote | null, toToken: BridgeToken | null) {
   if (!quote?.estimate?.toAmount || !toToken) {
     return "";
   }
   return formatTokenAmount(quote.estimate.toAmount, toToken.decimals, 6);
 }
 
-function getRouteName(quote: LifiQuote | null) {
+function getRouteName(quote: BridgeQuote | null) {
   return quote?.includedSteps?.map((step) => step.toolDetails?.name || step.tool).filter(Boolean).join(" -> ") || quote?.tool || "LI.FI best route";
 }
 
-function getPriceImpact(quote: LifiQuote | null) {
+function getPriceImpact(quote: BridgeQuote | null) {
   const fromUsd = Number(quote?.estimate?.fromAmountUSD ?? 0);
   const toUsd = Number(quote?.estimate?.toAmountUSD ?? 0);
   if (!fromUsd || !toUsd) {
@@ -290,15 +288,15 @@ function getPriceImpact(quote: LifiQuote | null) {
 
 function TokenPanel(props: {
   label: string;
-  chains: LifiChain[];
+  chains: BridgeChain[];
   chainId: number;
-  token: LifiToken | null;
-  tokens: LifiToken[];
+  token: BridgeToken | null;
+  tokens: BridgeToken[];
   amount?: string;
   outputAmount?: string;
   usdValue?: string;
   onChainChange: (chainId: number) => void;
-  onTokenChange: (token: LifiToken | null) => void;
+  onTokenChange: (token: BridgeToken | null) => void;
   onAmountChange?: (amount: string) => void;
 }) {
   return (
@@ -351,16 +349,16 @@ function TokenPanel(props: {
 }
 
 export default function CrossChainHubPage() {
-  const [chains, setChains] = useState<LifiChain[]>([]);
+  const [chains, setChains] = useState<BridgeChain[]>([]);
   const [fromChainId, setFromChainId] = useState(DEFAULT_FROM_CHAIN);
   const [toChainId, setToChainId] = useState(DEFAULT_TO_CHAIN);
-  const [fromTokens, setFromTokens] = useState<LifiToken[]>([]);
-  const [toTokens, setToTokens] = useState<LifiToken[]>([]);
-  const [fromToken, setFromToken] = useState<LifiToken | null>(null);
-  const [toToken, setToToken] = useState<LifiToken | null>(null);
+  const [fromTokens, setFromTokens] = useState<BridgeToken[]>([]);
+  const [toTokens, setToTokens] = useState<BridgeToken[]>([]);
+  const [fromToken, setFromToken] = useState<BridgeToken | null>(null);
+  const [toToken, setToToken] = useState<BridgeToken | null>(null);
   const [amount, setAmount] = useState("");
   const [wallet, setWallet] = useState<string | null>(null);
-  const [quote, setQuote] = useState<LifiQuote | null>(null);
+  const [quote, setQuote] = useState<BridgeQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [swapLoading, setSwapLoading] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
@@ -369,35 +367,36 @@ export default function CrossChainHubPage() {
   const [modal, setModal] = useState<ModalState | null>(null);
   const quoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const bridgeProvider = useMemo(() => getProvider(fromChainId, toChainId), [fromChainId, toChainId]);
   const fromChain = chains.find((chain) => chain.id === fromChainId);
   const toChain = chains.find((chain) => chain.id === toChainId);
   const outputAmount = useMemo(() => getQuoteOutput(quote, toToken), [quote, toToken]);
   const amountNumber = Number(amount || "0");
-  const isOpbnbDestination = toChainId === OPBNB_CHAIN_ID;
+  const isBnbBridgeRoute = bridgeProvider.id === "bnbbridge";
   const insufficientBalance = balance !== null && amountNumber > balance;
-  const canQuote = Boolean(wallet && fromToken && toToken && amountNumber > 0 && !isOpbnbDestination);
+  const canQuote = Boolean(wallet && fromToken && toToken && amountNumber > 0);
   const canSwap = Boolean(quote?.transactionRequest && canQuote && !quoteLoading && !swapLoading && !insufficientBalance);
 
   useEffect(() => {
     let isActive = true;
-    getLifiChains()
+    bridgeProvider.getChains()
       .then((items) => {
         if (!isActive) return;
-        const filtered = items.filter((chain) => POPULAR_CHAIN_IDS.has(chain.id));
+        const filtered = bridgeProvider.id === "bnbbridge" ? items : items.filter((chain) => POPULAR_CHAIN_IDS.has(chain.id));
         setChains(filtered);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load LI.FI chains."));
+      .catch((err) => setError(err instanceof Error ? err.message : `Unable to load ${bridgeProvider.name} chains.`));
     setHistory(readHistory());
     const selectedAddress = (window.ethereum as unknown as { selectedAddress?: string } | undefined)?.selectedAddress;
     if (selectedAddress) setWallet(selectedAddress);
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [bridgeProvider]);
 
   useEffect(() => {
     let isActive = true;
-    getLifiTokens(fromChainId)
+    bridgeProvider.getTokens(fromChainId)
       .then((tokens) => {
         if (!isActive) return;
         setFromTokens(tokens);
@@ -412,11 +411,11 @@ export default function CrossChainHubPage() {
     return () => {
       isActive = false;
     };
-  }, [fromChainId]);
+  }, [bridgeProvider, fromChainId]);
 
   useEffect(() => {
     let isActive = true;
-    getLifiTokens(toChainId)
+    bridgeProvider.getTokens(toChainId)
       .then((tokens) => {
         if (!isActive) return;
         setToTokens(tokens);
@@ -431,7 +430,7 @@ export default function CrossChainHubPage() {
     return () => {
       isActive = false;
     };
-  }, [toChainId]);
+  }, [bridgeProvider, toChainId]);
 
   useEffect(() => {
     if (!fromToken || !wallet || !window.ethereum) {
@@ -480,7 +479,7 @@ export default function CrossChainHubPage() {
     setError("");
     try {
       const fromAmount = parseUnits(amount, fromToken.decimals).toString();
-      const nextQuote = await getLifiQuote({
+      const nextQuote = await bridgeProvider.getQuote({
         fromChainId,
         toChainId,
         fromTokenAddress: fromToken.address,
@@ -491,7 +490,7 @@ export default function CrossChainHubPage() {
       setQuote(nextQuote);
     } catch (err) {
       setQuote(null);
-      setError(err instanceof Error ? err.message : "No LI.FI route found for this swap.");
+      setError(err instanceof Error ? err.message : `No ${bridgeProvider.name} route found for this swap.`);
     } finally {
       setQuoteLoading(false);
     }
@@ -596,8 +595,8 @@ export default function CrossChainHubPage() {
 
   const actionLabel = !wallet
     ? "Connect Wallet"
-    : isOpbnbDestination
-    ? "Use BNB Bridge"
+    : isBnbBridgeRoute
+    ? "Start Bridge"
     : !amount || amountNumber <= 0
     ? "Enter Amount"
     : quoteLoading
@@ -607,7 +606,7 @@ export default function CrossChainHubPage() {
     : canSwap
     ? "Swap"
     : "Getting Quote...";
-  const actionDisabled = Boolean(wallet) && !isOpbnbDestination && (!canSwap || insufficientBalance);
+  const actionDisabled = Boolean(wallet) && !isBnbBridgeRoute && (!canSwap || insufficientBalance);
 
   return (
     <div style={S.page}>
@@ -675,12 +674,20 @@ export default function CrossChainHubPage() {
             />
           </div>
 
-          {isOpbnbDestination ? (
+          {isBnbBridgeRoute ? (
             <div style={S.bridgeBox}>
-              <h3 style={{ margin: "0 0 8px", color: "#bae6fd" }}>Bridge to opBNB via BNB Chain Bridge</h3>
+              <h3 style={{ margin: "0 0 8px", color: "#bae6fd" }}>Bridge via BNB Chain Bridge</h3>
               <p style={{ margin: 0, color: "#bfdbfe", fontSize: 13, lineHeight: 1.55 }}>
-                LI.FI currently has no opBNB routes. Use the official BNB Chain Bridge to bring USDT or BNB to opBNB, then return to MetaGuildX.
+                This route uses the official BNB Chain Bridge. You will bridge 1:1, pay gas only, and settlement usually takes about 5-15 minutes.
               </p>
+              {quote ? (
+                <div style={{ marginTop: 12 }}>
+                  <div style={S.qrow}><span style={S.qlabel}>Route</span><strong>{getRouteName(quote)}</strong></div>
+                  <div style={S.qrow}><span style={S.qlabel}>Output</span><strong>{outputAmount || "1:1"}</strong></div>
+                  <div style={S.qrow}><span style={S.qlabel}>Protocol fee</span><strong>Gas only</strong></div>
+                  <div style={S.qrow}><span style={S.qlabel}>Estimated time</span><strong>~5-15 min</strong></div>
+                </div>
+              ) : null}
               <a href={BNB_BRIDGE_URL} target="_blank" rel="noreferrer" style={S.linkBtn}>Open BNB Bridge</a>
             </div>
           ) : quote ? (
@@ -693,7 +700,7 @@ export default function CrossChainHubPage() {
             </div>
           ) : null}
 
-          {error && !isOpbnbDestination ? <div style={S.error}>{error}</div> : null}
+          {error && !isBnbBridgeRoute ? <div style={S.error}>{error}</div> : null}
 
           <button
             type="button"
@@ -702,7 +709,7 @@ export default function CrossChainHubPage() {
             onClick={() => {
               if (!wallet) {
                 void connectWallet();
-              } else if (isOpbnbDestination) {
+              } else if (isBnbBridgeRoute) {
                 window.open(BNB_BRIDGE_URL, "_blank", "noopener,noreferrer");
               } else {
                 void executeSwap();
