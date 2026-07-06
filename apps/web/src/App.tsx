@@ -3552,6 +3552,7 @@ function App() {
             .lp-section{padding:4rem 1.25rem}
             .lp-how-grid,.lp-tok-grid{grid-template-columns:1fr}
             .lp-pkg-grid{grid-template-columns:repeat(2,1fr)}
+            .lp-distribution-pkgs{grid-template-columns:repeat(2,1fr) !important}
             .lp-feat-grid{grid-template-columns:1fr}
             .lp-rm-items{grid-template-columns:repeat(2,1fr)}.lp-rm-line{display:none}
             .lp-ft-top{flex-direction:column;gap:2rem}
@@ -3956,7 +3957,7 @@ function App() {
               </div>
               <div className="lp-tok-sub">The native utility token of the MetaGuildX ecosystem</div>
               <div className="lp-tok-stats">
-                {[["Staking APY","10.95%"],["Reward cycle","24 hours"],["Reward pool","10.23M MGX"],["Network","opBNB"]].map(([l,v])=>(
+                {[["Total Supply","511,750,000 MGX"],["Policy","Fixed — No new mint"],["Chain","opBNB Mainnet"],["Distribution","Box 1–10 System"]].map(([l,v])=>(
                   <div key={l} className="lp-ts">
                     <div className="lp-ts-l">{l}</div>
                     <div className="lp-ts-v">{v}</div>
@@ -3967,13 +3968,12 @@ function App() {
             <div className="lp-donut-wrap">
               <svg style={{transform:"rotate(-90deg)",filter:"drop-shadow(0 0 16px rgba(201,168,76,.1))"}} width="200" height="200" viewBox="0 0 200 200">
                 <circle cx="100" cy="100" r="70" fill="none" stroke="rgba(46,111,216,.08)" strokeWidth="28"/>
-                <circle cx="100" cy="100" r="70" fill="none" stroke="#C9A84C" strokeWidth="28" strokeDasharray="439.8 537.2" strokeDashoffset="0"/>
-                <circle cx="100" cy="100" r="70" fill="none" stroke="#2E6FD8" strokeWidth="28" strokeDasharray="195.5 781.5" strokeDashoffset="-439.8"/>
-                <circle cx="100" cy="100" r="70" fill="none" stroke="#2EC48F" strokeWidth="28" strokeDasharray="195.5 781.5" strokeDashoffset="-635.3"/>
-                <circle cx="100" cy="100" r="70" fill="none" stroke="#1A4B8C" strokeWidth="28" strokeDasharray="146.6 830.4" strokeDashoffset="-830.8"/>
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#C9A84C" strokeWidth="28" strokeDasharray="263.9 713.1" strokeDashoffset="0"/>
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#2E6FD8" strokeWidth="28" strokeDasharray="87.96 889.04" strokeDashoffset="-263.9"/>
+                <circle cx="100" cy="100" r="70" fill="none" stroke="#2EC48F" strokeWidth="28" strokeDasharray="87.96 889.04" strokeDashoffset="-351.86"/>
               </svg>
               <div className="lp-legend">
-                {[["#C9A84C","Staking rewards","45%"],["#2E6FD8","Team & development","20%"],["#2EC48F","Community & ecosystem","20%"],["#1A4B8C","Reserve","15%"]].map(([c,n,p])=>(
+                {[["#C9A84C","Community","60%"],["#2E6FD8","Liquidity","20%"],["#2EC48F","Reserve","20%"]].map(([c,n,p])=>(
                   <div key={n} className="lp-leg">
                     <div className="lp-leg-l"><div className="lp-leg-dot" style={{background:c}}></div><span style={{color:"#7A93C0"}}>{n}</span></div>
                     <div className="lp-leg-pct">{p}</div>
@@ -3981,6 +3981,79 @@ function App() {
                 ))}
               </div>
             </div>
+          </div>
+        </section>
+        <div className="lp-sep"></div>
+
+        {/* —— PLATFORM DISTRIBUTION MODEL —— */}
+        <section className="lp-section" id="lp-distribution">
+          <div className="lp-lbl">Distribution Model</div>
+          <h2 className="lp-stitle">Platform Distribution Model</h2>
+          <p style={{textAlign:"center",color:"#7A93C0",fontSize:"0.95rem",maxWidth:"600px",margin:"0 auto 3rem"}}>
+            Every registration is processed automatically by the MetaGuildX smart contracts according to the platform distribution model.
+          </p>
+
+          {/* Package Levels */}
+          <div className="lp-lbl" style={{marginBottom:"1.5rem"}}>Package Levels</div>
+          <div className="lp-distribution-pkgs" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:"0.75rem",marginBottom:"3rem"}}>
+            {[
+              ["L1","$10"],["L2","$20"],["L3","$40"],["L4","$80"],["L5","$160"],
+              ["L6","$320"],["L7","$640"],["L8","$1,280"],["L9","$2,560"],["L10","$5,120"]
+            ].map(([level,price])=>(
+              <div key={level} style={{
+                background:"rgba(255,255,255,0.04)",
+                border:"1px solid rgba(201,168,76,0.15)",
+                borderRadius:"10px",
+                padding:"1rem",
+                textAlign:"center"
+              }}>
+                <div style={{color:"#7A93C0",fontSize:"0.8rem",marginBottom:"0.4rem"}}>{level}</div>
+                <div style={{color:"#C9A84C",fontWeight:700,fontSize:"1.05rem"}}>{price}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Distribution Breakdown */}
+          <div className="lp-lbl" style={{marginBottom:"1.5rem"}}>Distribution Breakdown</div>
+          <div className="lp-feat-grid" style={{marginBottom:"3rem"}}>
+            {[
+              ["💸","Direct Income","46%","Distributed to direct upline automatically"],
+              ["📊","Level Income","40%","Distributed across 10 levels of the network"],
+              ["🔄","Cashback Pool","4%","Allocated to the platform cashback pool"],
+              ["🌱","Royalty Pool","10%","Supports long-term ecosystem growth"],
+            ].map(([icon,name,pct,desc])=>(
+              <div key={name} className="lp-feat">
+                <div className="lp-feat-icon">{icon}</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.5rem"}}>
+                  <div className="lp-feat-n" style={{margin:0}}>{name}</div>
+                  <div style={{color:"#C9A84C",fontWeight:700,fontSize:"1.1rem"}}>{pct}</div>
+                </div>
+                <div className="lp-feat-d">{desc}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Royalty Pool Card */}
+          <div style={{
+            background:"rgba(201,168,76,0.06)",
+            border:"1px solid rgba(201,168,76,0.18)",
+            borderRadius:"14px",
+            padding:"2rem",
+            maxWidth:"680px",
+            margin:"0 auto"
+          }}>
+            <div style={{color:"#C9A84C",fontWeight:700,fontSize:"1rem",marginBottom:"1rem"}}>🌱 Royalty Pool — 10%</div>
+            <p style={{color:"#94a3b8",fontSize:"0.9rem",lineHeight:1.7,marginBottom:"1rem"}}>
+              The Royalty Pool supports the long-term growth of the MetaGuildX ecosystem.
+            </p>
+            <ul style={{color:"#94a3b8",fontSize:"0.9rem",lineHeight:2,paddingLeft:"1.2rem",margin:0}}>
+              <li>Royalty rewards</li>
+              <li>Community development</li>
+              <li>Platform development</li>
+              <li>Ecosystem expansion</li>
+              <li>Future MGX buyback initiatives (subject to governance and published policy)</li>
+              <li>Future MGX token burn initiatives (subject to governance and published policy)</li>
+            </ul>
           </div>
         </section>
         <div className="lp-sep"></div>
