@@ -3539,6 +3539,7 @@ function App() {
           .lp-scroll-hint{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);
             z-index:3;display:flex;flex-direction:column;align-items:center;gap:8px;opacity:.45}
           @media(max-width:768px){.lp-scroll-hint{display:none}}
+          .lp-ticker,#lp-how,#lp-packages{display:none}
           .lp-scroll-hint span{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:#7A93C0}
           .lp-scroll-line{width:1px;height:36px;
             background:linear-gradient(180deg,#7A93C0 0%,transparent 100%)}
@@ -3576,10 +3577,10 @@ function App() {
             Meta<span>Guild</span>X
           </a>
           <ul className="lp-navlinks">
-            <li><a href="#lp-how">How it works</a></li>
-            <li><a href="#lp-packages">Packages</a></li>
             <li><a href="#lp-roadmap">Roadmap</a></li>
             <li><a href="#lp-token">MGX Token</a></li>
+            <li><a href="#lp-contracts">Contracts</a></li>
+            <li><a href="#lp-docs">Docs</a></li>
           </ul>
           <div style={{display:"flex",gap:10,alignItems:"center"}}>
             <button className="lp-btn-out" type="button" onClick={() => void handleConnectWallet()}>Sign in</button>
@@ -3757,20 +3758,20 @@ function App() {
             ) : null}
             <div className="lp-badge"><span className="lp-bdot"></span>Live on opBNB Network</div>
             <h1 className="lp-h1">
-              The Future of<br/>
-              <span className="lp-h1-gold">Decentralized</span>{" "}
-              <span className="lp-h1-cyan">Income</span>
+              Community.<br/>
+              <span className="lp-h1-gold">Token.</span>{" "}
+              <span className="lp-h1-cyan">Ecosystem.</span>
             </h1>
-            <p className="lp-sub">Every registration automatically distributes USDT across 10 levels of your network — instantly, transparently, and forever on-chain.</p>
+            <p className="lp-sub">A transparent, on-chain community building platform powered by the MGX token — live on opBNB Mainnet.</p>
             <div className="lp-acts">
               {referralSponsorId ? (
                 <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>
-                  Register with Sponsor #{referralSponsorId} →
+                  Launch App →
                 </button>
               ) : (
-                <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Start Earning →</button>
+                <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Launch App →</button>
               )}
-              <a href="#lp-how" className="lp-btn-hero-out">How it works</a>
+              <a href="#lp-roadmap" className="lp-btn-hero-out">View Roadmap</a>
             </div>
           </div>
           <div className="lp-scroll-hint">
@@ -3901,14 +3902,15 @@ function App() {
               <div className="lp-rm-line"></div>
               <div className="lp-rm-items">
                 {[
-                  {icon:"🏛️",title:"C&B Platform",sub:"Community Building",tag:"done",label:"Live"},
-                  {icon:"🪙",title:"MGX Token",sub:"Token Launch",tag:"done",label:"Live"},
-                  {icon:"🏦",title:"MGX Staking",sub:"Stake & Earn Rewards",tag:"active",label:"In Progress"},
-                  {icon:"🎨",title:"NFT Creation",sub:"NFT Minting Platform",tag:"soon",label:"Coming Soon"},
-                  {icon:"🏪",title:"NFT Marketplace",sub:"Buy, Sell & Trade",tag:"soon",label:"Coming Soon"},
-                  {icon:"⚡",title:"MGX DEX",sub:"Decentralized Exchange",tag:"soon",label:"Coming Soon"},
-                  {icon:"🎮",title:"Gaming Platform",sub:"Play-to-Earn Games",tag:"soon",label:"Coming Soon"},
-                  {icon:"🌐",title:"Metaverse",sub:"Virtual World & Helping",tag:"soon",label:"Future"},
+                  {icon:"🏛️", title:"Community Building Platform", sub:"Binary placement, income system, cashback, rebirth — live on opBNB Mainnet.", tag:"done", label:"LIVE"},
+                  {icon:"🪙", title:"MGX Token", sub:"Fixed-supply token distribution active. Box 1 pricing live.", tag:"active", label:"ACTIVE"},
+                  {icon:"📊", title:"MGX DEX", sub:"Native decentralized exchange for MGX trading on opBNB.", tag:"planned", label:"PLANNED"},
+                  {icon:"🔒", title:"Staking Activation", sub:"Staking infrastructure deployed. Community activation follows ecosystem milestones.", tag:"planned", label:"PLANNED"},
+                  {icon:"📈", title:"Trading Platform", sub:"Advanced trading capabilities for the MetaGuildX ecosystem.", tag:"planned", label:"PLANNED"},
+                  {icon:"🎨", title:"NFT Creation", sub:"Create and mint NFTs within the MetaGuildX ecosystem.", tag:"future", label:"FUTURE"},
+                  {icon:"🛒", title:"NFT Marketplace", sub:"Trade and discover NFTs from the MetaGuildX community.", tag:"future", label:"FUTURE"},
+                  {icon:"🎮", title:"Gaming Platform", sub:"On-chain gaming with MGX token integration.", tag:"future", label:"FUTURE"},
+                  {icon:"🌐", title:"Metaverse", sub:"Immersive MetaGuildX experiences on opBNB.", tag:"future", label:"FUTURE"},
                 ].map(({icon,title,sub,tag,label}) => (
                   <div key={title} className={`lp-rm-item ${tag==="done"?"done":tag==="active"?"active":""}`}>
                     <div className="lp-rm-dot">{icon}</div>
@@ -3919,6 +3921,13 @@ function App() {
                 ))}
               </div>
             </div>
+            <p style={{textAlign:"center",color:"#7A93C0",fontSize:"0.82rem",
+              maxWidth:"580px",margin:"2rem auto 0",lineHeight:1.7,
+              padding:"1rem",border:"1px solid rgba(255,255,255,0.06)",borderRadius:"8px"}}>
+              This roadmap represents the long-term vision of MetaGuildX.
+              Development priorities may evolve over time.
+              No guaranteed delivery timeline is implied.
+            </p>
           </div>
         </div>
         <div className="lp-sep"></div>
@@ -3926,15 +3935,15 @@ function App() {
         {/* —— FEATURES —— */}
         <section className="lp-section" id="lp-features">
           <div className="lp-lbl">Platform features</div>
-          <h2 className="lp-stitle">Built for transparency<br/>and performance</h2>
+          <h2 className="lp-stitle">Built for transparency<br/>and security</h2>
           <div className="lp-feat-grid">
             {[
-              ["🔐","UUPS Upgradeable Proxy","OpenZeppelin v5 with ERC-7201 namespaced storage. Contracts upgrade safely without disrupting user funds."],
-              ["⬡","Binary placement tree","Smart queue of 1000 positions. Overflow users auto-place on the opposite side for balanced network growth."],
-              ["⟳","Auto-upgrade engine","Escrow accumulates toward your next package. When threshold is hit, the contract upgrades automatically."],
-              ["♻️","Rebirth mechanism","Complete Package 1 cycle and re-enter the network on the opposite side — unlocking a fresh income cycle."],
-              ["💎","MGX staking rewards","Stake MGX tokens and earn 10.95% APY. Rewards distribute every 24 hours from the 10.23M MGX reward pool."],
-              ["⊞","Cashback pool","4% of every registration flows to the cashback pool, distributed proportionally to qualifying members."],
+              ["🔗","On-Chain","All platform logic lives in smart contracts on opBNB Mainnet."],
+              ["🔒","Secure Governance","Platform governance is managed through secure administrative controls designed to protect the ecosystem."],
+              ["📋","Fixed Supply","511,750,000 MGX. No additional minting possible after launch."],
+              ["⬆️","Upgradeable","Smart contracts can be improved via governance while protecting user funds."],
+              ["🌐","opBNB Mainnet","Low-fee, high-throughput Layer 2 network purpose-built for scale."],
+              ["👁️","Public Contracts","All contracts are publicly verifiable on the opBNB block explorer."],
             ].map(([icon,name,desc]) => (
               <div key={name} className="lp-feat">
                 <div className="lp-feat-icon">{icon}</div>
@@ -4058,15 +4067,148 @@ function App() {
         </section>
         <div className="lp-sep"></div>
 
+        <section className="lp-section" id="lp-staking-policy">
+          <div className="lp-lbl">Staking</div>
+          <h2 className="lp-stitle">MGX Staking</h2>
+          <div style={{maxWidth:"640px",margin:"0 auto",
+            background:"rgba(255,255,255,0.03)",
+            border:"1px solid rgba(255,255,255,0.07)",
+            borderRadius:"14px",padding:"2rem",textAlign:"center"}}>
+            <p style={{color:"#94a3b8",fontSize:"0.95rem",lineHeight:1.8,marginBottom:"1.5rem"}}>
+              Staking infrastructure has been deployed. Community activation will follow
+              future ecosystem milestones in accordance with the published platform policy.
+            </p>
+            <a href="https://metaguildx.net/docs/STAKING_READINESS.md"
+               target="_blank" rel="noopener noreferrer"
+               className="lp-btn-hero-out" style={{fontSize:"0.875rem"}}>
+              Read Staking Policy →
+            </a>
+          </div>
+        </section>
+        <div className="lp-sep"></div>
+
+        <section className="lp-section" id="lp-contracts">
+          <div className="lp-lbl">Transparency</div>
+          <h2 className="lp-stitle">Verify on the Blockchain</h2>
+          <p style={{textAlign:"center",color:"#7A93C0",fontSize:"0.95rem",
+            maxWidth:"540px",margin:"0 auto 3rem"}}>
+            All MetaGuildX contracts are publicly deployed on opBNB Mainnet and fully verifiable.
+          </p>
+          <div style={{maxWidth:"680px",margin:"0 auto",
+            border:"1px solid rgba(255,255,255,0.07)",borderRadius:"14px",overflow:"hidden"}}>
+            {[
+              {name:"Core Contract",     short:"0xE3cD...5c2F", full:"0xE3cD200609E223c96987c9FEa41C6014e8625c2F"},
+              {name:"MGX Token",         short:"0x0410...Ba81", full:"0x04103b36Ac638f4156Ca07149942Eb37ffD8bA81"},
+              {name:"Staking Contract",  short:"0xD18E...26A3", full:"0xD18E7b23AeD67340bf974311d490cd4b903e26A3"},
+            ].map(({name,short,full},i) => (
+              <div key={name} style={{
+                padding:"1.25rem 1.75rem",
+                background: i%2===0 ? "rgba(255,255,255,0.02)" : "transparent",
+                borderBottom: i<2 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                display:"flex",alignItems:"center",justifyContent:"space-between",
+                flexWrap:"wrap",gap:"0.75rem"
+              }}>
+                <div>
+                  <div style={{color:"#EEF4FF",fontWeight:600,fontSize:"0.95rem"}}>{name}</div>
+                  <div style={{color:"#7A93C0",fontFamily:"monospace",fontSize:"0.85rem",marginTop:"0.25rem"}}>{short}</div>
+                </div>
+                <a href={`https://opbnb.bscscan.com/address/${full}`}
+                   target="_blank" rel="noopener noreferrer"
+                   style={{color:"#C9A84C",fontSize:"0.85rem",textDecoration:"none",
+                     border:"1px solid rgba(201,168,76,0.3)",borderRadius:"6px",padding:"0.4rem 0.9rem"}}>
+                  View on Explorer ↗
+                </a>
+              </div>
+            ))}
+          </div>
+          <p style={{textAlign:"center",color:"#475569",fontSize:"0.8rem",marginTop:"1.5rem"}}>
+            Network: opBNB Mainnet — Chain ID: 204 · Third-party smart contract audit has not yet been completed.
+          </p>
+        </section>
+        <div className="lp-sep"></div>
+
+        <section className="lp-section" id="lp-docs">
+          <div className="lp-lbl">Documentation</div>
+          <h2 className="lp-stitle">Open Documentation</h2>
+          <p style={{textAlign:"center",color:"#7A93C0",fontSize:"0.95rem",
+            maxWidth:"540px",margin:"0 auto 3rem"}}>
+            All MetaGuildX documentation is publicly available.
+          </p>
+          <div className="lp-feat-grid">
+            {[
+              {icon:"📄",title:"Whitepaper",    href:"/docs/MGX_WHITEPAPER.md"},
+              {icon:"💰",title:"Tokenomics",    href:"/docs/TOKENOMICS.md"},
+              {icon:"🗺️",title:"Roadmap",       href:"/docs/ROADMAP.md"},
+              {icon:"🏦",title:"Treasury Policy",href:"/docs/TREASURY_ARCHITECTURE.md"},
+              {icon:"🌉",title:"Bridge Status",  href:"/docs/BRIDGE_STATUS.md"},
+              {icon:"📊",title:"Staking Policy", href:"/docs/STAKING_READINESS.md"},
+            ].map(({icon,title,href}) => (
+              <a key={title} href={href} target="_blank" rel="noopener noreferrer"
+                 className="lp-feat" style={{textDecoration:"none",cursor:"pointer"}}>
+                <div className="lp-feat-icon">{icon}</div>
+                <div className="lp-feat-n">{title}</div>
+                <div className="lp-feat-d" style={{color:"#C9A84C",fontSize:"0.8rem"}}>Read →</div>
+              </a>
+            ))}
+          </div>
+        </section>
+        <div className="lp-sep"></div>
+
+        <section className="lp-section" id="lp-start">
+          <div className="lp-lbl">Get Started</div>
+          <h2 className="lp-stitle">How to Join MetaGuildX</h2>
+          <div className="lp-how-grid" style={{maxWidth:"860px",margin:"0 auto"}}>
+            <div className="lp-steps">
+              {[
+                ["01","Connect Your Wallet","Install MetaMask or a compatible wallet and connect it to the MetaGuildX platform."],
+                ["02","Switch to opBNB Mainnet","Add opBNB Mainnet (Chain ID: 204) to your wallet. Low fees, fast transactions."],
+                ["03","Register and Join","Complete registration to join the MetaGuildX community and begin receiving MGX token allocations."],
+              ].map(([n,t,d]) => (
+                <div key={n} className="lp-step">
+                  <div className="lp-st-n">{n}</div>
+                  <div><div className="lp-st-t">{t}</div><div className="lp-st-d">{d}</div></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+        <div className="lp-sep"></div>
+
+        <section className="lp-section" id="lp-faq">
+          <div className="lp-lbl">FAQ</div>
+          <h2 className="lp-stitle">Frequently Asked Questions</h2>
+          <div style={{maxWidth:"720px",margin:"0 auto",display:"flex",flexDirection:"column",gap:"1rem"}}>
+            {[
+              ["What is MetaGuildX?","A transparent, on-chain community building platform powered by the MGX token on opBNB Mainnet."],
+              ["Is the MGX supply fixed?","Yes. 511,750,000 MGX total. No additional minting is possible after the initial launch allocation."],
+              ["How do I receive MGX?","MGX is automatically distributed on every registration and upgrade through the Box distribution system."],
+              ["Is MetaGuildX audited?","Third-party smart contract audit has not yet been completed. All contracts are publicly viewable on the blockchain."],
+              ["When will staking be available?","Staking infrastructure is deployed. Community activation follows future ecosystem milestones per published policy."],
+              ["What blockchain is MetaGuildX on?","opBNB Mainnet — a low-fee, high-throughput Layer 2 network (Chain ID: 204)."],
+              ["Where can I verify the contracts?","All contracts are on opBNB Mainnet and viewable on the block explorer. Links are in the Contracts section."],
+              ["Where can I read official documentation?","Complete documentation is available in the Documentation section above, including Whitepaper, Tokenomics, Roadmap, Treasury Policy, Bridge Status, and Staking Policy."],
+            ].map(([q,a]) => (
+              <div key={q} style={{
+                background:"rgba(255,255,255,0.03)",
+                border:"1px solid rgba(255,255,255,0.07)",
+                borderRadius:"10px",padding:"1.25rem 1.5rem"}}>
+                <div style={{color:"#EEF4FF",fontWeight:600,fontSize:"0.95rem",marginBottom:"0.6rem"}}>{q}</div>
+                <div style={{color:"#7A93C0",fontSize:"0.875rem",lineHeight:1.7}}>{a}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+        <div className="lp-sep"></div>
+
         {/* —— CTA —— */}
         <div className="lp-cta-outer">
           <div className="lp-cta-box">
             <img src={logoMark} alt="MetaGuildX" className="lp-cta-logo" />
-            <h2>Ready to start earning?</h2>
-            <p>Join the MetaGuildX network and build real passive income on-chain.</p>
+            <h2>Join MetaGuildX</h2>
+            <p>Connect your wallet and join a transparent, on-chain community building ecosystem on opBNB Mainnet.</p>
             <div className="lp-cta-acts">
-              <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Connect Wallet →</button>
-              <a href="#lp-how" className="lp-btn-hero-out">Learn more</a>
+              <button className="lp-btn-hero-gold" type="button" onClick={() => void handleConnectWallet()}>Launch App →</button>
+              <a href="#lp-roadmap" className="lp-btn-hero-out">View Roadmap</a>
             </div>
           </div>
         </div>
@@ -4079,25 +4221,25 @@ function App() {
                 <img src={logoMark} alt="MGX" className="lp-ft-logo" />
                 <div className="lp-ft-name">Meta<span>Guild</span>X</div>
               </div>
-              <div className="lp-ft-tag">Decentralized multi-level income on opBNB blockchain.</div>
+              <div className="lp-ft-tag">Community. Token. Ecosystem. Built on opBNB Mainnet.</div>
             </div>
             <div className="lp-ft-links">
               <div className="lp-ft-col">
                 <div className="lp-ft-ct">Platform</div>
-                <ul><li><a href="#">Dashboard</a></li><li><a href="#">Register</a></li><li><a href="#">Staking</a></li><li><a href="#">Network tree</a></li></ul>
+                <ul><li><a href="#" onClick={(e) => { e.preventDefault(); void handleConnectWallet(); }}>Launch App</a></li><li><a href="#lp-roadmap">Roadmap</a></li><li><a href="#lp-docs">Documentation</a></li><li><a href="#lp-faq">FAQ</a></li></ul>
               </div>
               <div className="lp-ft-col">
                 <div className="lp-ft-ct">Resources</div>
-                <ul><li><a href="#">Documentation</a></li><li><a href="#">Smart contracts</a></li><li><a href="#">Whitepaper</a></li><li><a href="#">Support</a></li></ul>
+                <ul><li><a href="/docs/MGX_WHITEPAPER.md" target="_blank" rel="noopener noreferrer">Whitepaper</a></li><li><a href="/docs/TOKENOMICS.md" target="_blank" rel="noopener noreferrer">Tokenomics</a></li><li><a href="/docs/BRIDGE_STATUS.md" target="_blank" rel="noopener noreferrer">Bridge Status</a></li><li><a href="/docs/STAKING_READINESS.md" target="_blank" rel="noopener noreferrer">Staking Policy</a></li></ul>
               </div>
               <div className="lp-ft-col">
-                <div className="lp-ft-ct">Legal</div>
-                <ul><li><a href="#">Terms of service</a></li><li><a href="#">Privacy policy</a></li><li><a href="#">Risk disclaimer</a></li></ul>
+                <div className="lp-ft-ct">Contracts</div>
+                <ul><li><a href="https://opbnb.bscscan.com/address/0xE3cD200609E223c96987c9FEa41C6014e8625c2F" target="_blank" rel="noopener noreferrer">Core Contract ↗</a></li><li><a href="https://opbnb.bscscan.com/address/0x04103b36Ac638f4156Ca07149942Eb37ffD8bA81" target="_blank" rel="noopener noreferrer">MGX Token ↗</a></li><li><a href="https://opbnb.bscscan.com/address/0xD18E7b23AeD67340bf974311d490cd4b903e26A3" target="_blank" rel="noopener noreferrer">Staking ↗</a></li><li><a href="https://opbnb.bscscan.com" target="_blank" rel="noopener noreferrer">Explorer ↗</a></li></ul>
               </div>
             </div>
           </div>
           <div className="lp-ft-bot">
-            <span> 2026 MetaGuildX. All rights reserved.</span>
+            <span>MetaGuildX is a decentralized platform. Participation involves financial risk. This is not financial advice. © 2026 MetaGuildX</span>
             <div className="lp-socials">
               <a href="#" className="lp-soc"></a>
               <a href="#" className="lp-soc">tg</a>
