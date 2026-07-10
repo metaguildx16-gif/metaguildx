@@ -168,13 +168,17 @@ const MGX_TOTAL_LEVELS = 10;
 function LevelIncomeCalculator() {
   const [selPkg, setSelPkg] = useState(160);
   const [refs, setRefs] = useState(5);
+  const cumPkg = useMemo(() => {
+    const idx = MGX_CALC_PACKAGES.indexOf(selPkg);
+    return MGX_CALC_PACKAGES.slice(0, idx + 1).reduce((a: number, b: number) => a + b, 0);
+  }, [selPkg]);
 
-  const directIncome = (selPkg * MGX_DIRECT_PCT / 100) * refs;
+  const directIncome = (cumPkg * MGX_DIRECT_PCT / 100) * refs;
 
   const levelRows = useMemo(() => Array.from({ length: MGX_TOTAL_LEVELS }, (_, i) => {
     const lvl = i + 1;
     const members = Math.pow(refs, lvl);
-    const income  = selPkg * (MGX_LEVEL_PCT / 100) * members;
+    const income  = cumPkg * (MGX_LEVEL_PCT / 100) * members;
     return { lvl, members, income };
   }), [selPkg, refs]);
 
@@ -5133,6 +5137,10 @@ function App() {
 }
 
 export default App;
+
+
+
+
 
 
 
