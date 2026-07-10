@@ -4281,7 +4281,7 @@ function App() {
           </p>
           <div className="lp-feat-grid">
             {[
-              {icon:"📄",title:"Whitepaper",    href:"/docs/MGX_WHITEPAPER.md"},
+              {icon:"📄",title:"Whitepaper",    href:"/docs/MGX_TOKEN_WHITEPAPER_v1.0.pdf"},
               {icon:"💰",title:"Tokenomics",    href:"/docs/TOKENOMICS.md"},
               {icon:"🗺️",title:"Roadmap",       href:"/docs/ROADMAP.md"},
               {icon:"🏦",title:"Treasury Policy",href:"/docs/TREASURY_ARCHITECTURE.md"},
@@ -4376,7 +4376,7 @@ function App() {
               </div>
               <div className="lp-ft-col">
                 <div className="lp-ft-ct">Resources</div>
-                <ul><li><a href="/docs/MGX_WHITEPAPER.md" target="_blank" rel="noopener noreferrer">Whitepaper</a></li><li><a href="/docs/TOKENOMICS.md" target="_blank" rel="noopener noreferrer">Tokenomics</a></li><li><a href="/docs/BRIDGE_STATUS.md" target="_blank" rel="noopener noreferrer">Bridge Status</a></li><li><a href="/docs/STAKING_READINESS.md" target="_blank" rel="noopener noreferrer">Staking Policy</a></li></ul>
+                <ul><li><a href="/docs/MGX_TOKEN_WHITEPAPER_v1.0.pdf" target="_blank" rel="noopener noreferrer">Whitepaper</a></li><li><a href="/docs/TOKENOMICS.md" target="_blank" rel="noopener noreferrer">Tokenomics</a></li><li><a href="/docs/BRIDGE_STATUS.md" target="_blank" rel="noopener noreferrer">Bridge Status</a></li><li><a href="/docs/STAKING_READINESS.md" target="_blank" rel="noopener noreferrer">Staking Policy</a></li></ul>
               </div>
               <div className="lp-ft-col">
                 <div className="lp-ft-ct">Contracts</div>
