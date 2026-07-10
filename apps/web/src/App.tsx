@@ -1,5 +1,5 @@
-import { Contract, JsonRpcProvider, ethers, formatUnits } from "ethers";
-import { Suspense, lazy, startTransition, useEffect, useRef, useState } from "react";
+﻿import { Contract, JsonRpcProvider, ethers, formatUnits } from "ethers";
+import { Suspense, lazy, startTransition, useEffect, useMemo, useRef, useState } from "react";
 import logoMark from "./assets/mgx logo.png";
 import { fallbackSnapshot } from "./appFallback";
 import { CashbackPage } from "./pages/CashbackPage";
@@ -156,6 +156,151 @@ function hasValidWalletSession() {
     isExpired
   };
 }
+
+// ═══════════════════════════════════════════════════
+// LEVEL INCOME CALCULATOR
+// ═══════════════════════════════════════════════════
+const MGX_CALC_PACKAGES = [10,20,40,80,160,320,640,1280,2560,5120];
+const MGX_DIRECT_PCT = 46;
+const MGX_LEVEL_PCT  = 4;
+const MGX_TOTAL_LEVELS = 10;
+
+function LevelIncomeCalculator() {
+  const [selPkg, setSelPkg] = useState(160);
+  const [refs, setRefs] = useState(5);
+
+  const directIncome = (selPkg * MGX_DIRECT_PCT / 100) * refs;
+
+  const levelRows = useMemo(() => Array.from({ length: MGX_TOTAL_LEVELS }, (_, i) => {
+    const lvl = i + 1;
+    const members = Math.pow(refs, lvl);
+    const income  = selPkg * (MGX_LEVEL_PCT / 100) * members;
+    return { lvl, members, income };
+  }), [selPkg, refs]);
+
+  const totalLevel  = levelRows.reduce((s: number, r: {lvl:number,members:number,income:number}) => s + r.income, 0);
+  const totalReward = directIncome + totalLevel;
+
+  const fmt = (n: number): string => {
+    if (n >= 1e12) return `$${(n/1e12).toFixed(2)}T`;
+    if (n >= 1e9)  return `$${(n/1e9).toFixed(2)}B`;
+    if (n >= 1e6)  return `$${(n/1e6).toFixed(2)}M`;
+    if (n >= 1e3)  return `$${(n/1e3).toFixed(2)}K`;
+    return `$${n.toFixed(2)}`;
+  };
+  const fmtM = (n: number): string => {
+    if (n >= 1e12) return `${Math.round(n/1e12)}T`;
+    if (n >= 1e9)  return `${Math.round(n/1e9)}B`;
+    if (n >= 1e6)  return `${Math.round(n/1e6)}M`;
+    if (n >= 1e3)  return `${Math.round(n/1e3)}K`;
+    return n.toLocaleString();
+  };
+
+  const G = '#C9A84C', C = '#38BDF8';
+  const glass: React.CSSProperties = {
+    background:'rgba(255,255,255,0.04)',
+    border:'1px solid rgba(255,255,255,0.08)',
+    borderRadius:16,
+  };
+  const sliderPct = `${((refs-1)/9)*100}%`;
+
+  return (
+    <section id="lp-calculator" style={{background:'linear-gradient(180deg,#0a0f1e 0%,#0d1526 100%)',padding:'88px 0',position:'relative',overflow:'hidden'}}>
+      <div style={{position:'absolute',top:'8%',left:'50%',transform:'translateX(-50%)',width:700,height:350,borderRadius:'50%',background:'radial-gradient(ellipse,rgba(201,168,76,0.05) 0%,transparent 70%)',pointerEvents:'none'}}/>
+      <div style={{maxWidth:1080,margin:'0 auto',padding:'0 22px'}}>
+        <div style={{textAlign:'center',marginBottom:52}}>
+          <span style={{display:'inline-block',padding:'5px 16px',borderRadius:100,background:'rgba(201,168,76,0.12)',border:'1px solid rgba(201,168,76,0.3)',color:G,fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',marginBottom:18}}>Interactive Tool</span>
+          <h2 style={{fontSize:'clamp(26px,4.5vw,42px)',fontWeight:800,color:'#eef4ff',margin:'0 0 14px',lineHeight:1.2}}>Level Income Calculator</h2>
+          <p style={{fontSize:16,color:'#94a3b8',maxWidth:520,margin:'0 auto',lineHeight:1.7}}>See how your community can grow based on the official MetaGuildX reward structure.</p>
+        </div>
+        <div style={{...glass,padding:'26px 28px',marginBottom:18}}>
+          <div style={{color:'#64748b',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Step 01</div>
+          <h3 style={{color:'#eef4ff',fontSize:17,fontWeight:700,margin:'5px 0 18px'}}>Select Your Package</h3>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(88px,1fr))',gap:8}}>
+            {MGX_CALC_PACKAGES.map(p => {
+              const active = p === selPkg;
+              return (
+                <button key={p} onClick={() => setSelPkg(p)} style={{padding:'11px 6px',borderRadius:10,cursor:'pointer',textAlign:'center',border:active?`1.5px solid ${G}`:'1px solid rgba(255,255,255,0.08)',background:active?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.03)',color:active?G:'#94a3b8',fontWeight:active?700:500,fontSize:13,transition:'all 0.2s',transform:active?'scale(1.04)':'scale(1)',boxShadow:active?'0 0 12px rgba(201,168,76,0.2)':'none'}}>
+                  <div style={{fontSize:15,fontWeight:800}}>${p}</div>
+                  <div style={{fontSize:10,marginTop:2,opacity:0.8}}>USDT</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{...glass,padding:'26px 28px',marginBottom:18}}>
+          <div style={{color:'#64748b',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Step 02</div>
+          <h3 style={{color:'#eef4ff',fontSize:17,fontWeight:700,margin:'5px 0 18px'}}>Your Direct Referrals</h3>
+          <div style={{display:'flex',alignItems:'center',gap:20,flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',width:74,height:74,borderRadius:14,flexShrink:0,background:'linear-gradient(135deg,rgba(56,189,248,0.14),rgba(56,189,248,0.04))',border:'1.5px solid rgba(56,189,248,0.3)'}}>
+              <span style={{fontSize:28,fontWeight:800,color:C}}>{refs}</span>
+            </div>
+            <div style={{flex:1,minWidth:180}}>
+              <input type="range" min={1} max={10} value={refs} onChange={e=>setRefs(Number(e.target.value))} style={{width:'100%',height:5,appearance:'none',WebkitAppearance:'none',borderRadius:3,outline:'none',cursor:'pointer',background:`linear-gradient(to right,${C} 0%,${C} ${sliderPct},rgba(255,255,255,0.1) ${sliderPct},rgba(255,255,255,0.1) 100%)`}}/>
+              <div style={{display:'flex',justifyContent:'space-between',color:'#64748b',fontSize:11,marginTop:7}}>
+                {[1,2,3,4,5,6,7,8,9,10].map(n=><span key={n} style={{color:n===refs?C:undefined}}>{n}</span>)}
+              </div>
+            </div>
+            <div style={{color:'#64748b',fontSize:12,flexShrink:0}}>Direct Referrals</div>
+          </div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) minmax(0,2fr)',gap:18,marginBottom:18,alignItems:'start'}} className="lp-calc-grid">
+          <div style={{...glass,padding:'26px 22px',borderTop:`2px solid ${G}`}}>
+            <div style={{color:'#64748b',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',marginBottom:16}}>Step 03 — Direct Income</div>
+            <div style={{marginBottom:16}}><div style={{color:'#94a3b8',fontSize:12,marginBottom:5}}>Selected Package</div><div style={{color:G,fontSize:22,fontWeight:800}}>${selPkg} <span style={{fontSize:12,fontWeight:500}}>USDT</span></div></div>
+            <div style={{marginBottom:16}}><div style={{color:'#94a3b8',fontSize:12,marginBottom:5}}>Direct Referrals</div><div style={{color:C,fontSize:22,fontWeight:800}}>{refs} <span style={{fontSize:12,fontWeight:500}}>members</span></div></div>
+            <div style={{borderTop:'1px solid rgba(255,255,255,0.08)',paddingTop:18}}>
+              <div style={{color:'#94a3b8',fontSize:12,marginBottom:7}}>Your Direct Income</div>
+              <div style={{color:'#eef4ff',fontSize:26,fontWeight:800,letterSpacing:-0.5}}>{fmt(directIncome)}</div>
+              <div style={{color:'#64748b',fontSize:11,marginTop:4}}>${selPkg} × {MGX_DIRECT_PCT}% × {refs}</div>
+            </div>
+          </div>
+          <div style={{...glass,padding:'26px 24px',borderTop:'2px solid rgba(56,189,248,0.55)'}}>
+            <div style={{color:'#64748b',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',marginBottom:18}}>Step 04 — Level Income Breakdown</div>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+                <thead><tr>{['Level','Members','Level %','Level Income'].map(h=><th key={h} style={{textAlign:'left',padding:'7px 10px',color:'#64748b',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',borderBottom:'1px solid rgba(255,255,255,0.08)'}}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {levelRows.map(({lvl,members,income}:{lvl:number,members:number,income:number},idx:number)=>(
+                    <tr key={lvl} style={{background:idx%2===0?'transparent':'rgba(255,255,255,0.02)'}}>
+                      <td style={{padding:'8px 10px'}}><span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:26,height:26,borderRadius:6,background:'rgba(201,168,76,0.1)',border:'1px solid rgba(201,168,76,0.2)',color:G,fontSize:10,fontWeight:700}}>L{lvl}</span></td>
+                      <td style={{padding:'8px 10px',color:'#eef4ff',fontWeight:600}}>{fmtM(members)}</td>
+                      <td style={{padding:'8px 10px',color:C}}>{MGX_LEVEL_PCT}%</td>
+                      <td style={{padding:'8px 10px',color:'#eef4ff',fontWeight:700}}>{fmt(income)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot><tr style={{borderTop:'1px solid rgba(255,255,255,0.08)'}}><td colSpan={3} style={{padding:'11px 10px',color:'#94a3b8',fontSize:13,fontWeight:700}}>Total Level Income</td><td style={{padding:'11px 10px',color:G,fontSize:15,fontWeight:800}}>{fmt(totalLevel)}</td></tr></tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div style={{background:'linear-gradient(135deg,rgba(201,168,76,0.11) 0%,rgba(56,189,248,0.07) 100%)',border:'1.5px solid rgba(201,168,76,0.28)',borderRadius:20,padding:'32px 36px',marginBottom:24,position:'relative',overflow:'hidden',boxShadow:'0 0 50px rgba(201,168,76,0.07)'}}>
+          <div style={{position:'absolute',top:-40,right:-40,width:180,height:180,borderRadius:'50%',background:'radial-gradient(circle,rgba(201,168,76,0.14) 0%,transparent 70%)',pointerEvents:'none'}}/>
+          <div style={{color:'#64748b',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',marginBottom:22}}>Step 05 — Total Eligible Reward</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:18,alignItems:'center',justifyContent:'space-between'}}>
+            <div style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center'}}>
+              <div style={{textAlign:'center'}}><div style={{color:'#94a3b8',fontSize:12,marginBottom:4}}>Direct Income</div><div style={{color:'#eef4ff',fontSize:20,fontWeight:700}}>{fmt(directIncome)}</div></div>
+              <div style={{color:'#64748b',fontSize:22,fontWeight:300}}>+</div>
+              <div style={{textAlign:'center'}}><div style={{color:'#94a3b8',fontSize:12,marginBottom:4}}>Total Level Income</div><div style={{color:C,fontSize:20,fontWeight:700}}>{fmt(totalLevel)}</div></div>
+              <div style={{color:'#64748b',fontSize:22,fontWeight:300}}>=</div>
+            </div>
+            <div style={{textAlign:'center'}}>
+              <div style={{color:G,fontSize:12,fontWeight:700,letterSpacing:1,textTransform:'uppercase',marginBottom:7}}>Total Eligible Reward</div>
+              <div style={{fontSize:'clamp(28px,4.5vw,48px)',fontWeight:900,color:'#eef4ff',letterSpacing:-1,lineHeight:1}}>{fmt(totalReward)}</div>
+              <div style={{color:'#64748b',fontSize:11,marginTop:5}}>USDT — Based on ${selPkg} Package × {refs} Referrals</div>
+            </div>
+          </div>
+        </div>
+        <p style={{textAlign:'center',color:'#475569',fontSize:12,lineHeight:1.7,maxWidth:620,margin:'0 auto'}}>⚠ This calculator is for illustration based on the official MetaGuildX reward structure. Actual rewards depend on valid registrations and smart contract conditions.</p>
+      </div>
+      <style>{`.lp-calc-grid{} @media(max-width:720px){.lp-calc-grid{grid-template-columns:1fr!important}} input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:#38BDF8;border:2px solid #0a0f1e;cursor:pointer} input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:#38BDF8;border:2px solid #0a0f1e;cursor:pointer}`}</style>
+    </section>
+  );
+}
+// ═══════════════════════════════════════════════════
+// END LevelIncomeCalculator
+// ═══════════════════════════════════════════════════
 
 function App() {
   const loadingShellStyle = { background: "#0a0a1a", borderRadius: 16, width: "100%" };
@@ -4152,6 +4297,7 @@ function App() {
             ))}
           </div>
         </section>
+        <LevelIncomeCalculator />
         <div className="lp-sep"></div>
 
         <section className="lp-section" id="lp-start">
@@ -4987,6 +5133,10 @@ function App() {
 }
 
 export default App;
+
+
+
+
 
 
 
