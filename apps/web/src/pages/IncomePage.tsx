@@ -25,6 +25,7 @@ export function IncomePage(props: DashboardPageProps) {
     earningsDashTab,
     escrowBalance,
     frozenEscrowDisplay,
+    rebirthEscrowDisplay,
     getDisplayName,
     handleCopyRebirthReferralLink,
     handleCopyReferralLink,
@@ -205,7 +206,8 @@ export function IncomePage(props: DashboardPageProps) {
                   <div className="income-row premium-income-row"><span className="income-label">Direct Income</span><span className="income-amount">${directIncomeDisplay}</span></div>
                   <div className="income-row premium-income-row"><span className="income-label">Level Income</span><span className="income-amount">${levelIncomeDisplay}</span></div>
                   <div className="income-row premium-income-row total"><span className="income-label">Total Earned</span><span className="income-amount">${totalReceivedDisplay}</span></div>
-                  <div className="income-row premium-income-row muted"><span className="income-label">Frozen (Auto-Upgrade)</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
+                  <div className="income-row premium-income-row muted"><span className="income-label">Frozen (Upgrade Escrow)</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
+                  <div className="income-row premium-income-row muted"><span className="income-label">Frozen (Rebirth Escrow)</span><span className="income-amount">${rebirthEscrowDisplay}</span></div>
                   <div className="income-row income-row-secondary" title="Display only � Network activity">
                     <span className="income-label">Crossline (Display)</span>
                     <span className="income-amount">${networkBonusDisplay}</span>

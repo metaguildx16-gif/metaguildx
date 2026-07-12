@@ -2469,6 +2469,7 @@ function App() {
   const totalMgxAllocatedDisplay = parseDisplayNumber(displayedMgxAllocated).toFixed(2);
   const connectedWalletTotalDisplay = outerUsdtBalanceValue.toFixed(2);
   const frozenEscrowDisplay = parseDisplayNumber(escrowBalance).toFixed(2);
+  const rebirthEscrowDisplay = parseDisplayNumber(snapshot.rebirthEscrowBalance ?? "0").toFixed(2);
   const currentPackageEscrowDisplay = currentPackageEscrow.toFixed(2);
   const teamBusinessDisplay = parseDisplayNumber(snapshot.totalTeamBusiness).toFixed(2);
   const currentPackageBucketDisplay = currentBucketEarnings.toFixed(2);

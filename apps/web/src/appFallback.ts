@@ -18,6 +18,7 @@ export const fallbackSnapshot: DashboardSnapshot = {
   rebirthCount: 0,
   xCount: 0,
   internalWalletBalance: "0",
+  rebirthEscrowBalance: "0",
   currentPackageEscrow: "0",
   currentPackageBucketEarnings: "0",
   packageOneBucketEarnings: "0",

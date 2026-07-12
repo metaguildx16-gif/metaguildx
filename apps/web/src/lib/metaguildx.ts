@@ -141,6 +141,7 @@ const stakeDurationDays: Record<StakeDurationKey, bigint> = {
 const metaGuildXIncomeAbi = [
   "function getEscrow(uint256) view returns (uint256)",
   "function getTotalEscrow(uint256) view returns (uint256)",
+  "function getRebirthEscrow(uint256) view returns (uint256)",
   "function getTotalIncome(uint256) view returns (uint256)",
   "function getTotalAllIncome(uint256) view returns (uint256)",
   "function totalEarnings(uint256,uint256) view returns (uint256)",
@@ -324,6 +325,7 @@ export type DashboardSnapshot = {
   rebirthCount: number;
   xCount: number;
   internalWalletBalance: string;
+  rebirthEscrowBalance: string;
   currentPackageEscrow: string;
   currentPackageBucketEarnings: string;
   packageOneBucketEarnings: string;
@@ -470,6 +472,7 @@ export type TreeNodeDetails = {
   totalTeamBusiness: string;
   totalEarnings: string;
   internalWalletBalance: string;
+  rebirthEscrowBalance: string;
   directIncome: string;
   levelIncome: string;
   spilloverIncome: string;
@@ -542,6 +545,7 @@ export const fallbackSnapshot: DashboardSnapshot = {
   rebirthCount: 0,
   xCount: 0,
   internalWalletBalance: "0",
+  rebirthEscrowBalance: "0",
   currentPackageEscrow: "0",
   currentPackageBucketEarnings: "0",
   packageOneBucketEarnings: "0",
@@ -4123,13 +4127,14 @@ export async function loadTreeNodeDetails(userId: number): Promise<TreeNodeDetai
       ? new Contract(configuredUpgradeAddress, metaGuildXUpgradeAbi, provider)
       : null;
   const tokenEngine = createTokenEngineModule(provider);
-  const [profile, treeNode, incomes, escrowBalance, userTokenAllocation, userActiveBoxId, directReferralIdsRaw, rebirthIdsRaw] = await Promise.all([
+  const [profile, treeNode, incomes, escrowBalance, rebirthEscrowRaw, userTokenAllocation, userActiveBoxId, directReferralIdsRaw, rebirthIdsRaw] = await Promise.all([
     contract.usersById(userId),
     Promise.all([treeContract.nodes(userId), treeContract.nodeDepth(userId)]),
     income
       ? income.incomesByUser(userId)
       : Promise.resolve({ direct: 0n, level: 0n, spillover: 0n, crossline: 0n }),
     income ? income.getTotalEscrow(userId) : Promise.resolve(0n),
+    income ? income.getRebirthEscrow(userId) : Promise.resolve(0n),
     tokenEngine ? tokenEngine.getTokenAllocation(userId) : Promise.resolve(0n),
     contract.activeBoxByUser(userId),
     contract.getDirectReferralIds(userId),
@@ -4173,6 +4178,7 @@ export async function loadTreeNodeDetails(userId: number): Promise<TreeNodeDetai
     totalTeamBusiness: formatTokenAmount(actualDownlineBusiness),
     totalEarnings: formatTokenAmount(profile.totalEarnings),
     internalWalletBalance: formatTokenAmount(escrowBalance),
+    rebirthEscrowBalance: formatTokenAmount(rebirthEscrowRaw),
     directIncome: formatTokenAmount(incomes.direct),
     levelIncome: formatTokenAmount(incomes.level),
     spilloverIncome: formatTokenAmount(spilloverAmount),
@@ -5117,7 +5123,8 @@ export async function loadDashboardSnapshot(
       incomeDistributionPending: Boolean(incomeDistributionPending),
       incomeDistributionPendingPackageLevel: Number(incomeDistributionPendingPackageLevelRaw) || null,
       isSurrendered: Boolean(profile.surrendered),
-      surrenderStatus
+      surrenderStatus,
+      rebirthEscrowBalance: "0"
     };
       cacheDashboardSnapshot(cacheKey, persistentCacheKey, snapshot, { emitRefresh: Boolean(options?.forceRefresh) });
       return snapshot;
