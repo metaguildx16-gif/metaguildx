@@ -4019,12 +4019,17 @@ export async function upgradeUserPackage(input: { userId: number; newPackageLeve
     configuredIncomeAddress && configuredIncomeAddress !== "0x0000000000000000000000000000000000000000"
       ? new Contract(
           configuredIncomeAddress,
-          ["function getTotalEscrow(uint256) view returns (uint256)"],
+          [
+            "function getEscrow(uint256) view returns (uint256)",
+            "function getEscrowByPkg(uint256,uint8) view returns (uint256)"
+          ],
           signer
         )
       : null;
 
-  const escrowRaw = incomeContract ? BigInt(await incomeContract.getTotalEscrow(input.userId)) : 0n;
+  const currentPkgEscrow = incomeContract ? BigInt(await incomeContract.getEscrow(input.userId)) : 0n;
+  const nextPkgEscrow = incomeContract ? BigInt(await incomeContract.getEscrowByPkg(input.userId, input.newPackageLevel)) : 0n;
+  const escrowRaw = currentPkgEscrow + nextPkgEscrow;
   const walletChargeRaw = upgradeAmount > escrowRaw ? upgradeAmount - escrowRaw : 0n;
 
   const usdtContract = new Contract(normalizeAddress(paymentAsset), erc20ApprovalAbi, signer);
