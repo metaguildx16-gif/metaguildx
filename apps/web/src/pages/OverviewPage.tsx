@@ -24,6 +24,7 @@ export function OverviewPage(props: DashboardPageProps) {
     earningsDashTab,
     escrowBalance,
     frozenEscrowDisplay,
+    rebirthEscrowDisplay,
     getDisplayName,
     handleCopyRebirthReferralLink,
     handleCopyReferralLink,
@@ -177,7 +178,8 @@ export function OverviewPage(props: DashboardPageProps) {
                     <span className="income-amount" style={{ color: "#C9A84C", fontSize: "12px", textAlign: "right" }}>Income will be processed shortly</span>
                   </div>
                 ) : null}
-                <div className="income-row dashboard-summary-row"><span className="income-label">Frozen</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
+                <div className="income-row dashboard-summary-row"><span className="income-label">Upgrade Escrow</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
+                <div className="income-row dashboard-summary-row"><span className="income-label">Rebirth Escrow</span><span className="income-amount">${rebirthEscrowDisplay}</span></div>
                 <div className="dashboard-summary-total">
                   <span>Total</span>
                   <strong>{`$${totalReceivedDisplay}`}</strong>
