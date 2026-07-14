@@ -4913,7 +4913,7 @@ export async function loadDashboardSnapshot(
     });
 
   const loadRegisteredSnapshot = async () => {
-      const [profile, isRebirthUserRaw, incomes, totalIncomeRaw, internalWalletBalance, currentPackageEscrowRaw, currentPackageBucketEarningsFallbackRaw, pendingReward, pendingCashback, userTokenAllocation, userActiveBoxId, directReferralIdsRaw, rebirthIdsRaw, primaryAsset, defaultPaymentAsset, externalWalletBalanceRaw, stakePositionsRaw, incomeDistributionPending, incomeDistributionPendingPackageLevelRaw] = await Promise.all([
+      const [profile, isRebirthUserRaw, incomes, totalIncomeRaw, internalWalletBalance, rebirthEscrowMainRaw, currentPackageEscrowRaw, currentPackageBucketEarningsFallbackRaw, pendingReward, pendingCashback, userTokenAllocation, userActiveBoxId, directReferralIdsRaw, rebirthIdsRaw, primaryAsset, defaultPaymentAsset, externalWalletBalanceRaw, stakePositionsRaw, incomeDistributionPending, incomeDistributionPendingPackageLevelRaw] = await Promise.all([
       Promise.resolve(registeredProfile!),
       contract.isRebirthUser(userId),
       incomeModule
@@ -4921,6 +4921,7 @@ export async function loadDashboardSnapshot(
         : Promise.resolve({ direct: 0n, level: 0n, spillover: 0n, crossline: 0n }),
       incomeModule ? incomeModule.getTotalAllIncome(userId) : Promise.resolve(0n),
       incomeModule ? incomeModule.getTotalEscrow(userId) : Promise.resolve(0n),
+      incomeModule ? incomeModule.getRebirthEscrow(userId) : Promise.resolve(0n),
       incomeModule ? incomeModule.getEscrow(userId) : Promise.resolve(0n),
       incomeModule
         ? Promise.resolve(registeredProfile)
@@ -5124,7 +5125,7 @@ export async function loadDashboardSnapshot(
       incomeDistributionPendingPackageLevel: Number(incomeDistributionPendingPackageLevelRaw) || null,
       isSurrendered: Boolean(profile.surrendered),
       surrenderStatus,
-      rebirthEscrowBalance: "0"
+      rebirthEscrowBalance: formatTokenAmount(rebirthEscrowMainRaw)
     };
       cacheDashboardSnapshot(cacheKey, persistentCacheKey, snapshot, { emitRefresh: Boolean(options?.forceRefresh) });
       return snapshot;
