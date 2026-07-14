@@ -4461,6 +4461,7 @@ function App() {
       earningsDashTab,
       escrowBalance,
       frozenEscrowDisplay,
+      rebirthEscrowDisplay,
       getDisplayName,
       handleCopyRebirthReferralLink,
       handleCopyReferralLink,
