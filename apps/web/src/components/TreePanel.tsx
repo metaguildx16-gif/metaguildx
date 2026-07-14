@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import TreeCanvas from "./TreeCanvas";
 
 type TreeNodeLike = {
   userId: number;
@@ -41,23 +42,7 @@ function formatSideUser(
   if (!userId) return "Open slot";
   return getDisplayName(userDisplayNames, treeNodeMap?.get(userId) ?? null);
 }
-
-function compactWallet(address?: string | null) {
-  if (!address) {
-    return "Wallet pending";
-  }
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function TreeVisualNode(props: {
-  branch: DisplayTreeNode | null;
-  selectedTreeUserId: number | null;
-  currentUserId: number | null;
-  focusTreeUser: (userId: number) => void;
-  setManualRootSet: (value: boolean) => void;
-  setTreeViewRootId: (userId: number) => void;
-  userDisplayNames?: Record<string, string>;
-}) {
+) {
   const { branch, selectedTreeUserId, currentUserId, focusTreeUser, setManualRootSet, setTreeViewRootId, userDisplayNames } = props;
   if (!branch) {
     return null;
@@ -317,24 +302,16 @@ export default function TreePanel(props: TreePanelProps) {
             </div>
           </div>
 
-          <div className="tree-canvas-shell">
-            {visualTree ? (
-              <div className="tree-binary-scroll">
-                <div className="tree-pyramid-canvas">
-                  <ul className="tree-visual-root">
-                    <TreeVisualNode
-                      branch={visualTree}
-                      selectedTreeUserId={selectedTreeUserId}
-                      currentUserId={snapshot.userId}
-                      focusTreeUser={focusTreeUser}
-                      setManualRootSet={setManualRootSet}
-                      setTreeViewRootId={setTreeViewRootId}
-                      userDisplayNames={userDisplayNames}
-                    />
-                  </ul>
-                </div>
-              </div>
-            ) : (
+          <div className="tree-canvas-shell" style={{padding:0,border:"none",background:"none"}}>
+            {visualTree?(
+              <TreeCanvas
+                visualTree={visualTree}
+                selectedId={selectedTreeUserId}
+                currentUserId={snapshot.userId??null}
+                onNodeClick={focusTreeUser}
+                userDisplayNames={userDisplayNames}
+              />
+            ):(
               <div className="empty-state">
                 <p className="empty-state-text">{emptyStateText}</p>
               </div>
