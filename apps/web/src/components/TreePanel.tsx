@@ -199,6 +199,8 @@ export default function TreePanel(props: TreePanelProps) {
   return (
     <section className="panel">
       <p className="section-label">{treeLabel}</p>
+
+      <style>{`.tree-legend-desktop{} @media(max-width:767px){.tree-legend-desktop{display:none!important;}}`}</style>
       <div className="tree-page-layout tree-page-layout-binary">
         <article className="dashboard-card tree-main-card">
           <div className="tree-canvas-header">
@@ -206,7 +208,7 @@ export default function TreePanel(props: TreePanelProps) {
               <h3>{treeTitle}</h3>
               <p>{treeDescription}</p>
             </div>
-            <div className="tree-legend">
+            <div className="tree-legend tree-legend-desktop">
               <button
                 type="button"
                 className="secondary-button"

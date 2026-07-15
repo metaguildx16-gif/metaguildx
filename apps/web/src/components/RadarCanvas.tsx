@@ -214,9 +214,10 @@ export default function RadarCanvas({
   visualTree,selectedId,currentUserId,onNodeClick,userDisplayNames,treePreview
 }:TreeCanvasProps){
   const svgRef=useRef<SVGSVGElement>(null);
+  const getRs=useCallback(()=>{const el=svgRef.current;if(!el)return 1;const r=el.getBoundingClientRect();return r.width>0?r.width/CVW:1;},[]);
   const drag=useRef({on:false,x:0,y:0});
   const pinch=useRef({on:false,d:0});
-  const [tx,setTx]=useState({x:0,y:0,s:1});
+  const [tx,setTx]=useState(()=>({x:0,y:0,s:typeof window!=="undefined"&&window.innerWidth<768?1.28:1.0}));
   const [hov,setHov]=useState<number|null>(null);
   const [anim,setAnim]=useState(false);
   // Desktop: peeked node for side panel
@@ -229,7 +230,19 @@ export default function RadarCanvas({
 
   useEffect(()=>{
     const el=svgRef.current;if(!el)return;
-    const wh=(e:WheelEvent)=>{e.preventDefault();setTx(t=>({...t,s:cs(t.s*(e.deltaY<0?1.12:0.9))}));};
+    const wh=(e:WheelEvent)=>{
+      e.preventDefault();
+      const el=svgRef.current;if(!el)return;
+      const rect=el.getBoundingClientRect();
+      const rs=rect.width>0?rect.width/CVW:1;
+      const factor=e.deltaY<0?1.12:0.9;
+      setTx(t=>{
+        const ns=cs(t.s*factor);
+        const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+        const svgX=(mx/rs-t.x)/t.s,svgY=(my/rs-t.y)/t.s;
+        return{x:mx/rs-svgX*ns,y:my/rs-svgY*ns,s:ns};
+      });
+    };
     const tm=(e:TouchEvent)=>{if(e.touches.length>=2)e.preventDefault();};
     el.addEventListener("wheel",wh,{passive:false});
     el.addEventListener("touchmove",tm,{passive:false});
@@ -239,7 +252,7 @@ export default function RadarCanvas({
   const mDown=useCallback((e:React.MouseEvent)=>{e.preventDefault();drag.current={on:true,x:e.clientX,y:e.clientY};},[]);
   const mMove=useCallback((e:React.MouseEvent)=>{
     if(!drag.current.on)return;
-    setTx(t=>({...t,x:t.x+e.clientX-drag.current.x,y:t.y+e.clientY-drag.current.y}));
+    const rs=getRs();setTx(t=>({...t,x:t.x+(e.clientX-drag.current.x)/rs,y:t.y+(e.clientY-drag.current.y)/rs}));
     drag.current.x=e.clientX;drag.current.y=e.clientY;
   },[]);
   const mUp=useCallback(()=>{drag.current.on=false;},[]);
@@ -251,11 +264,22 @@ export default function RadarCanvas({
   },[]);
   const tMove=useCallback((e:React.TouchEvent)=>{
     if(e.touches.length===1&&drag.current.on){
-      setTx(t=>({...t,x:t.x+e.touches[0].clientX-drag.current.x,y:t.y+e.touches[0].clientY-drag.current.y}));
+      const rs2=getRs();setTx(t=>({...t,x:t.x+(e.touches[0].clientX-drag.current.x)/rs2,y:t.y+(e.touches[0].clientY-drag.current.y)/rs2}));
       drag.current.x=e.touches[0].clientX;drag.current.y=e.touches[0].clientY;
     }else if(e.touches.length===2&&pinch.current.on){
-      const d=td(e);const r=d/(pinch.current.d||d);pinch.current.d=d;
-      setTx(t=>({...t,s:cs(t.s*r)}));
+      const el2=svgRef.current;if(!el2)return;
+      const rect2=el2.getBoundingClientRect();
+      const rs3=rect2.width>0?rect2.width/CVW:1;
+      const d=td(e);const ratio=d/(pinch.current.d||d);
+      const pcx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      const pcy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      const mx2=pcx-rect2.left,my2=pcy-rect2.top;
+      setTx(t=>{
+        const ns2=cs(t.s*ratio);
+        const svgX2=(mx2/rs3-t.x)/t.s,svgY2=(my2/rs3-t.y)/t.s;
+        return{x:mx2/rs3-svgX2*ns2,y:my2/rs3-svgY2*ns2,s:ns2};
+      });
+      pinch.current.d=d;
     }
   },[]);
   const tEnd=useCallback(()=>{drag.current.on=false;pinch.current.on=false;},[]);
@@ -341,6 +365,7 @@ export default function RadarCanvas({
         display:"flex",flexDirection:"row",alignItems:"flex-start",
         background:"radial-gradient(ellipse 70% 65% at 50% 50%,rgba(79,110,247,0.13),transparent 75%),#0c0c1e",
         borderRadius:18,overflow:"hidden",border:"1px solid rgba(79,110,247,0.18)",
+        minHeight:0,
       }}>
         {/* SVG radar */}
         <div style={{position:"relative",flex:"1 1 auto",minWidth:0,userSelect:"none",touchAction:"none"}}>
@@ -367,7 +392,7 @@ export default function RadarCanvas({
           }}>Tap \u00b7 Tap again to center \u00b7 Drag \u00b7 Pinch</div>
 
           <svg ref={svgRef} viewBox={`0 0 ${CVW} ${CVH}`} width="100%"
-            style={{display:"block",cursor:drag.current.on?"grabbing":"grab",minHeight:220}}
+            style={{display:"block",cursor:drag.current.on?"grabbing":"grab",minHeight:"min(70vw,340px)"}}
             onMouseDown={mDown} onMouseMove={mMove} onMouseUp={mUp} onMouseLeave={mUp}
             onTouchStart={tStart} onTouchMove={tMove} onTouchEnd={tEnd}
             onClick={()=>{setPeeked(null);}} // empty space click closes desktop panel
