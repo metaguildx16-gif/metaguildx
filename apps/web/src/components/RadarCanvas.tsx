@@ -214,6 +214,9 @@ export default function RadarCanvas({
   visualTree,selectedId,currentUserId,onNodeClick,userDisplayNames,treePreview
 }:TreeCanvasProps){
   const svgRef=useRef<SVGSVGElement>(null);
+  const gRef=useRef<SVGGElement>(null);
+  const txRef=useRef({x:0,y:0,s:typeof window!=="undefined"&&window.innerWidth<768?1.28:1.0});
+  const lastTappedRef=useRef<number|null>(null);
   const getRs=useCallback(()=>{const el=svgRef.current;if(!el)return 1;const r=el.getBoundingClientRect();return r.width>0?r.width/CVW:1;},[]);
   const drag=useRef({on:false,x:0,y:0});
   const pinch=useRef({on:false,d:0});
@@ -235,15 +238,19 @@ export default function RadarCanvas({
   const fsDrag=useRef({on:false,x:0,y:0});
   const fsPinch=useRef({on:false,d:0});
   const fsSvgRef=useRef<SVGSVGElement>(null);
+  const fsGRef=useRef<SVGGElement>(null);
+  const fsTxRef=useRef({x:0,y:0,s:1.5});
   const getFsRs=useCallback(()=>{const el=fsSvgRef.current;if(!el)return 1;const r=el.getBoundingClientRect();return r.width>0?r.width/CVW:1;},[]);
   const fsMDown=useCallback((e:React.MouseEvent)=>{e.preventDefault();fsDrag.current={on:true,x:e.clientX,y:e.clientY};},[]);
   const fsMMove=useCallback((e:React.MouseEvent)=>{
     if(!fsDrag.current.on)return;
     const rs=getFsRs();
-    setFsTx(t=>({...t,x:t.x+(e.clientX-fsDrag.current.x)/rs,y:t.y+(e.clientY-fsDrag.current.y)/rs}));
+    const nft={x:fsTxRef.current.x+(e.clientX-fsDrag.current.x)/rs,y:fsTxRef.current.y+(e.clientY-fsDrag.current.y)/rs,s:fsTxRef.current.s};
+    fsTxRef.current=nft;
+    const fg=fsGRef.current;if(fg)fg.setAttribute("transform",`translate(${nft.x},${nft.y}) scale(${nft.s})`);
     fsDrag.current.x=e.clientX;fsDrag.current.y=e.clientY;
   },[getFsRs]);
-  const fsMUp=useCallback(()=>{fsDrag.current.on=false;},[]);
+  const fsMUp=useCallback(()=>{fsDrag.current.on=false;setFsTx({...fsTxRef.current});},[]);
   const fsTd=(e:React.TouchEvent)=>Math.hypot(
     e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
   const fsTStart=useCallback((e:React.TouchEvent)=>{
@@ -253,7 +260,9 @@ export default function RadarCanvas({
   const fsTMove=useCallback((e:React.TouchEvent)=>{
     if(e.touches.length===1&&fsDrag.current.on){
       const rs=getFsRs();
-      setFsTx(t=>({...t,x:t.x+(e.touches[0].clientX-fsDrag.current.x)/rs,y:t.y+(e.touches[0].clientY-fsDrag.current.y)/rs}));
+      const nft2={x:fsTxRef.current.x+(e.touches[0].clientX-fsDrag.current.x)/rs,y:fsTxRef.current.y+(e.touches[0].clientY-fsDrag.current.y)/rs,s:fsTxRef.current.s};
+      fsTxRef.current=nft2;
+      const fg2=fsGRef.current;if(fg2)fg2.setAttribute("transform",`translate(${nft2.x},${nft2.y}) scale(${nft2.s})`);
       fsDrag.current.x=e.touches[0].clientX;fsDrag.current.y=e.touches[0].clientY;
     }else if(e.touches.length===2&&fsPinch.current.on){
       const el2=fsSvgRef.current;if(!el2)return;
@@ -263,16 +272,16 @@ export default function RadarCanvas({
       const pcx=(e.touches[0].clientX+e.touches[1].clientX)/2;
       const pcy=(e.touches[0].clientY+e.touches[1].clientY)/2;
       const mx2=pcx-rect2.left,my2=pcy-rect2.top;
-      setFsTx(t=>{
-        const ns2=cs(t.s*ratio);
-        const svgX2=(mx2/rs3-t.x)/t.s,svgY2=(my2/rs3-t.y)/t.s;
-        return{x:mx2/rs3-svgX2*ns2,y:my2/rs3-svgY2*ns2,s:ns2};
-      });
+      const fpt=fsTxRef.current;const ns2=fsCsZoom(fpt.s*ratio);
+      const svgX2=(mx2/rs3-fpt.x)/fpt.s,svgY2=(my2/rs3-fpt.y)/fpt.s;
+      const nfst={x:mx2/rs3-svgX2*ns2,y:my2/rs3-svgY2*ns2,s:ns2};
+      fsTxRef.current=nfst;
+      const fg=fsGRef.current;if(fg)fg.setAttribute("transform",`translate(${nfst.x},${nfst.y}) scale(${nfst.s})`);
       fsPinch.current.d=d;
     }
   },[getFsRs]);
-  const fsTEnd=useCallback(()=>{fsDrag.current.on=false;fsPinch.current.on=false;},[]);
-  const fsReset=useCallback(()=>{setFsTx({x:0,y:0,s:1.5});},[]);
+  const fsTEnd=useCallback(()=>{fsDrag.current.on=false;fsPinch.current.on=false;setFsTx({...fsTxRef.current});},[]);
+  const fsReset=useCallback(()=>{const t={x:0,y:0,s:1.5};fsTxRef.current=t;setFsTx(t);},[]);
   const fsCsZoom=(v:number)=>Math.min(Math.max(v,0.3),4);
 
   // Re-attach non-passive wheel to FS svg
@@ -327,10 +336,13 @@ export default function RadarCanvas({
   const mDown=useCallback((e:React.MouseEvent)=>{e.preventDefault();drag.current={on:true,x:e.clientX,y:e.clientY};},[]);
   const mMove=useCallback((e:React.MouseEvent)=>{
     if(!drag.current.on)return;
-    const rs=getRs();setTx(t=>({...t,x:t.x+(e.clientX-drag.current.x)/rs,y:t.y+(e.clientY-drag.current.y)/rs}));
+    const rs=getRs();
+    const nt={x:txRef.current.x+(e.clientX-drag.current.x)/rs,y:txRef.current.y+(e.clientY-drag.current.y)/rs,s:txRef.current.s};
+    txRef.current=nt;
+    const g=gRef.current;if(g)g.setAttribute("transform",`translate(${nt.x},${nt.y}) scale(${nt.s})`);
     drag.current.x=e.clientX;drag.current.y=e.clientY;
   },[]);
-  const mUp=useCallback(()=>{drag.current.on=false;},[]);
+  const mUp=useCallback(()=>{drag.current.on=false;setTx({...txRef.current});},[]);
   const td=(e:React.TouchEvent)=>Math.hypot(
     e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
   const tStart=useCallback((e:React.TouchEvent)=>{
@@ -339,7 +351,10 @@ export default function RadarCanvas({
   },[]);
   const tMove=useCallback((e:React.TouchEvent)=>{
     if(e.touches.length===1&&drag.current.on){
-      const rs2=getRs();setTx(t=>({...t,x:t.x+(e.touches[0].clientX-drag.current.x)/rs2,y:t.y+(e.touches[0].clientY-drag.current.y)/rs2}));
+      const rs2=getRs();
+      const nt2={x:txRef.current.x+(e.touches[0].clientX-drag.current.x)/rs2,y:txRef.current.y+(e.touches[0].clientY-drag.current.y)/rs2,s:txRef.current.s};
+      txRef.current=nt2;
+      const g2=gRef.current;if(g2)g2.setAttribute("transform",`translate(${nt2.x},${nt2.y}) scale(${nt2.s})`);
       drag.current.x=e.touches[0].clientX;drag.current.y=e.touches[0].clientY;
     }else if(e.touches.length===2&&pinch.current.on){
       const el2=svgRef.current;if(!el2)return;
@@ -349,35 +364,38 @@ export default function RadarCanvas({
       const pcx=(e.touches[0].clientX+e.touches[1].clientX)/2;
       const pcy=(e.touches[0].clientY+e.touches[1].clientY)/2;
       const mx2=pcx-rect2.left,my2=pcy-rect2.top;
-      setTx(t=>{
-        const ns2=cs(t.s*ratio);
-        const svgX2=(mx2/rs3-t.x)/t.s,svgY2=(my2/rs3-t.y)/t.s;
-        return{x:mx2/rs3-svgX2*ns2,y:my2/rs3-svgY2*ns2,s:ns2};
-      });
+      const pt=txRef.current;const ns2=cs(pt.s*ratio);
+      const svgX2=(mx2/rs3-pt.x)/pt.s,svgY2=(my2/rs3-pt.y)/pt.s;
+      const npt={x:mx2/rs3-svgX2*ns2,y:my2/rs3-svgY2*ns2,s:ns2};
+      txRef.current=npt;
+      const gp=gRef.current;if(gp)gp.setAttribute("transform",`translate(${npt.x},${npt.y}) scale(${npt.s})`);
       pinch.current.d=d;
     }
   },[]);
-  const tEnd=useCallback(()=>{drag.current.on=false;pinch.current.on=false;},[]);
+  const tEnd=useCallback(()=>{drag.current.on=false;pinch.current.on=false;setTx({...txRef.current});},[]);
   const reset=useCallback(()=>{setAnim(true);setTx({x:0,y:0,s:1});setTimeout(()=>setAnim(false),320);},[]);
 
   // Node tap handler — mobile: mini popup | desktop: side panel
   const handleNodeTap=useCallback((e:React.MouseEvent,node:TreeNodeLike)=>{
-    e.stopPropagation(); // prevent SVG's "close" click
+    e.stopPropagation();
     const isMob=typeof window!=="undefined"&&window.innerWidth<768;
     if(isMob){
-      if(popup?.node.userId===node.userId){
-        // Second tap same node → make center
+      if(lastTappedRef.current===node.userId){
+        // Second tap → make center
+        lastTappedRef.current=null;
         setPopup(null);
         onNodeClick(node.userId);
       }else{
+        lastTappedRef.current=node.userId;
         setPopup({node,sx:e.clientX,sy:e.clientY});
         setPeeked(null);
       }
     }else{
+      lastTappedRef.current=null;
       setPopup(null);
       setPeeked(p=>p?.userId===node.userId?null:node);
     }
-  },[popup,onNodeClick]);
+  },[onNodeClick]);
 
   const handleMakeCenter=useCallback(()=>{
     if(peeked){onNodeClick(peeked.userId);setPeeked(null);}
@@ -467,7 +485,7 @@ export default function RadarCanvas({
           }}>Tap \u00b7 Tap again to center \u00b7 Drag \u00b7 Pinch</div>
 
           <button type="button"
-            onClick={()=>{setFsTx({x:0,y:0,s:1.5});setFsOpen(true);}}
+            onClick={()=>{const t={x:0,y:0,s:1.5};fsTxRef.current=t;setFsTx(t);setFsOpen(true);}}
             className="radar-expand-btn"
             style={{display:"none",position:"absolute",bottom:36,right:10,zIndex:15,
               padding:"6px 12px",borderRadius:10,
@@ -479,7 +497,7 @@ export default function RadarCanvas({
             style={{display:"block",cursor:drag.current.on?"grabbing":"grab",minHeight:"min(70vw,340px)"}}
             onMouseDown={mDown} onMouseMove={mMove} onMouseUp={mUp} onMouseLeave={mUp}
             onTouchStart={tStart} onTouchMove={tMove} onTouchEnd={tEnd}
-            onClick={()=>{setPeeked(null);}} // empty space click closes desktop panel
+            onClick={()=>{setPeeked(null);lastTappedRef.current=null;}} // empty space click closes desktop panel
           >
             <defs>
               <radialGradient id="rcBg" cx="50%" cy="50%" r="55%">
@@ -503,8 +521,8 @@ export default function RadarCanvas({
               </filter>
             </defs>
 
-            <g transform={`translate(${tx.x},${tx.y}) scale(${tx.s})`}
-               style={{transition:anim?"transform 0.32s cubic-bezier(0.4,0,0.2,1)":"none"}}>
+            <g ref={gRef} transform={`translate(${tx.x},${tx.y}) scale(${tx.s})`}
+               style={{transition:anim?"transform 0.32s cubic-bezier(0.4,0,0.2,1)":"none",willChange:"transform"}}>
 
               {Array.from({length:activeRings},(_,i)=>{
                 const r=RING_R[i+1];if(!r)return null;
@@ -708,7 +726,7 @@ export default function RadarCanvas({
               style={{display:"block",cursor:fsDrag.current.on?"grabbing":"grab"}}
               onMouseDown={fsMDown} onMouseMove={fsMMove} onMouseUp={fsMUp} onMouseLeave={fsMUp}
               onTouchStart={fsTStart} onTouchMove={fsTMove} onTouchEnd={fsTEnd}
-              onClick={()=>{setPeeked(null);}}
+              onClick={()=>{setPeeked(null);lastTappedRef.current=null;}}
             >
               <defs>
                 <radialGradient id="rcBgFs" cx="50%" cy="50%" r="55%">
@@ -728,7 +746,7 @@ export default function RadarCanvas({
                 </filter>
               </defs>
 
-              <g transform={`translate(${fsTx.x},${fsTx.y}) scale(${fsTx.s})`}>
+              <g ref={fsGRef} transform={`translate(${fsTx.x},${fsTx.y}) scale(${fsTx.s})`} style={{willChange:"transform"}}>
                 {/* Ring guides */}
                 {Array.from({length:activeRings},(_,i)=>{
                   const r=RING_R[i+1];if(!r)return null;

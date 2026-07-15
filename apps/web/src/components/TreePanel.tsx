@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import TreeCanvas from "./TreeCanvas";
 import RadarCanvas from "./RadarCanvas";
 
@@ -73,6 +74,13 @@ export default function TreePanel(props: TreePanelProps) {
   const preferredRootNode =
     initialRootId && treeNodeMap.has(initialRootId) ? treeNodeMap.get(initialRootId) ?? rootNode : rootNode;
   const [viewMode,setViewMode]=useState<"radar"|"tree">("radar");
+  const [treeFsOpen,setTreeFsOpen]=useState(false);
+  useEffect(()=>{
+    if(!treeFsOpen)return;
+    const prev=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    return()=>{document.body.style.overflow=prev;};
+  },[treeFsOpen]);
   const [treeViewRootId, setTreeViewRootId] = useState<number | null>(preferredRootNode?.userId ?? null);
   const [manualRootSet, setManualRootSet] = useState(false);
   const [showIncomeDetails, setShowIncomeDetails] = useState(false);
@@ -254,13 +262,23 @@ export default function TreePanel(props: TreePanelProps) {
                   treePreview={treePreview}
                 />
               ):(
-                <TreeCanvas
-                  visualTree={visualTree}
-                  selectedId={selectedTreeUserId}
-                  currentUserId={snapshot.userId??null}
-                  onNodeClick={focusTreeUser}
-                  userDisplayNames={userDisplayNames}
-                />
+                <div style={{position:"relative"}}>
+                  <TreeCanvas
+                    visualTree={visualTree}
+                    selectedId={selectedTreeUserId}
+                    currentUserId={snapshot.userId??null}
+                    onNodeClick={focusTreeUser}
+                    userDisplayNames={userDisplayNames}
+                  />
+                  <button type="button"
+                    onClick={()=>setTreeFsOpen(true)}
+                    className="tree-fs-btn"
+                    style={{position:"absolute",bottom:10,right:10,zIndex:15,
+                      padding:"6px 12px",borderRadius:10,display:"none",
+                      background:"rgba(79,110,247,0.22)",border:"1px solid rgba(79,110,247,0.40)",
+                      color:"#c5d4ff",fontSize:11,fontWeight:700,cursor:"pointer"}}
+                  >⛶ Fullscreen</button>
+                </div>
               )
             ):(
               <div className="empty-state">
@@ -429,6 +447,42 @@ export default function TreePanel(props: TreePanelProps) {
           ) : null}
         </div>
       </div>
+    <style>{`.tree-fs-btn{display:none!important;}@media(max-width:767px){.tree-fs-btn{display:block!important;}}`}</style>
+
+    {treeFsOpen&&typeof document!=="undefined"&&(()=>{const{createPortal}=require("react-dom");return createPortal(
+      <div style={{position:"fixed",inset:0,zIndex:9990,background:"#0a0a18",
+        display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+          padding:"env(safe-area-inset-top,0px) 14px 0",
+          height:"calc(48px + env(safe-area-inset-top,0px))",flexShrink:0,
+          background:"rgba(10,10,24,0.96)",borderBottom:"1px solid rgba(79,110,247,0.14)",
+          backdropFilter:"blur(10px)"}}>
+          <button type="button" onClick={()=>setTreeFsOpen(false)} style={{
+            padding:"6px 12px",borderRadius:9,background:"rgba(79,110,247,0.12)",
+            border:"1px solid rgba(79,110,247,0.22)",color:"#94a3b8",fontSize:12,
+            fontWeight:700,cursor:"pointer"}}>← Close</button>
+          <span style={{fontSize:13,fontWeight:700,color:"#c5d4ff",
+            fontFamily:"Syne,sans-serif"}}>Binary Tree</span>
+          <button type="button" onClick={()=>{
+            if(preferredRootNode){setManualRootSet(false);
+              setSelectedTreeUserId(preferredRootNode.userId);
+              setTreeViewRootId(preferredRootNode.userId);}
+          }} style={{padding:"6px 12px",borderRadius:9,
+            background:"rgba(79,110,247,0.12)",border:"1px solid rgba(79,110,247,0.22)",
+            color:"#94a3b8",fontSize:11,fontWeight:700,cursor:"pointer"}}>Root</button>
+        </div>
+        <div style={{flex:"1 1 0",overflow:"auto",padding:8}}>
+          <TreeCanvas
+            visualTree={visualTree!}
+            selectedId={selectedTreeUserId}
+            currentUserId={snapshot.userId??null}
+            onNodeClick={(uid)=>{focusTreeUser(uid);}}
+            userDisplayNames={userDisplayNames}
+          />
+        </div>
+      </div>,
+      document.body
+    );})()}
     </section>
   );
 }
