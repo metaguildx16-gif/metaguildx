@@ -220,6 +220,81 @@ export default function RadarCanvas({
   const [tx,setTx]=useState(()=>({x:0,y:0,s:typeof window!=="undefined"&&window.innerWidth<768?1.28:1.0}));
   const [hov,setHov]=useState<number|null>(null);
   const [anim,setAnim]=useState(false);
+  const [fsOpen,setFsOpen]=useState(false);
+
+  // Body-scroll lock while fullscreen
+  useEffect(()=>{
+    if(!fsOpen)return;
+    const prev=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    return()=>{document.body.style.overflow=prev;};
+  },[fsOpen]);
+
+  // Separate transform state for fullscreen so card and FS don't share
+  const [fsTx,setFsTx]=useState(()=>({x:0,y:0,s:1.5}));
+  const fsDrag=useRef({on:false,x:0,y:0});
+  const fsPinch=useRef({on:false,d:0});
+  const fsSvgRef=useRef<SVGSVGElement>(null);
+  const getFsRs=useCallback(()=>{const el=fsSvgRef.current;if(!el)return 1;const r=el.getBoundingClientRect();return r.width>0?r.width/CVW:1;},[]);
+  const fsMDown=useCallback((e:React.MouseEvent)=>{e.preventDefault();fsDrag.current={on:true,x:e.clientX,y:e.clientY};},[]);
+  const fsMMove=useCallback((e:React.MouseEvent)=>{
+    if(!fsDrag.current.on)return;
+    const rs=getFsRs();
+    setFsTx(t=>({...t,x:t.x+(e.clientX-fsDrag.current.x)/rs,y:t.y+(e.clientY-fsDrag.current.y)/rs}));
+    fsDrag.current.x=e.clientX;fsDrag.current.y=e.clientY;
+  },[getFsRs]);
+  const fsMUp=useCallback(()=>{fsDrag.current.on=false;},[]);
+  const fsTd=(e:React.TouchEvent)=>Math.hypot(
+    e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  const fsTStart=useCallback((e:React.TouchEvent)=>{
+    if(e.touches.length===1){fsDrag.current={on:true,x:e.touches[0].clientX,y:e.touches[0].clientY};}
+    else if(e.touches.length===2){fsDrag.current.on=false;fsPinch.current={on:true,d:fsTd(e)};}
+  },[]);
+  const fsTMove=useCallback((e:React.TouchEvent)=>{
+    if(e.touches.length===1&&fsDrag.current.on){
+      const rs=getFsRs();
+      setFsTx(t=>({...t,x:t.x+(e.touches[0].clientX-fsDrag.current.x)/rs,y:t.y+(e.touches[0].clientY-fsDrag.current.y)/rs}));
+      fsDrag.current.x=e.touches[0].clientX;fsDrag.current.y=e.touches[0].clientY;
+    }else if(e.touches.length===2&&fsPinch.current.on){
+      const el2=fsSvgRef.current;if(!el2)return;
+      const rect2=el2.getBoundingClientRect();
+      const rs3=rect2.width>0?rect2.width/CVW:1;
+      const d=fsTd(e);const ratio=d/(fsPinch.current.d||d);
+      const pcx=(e.touches[0].clientX+e.touches[1].clientX)/2;
+      const pcy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      const mx2=pcx-rect2.left,my2=pcy-rect2.top;
+      setFsTx(t=>{
+        const ns2=cs(t.s*ratio);
+        const svgX2=(mx2/rs3-t.x)/t.s,svgY2=(my2/rs3-t.y)/t.s;
+        return{x:mx2/rs3-svgX2*ns2,y:my2/rs3-svgY2*ns2,s:ns2};
+      });
+      fsPinch.current.d=d;
+    }
+  },[getFsRs]);
+  const fsTEnd=useCallback(()=>{fsDrag.current.on=false;fsPinch.current.on=false;},[]);
+  const fsReset=useCallback(()=>{setFsTx({x:0,y:0,s:1.5});},[]);
+  const fsCsZoom=(v:number)=>Math.min(Math.max(v,0.3),4);
+
+  // Re-attach non-passive wheel to FS svg
+  useEffect(()=>{
+    const el=fsSvgRef.current;if(!el||!fsOpen)return;
+    const wh=(e:WheelEvent)=>{
+      e.preventDefault();
+      const rect=el.getBoundingClientRect();
+      const rs=rect.width>0?rect.width/CVW:1;
+      const factor=e.deltaY<0?1.12:0.9;
+      setFsTx(t=>{
+        const ns=fsCsZoom(t.s*factor);
+        const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+        const svgX=(mx/rs-t.x)/t.s,svgY=(my/rs-t.y)/t.s;
+        return{x:mx/rs-svgX*ns,y:my/rs-svgY*ns,s:ns};
+      });
+    };
+    const tm=(e:TouchEvent)=>{if(e.touches.length>=2)e.preventDefault();};
+    el.addEventListener("wheel",wh,{passive:false});
+    el.addEventListener("touchmove",tm,{passive:false});
+    return()=>{el.removeEventListener("wheel",wh);el.removeEventListener("touchmove",tm);};
+  },[fsOpen]);
   // Desktop: peeked node for side panel
   const [peeked,setPeeked]=useState<TreeNodeLike|null>(null);
   // Mobile: floating mini-popup
@@ -391,6 +466,15 @@ export default function RadarCanvas({
             whiteSpace:"nowrap",pointerEvents:"none",zIndex:5,
           }}>Tap \u00b7 Tap again to center \u00b7 Drag \u00b7 Pinch</div>
 
+          <button type="button"
+            onClick={()=>{setFsTx({x:0,y:0,s:1.5});setFsOpen(true);}}
+            className="radar-expand-btn"
+            style={{display:"none",position:"absolute",bottom:36,right:10,zIndex:15,
+              padding:"6px 12px",borderRadius:10,
+              background:"rgba(79,110,247,0.22)",border:"1px solid rgba(79,110,247,0.40)",
+              color:"#c5d4ff",fontSize:11,fontWeight:700,cursor:"pointer"}}
+          >⛶ Fullscreen</button>
+
           <svg ref={svgRef} viewBox={`0 0 ${CVW} ${CVH}`} width="100%"
             style={{display:"block",cursor:drag.current.on?"grabbing":"grab",minHeight:"min(70vw,340px)"}}
             onMouseDown={mDown} onMouseMove={mMove} onMouseUp={mUp} onMouseLeave={mUp}
@@ -560,7 +644,216 @@ export default function RadarCanvas({
       <style>{`
         .radar-side-panel{display:none!important;}
         @media(min-width:768px){.radar-side-panel{display:block!important;}}
+        .radar-expand-btn{display:none!important;}
+        @media(max-width:767px){.radar-expand-btn{display:block!important;}}
       `}</style>
+
+      {/* ── Fullscreen portal (mobile only) ─────────────────── */}
+      {fsOpen&&typeof document!=="undefined"&&createPortal(
+        <div style={{
+          position:"fixed",inset:0,zIndex:9990,
+          background:"#0a0a18",
+          display:"flex",flexDirection:"column",
+          overflow:"hidden",
+        }}>
+          {/* Top bar */}
+          <div style={{
+            display:"flex",alignItems:"center",justifyContent:"space-between",
+            padding:"env(safe-area-inset-top,0px) 14px 0",
+            height:"calc(48px + env(safe-area-inset-top,0px))",
+            flexShrink:0,
+            background:"rgba(10,10,24,0.96)",
+            borderBottom:"1px solid rgba(79,110,247,0.14)",
+            backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)",
+          }}>
+            <button type="button" onClick={()=>{setFsOpen(false);setPopup(null);}} style={{
+              padding:"6px 12px",borderRadius:9,
+              background:"rgba(79,110,247,0.12)",
+              border:"1px solid rgba(79,110,247,0.22)",
+              color:"#94a3b8",fontSize:12,fontWeight:700,cursor:"pointer",
+            }}>← Close</button>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:13,fontWeight:700,color:"#c5d4ff",
+                fontFamily:"Syne,sans-serif",letterSpacing:"0.02em"}}>Radar</span>
+              <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10,
+                background:"rgba(79,110,247,0.16)",color:"#7c9ef8",
+                letterSpacing:"0.04em"}}>{activeRings} Ring{activeRings!==1?"s":""}</span>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              {([
+                ["+",()=>setFsTx(t=>({...t,s:fsCsZoom(t.s*1.25)}))],
+                ["−",()=>setFsTx(t=>({...t,s:fsCsZoom(t.s*0.80)}))],
+                ["⊟",fsReset],
+              ] as [string,()=>void][]).map(([lbl,fn])=>(
+                <button key={lbl} type="button" onClick={fn} style={{
+                  width:30,height:30,border:"1px solid rgba(79,110,247,0.30)",borderRadius:8,
+                  background:"rgba(79,110,247,0.12)",color:"#b9c7ff",fontSize:14,fontWeight:700,
+                  cursor:"pointer",display:"grid",placeItems:"center",padding:0,
+                }}>{lbl}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Fullscreen SVG */}
+          <div style={{flex:"1 1 0",position:"relative",overflow:"hidden",
+            userSelect:"none",touchAction:"none",minHeight:0}}>
+            <div style={{
+              position:"absolute",bottom:8,left:"50%",transform:"translateX(-50%)",
+              fontSize:9,color:"rgba(255,255,255,0.14)",letterSpacing:"0.09em",
+              whiteSpace:"nowrap",pointerEvents:"none",zIndex:5,
+            }}>Tap · Tap again to center · Drag · Pinch</div>
+
+            <svg ref={fsSvgRef} viewBox={`0 0 ${CVW} ${CVH}`}
+              width="100%" height="100%"
+              style={{display:"block",cursor:fsDrag.current.on?"grabbing":"grab"}}
+              onMouseDown={fsMDown} onMouseMove={fsMMove} onMouseUp={fsMUp} onMouseLeave={fsMUp}
+              onTouchStart={fsTStart} onTouchMove={fsTMove} onTouchEnd={fsTEnd}
+              onClick={()=>{setPeeked(null);}}
+            >
+              <defs>
+                <radialGradient id="rcBgFs" cx="50%" cy="50%" r="55%">
+                  <stop offset="0%" stopColor="rgba(79,110,247,0.22)"/>
+                  <stop offset="100%" stopColor="rgba(10,10,26,0.97)"/>
+                </radialGradient>
+                <radialGradient id="rcCurFs" cx="50%" cy="50%" r="55%">
+                  <stop offset="0%" stopColor="rgba(46,196,143,0.35)"/>
+                  <stop offset="100%" stopColor="rgba(10,10,26,0.97)"/>
+                </radialGradient>
+                <filter id="rcGlowFs" x="-40%" y="-40%" width="180%" height="180%">
+                  <feGaussianBlur stdDeviation="5" result="b"/>
+                  <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <filter id="rcShdwFs" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0" dy="4" stdDeviation="6" floodColor="rgba(0,0,0,0.6)"/>
+                </filter>
+              </defs>
+
+              <g transform={`translate(${fsTx.x},${fsTx.y}) scale(${fsTx.s})`}>
+                {/* Ring guides */}
+                {Array.from({length:activeRings},(_,i)=>{
+                  const r=RING_R[i+1];if(!r)return null;
+                  const op=Math.max(0.14-i*0.022,0.04);
+                  return(
+                    <g key={`frg${i}`}>
+                      <circle cx={CX} cy={CY} r={r} fill="none"
+                        stroke={`rgba(79,110,247,${op.toFixed(3)})`}
+                        strokeWidth={1} strokeDasharray="5 5"/>
+                      <text x={CX+r+6} y={CY+4} fontSize={8}
+                        fill={`rgba(79,110,247,${Math.max(op*2,0.25).toFixed(2)})`}
+                        style={{fontFamily:"DM Sans,sans-serif"}}>Ring {i+1}</text>
+                    </g>
+                  );
+                })}
+                {/* Spokes */}
+                {positioned.filter(p=>p.ring===1).map(p=>(
+                  <line key={`fsk${p.slot}`} x1={CX} y1={CY} x2={p.cx} y2={p.cy}
+                    stroke="rgba(79,110,247,0.06)" strokeWidth={1}/>
+                ))}
+                {/* Connection lines */}
+                {levels.slice(0,-1).map((lvl,ring)=>
+                  lvl.map((_,slot)=>{
+                    const pp=posLookup.get(`${ring}:${slot}`);if(!pp)return null;
+                    return([0,1].map(side=>{
+                      const childSlot=slot*2+side;
+                      const childId=levels[ring+1]?.[childSlot]??0;if(!childId)return null;
+                      const cp=posLookup.get(`${ring+1}:${childSlot}`);if(!cp)return null;
+                      const op=Math.max(0.35-ring*0.06,0.08);
+                      return(
+                        <line key={`fln${ring}${slot}${side}`}
+                          x1={pp.cx} y1={pp.cy} x2={cp.cx} y2={cp.cy}
+                          stroke={`rgba(79,110,247,${op.toFixed(2)})`}
+                          strokeWidth={Math.max(1.6-ring*0.25,0.6)} strokeLinecap="round"/>
+                      );
+                    }));
+                  })
+                )}
+                {/* Nodes — same render as card view */}
+                {positioned.map(({id,ring,cx,cy})=>{
+                  const node=id>0?nodeMap.get(id)??null:null;
+                  const nr=NODE_R[Math.min(ring,NODE_R.length-1)];
+                  const thr=TOUCH_R[Math.min(ring,TOUCH_R.length-1)];
+                  const isRoot=ring===0;
+                  const isPeeked=node!==null&&peeked?.userId===node.userId;
+                  const isPopup=node!==null&&popup?.node.userId===node.userId;
+                  const isCur=node!==null&&currentUserId===node.userId;
+                  const isEmpty=id===0||(!node&&!isRoot);
+                  const isHov=node!==null&&hov===node.userId;
+                  const lbl=nodeLabel(node,userDisplayNames);
+                  const avL=avLetter(lbl);const avc=node?avColor(node.userId):"#1e1e38";
+                  const cfg=ringLabelCfg(ring);
+                  const bg=isRoot?"url(#rcBgFs)":isCur?"url(#rcCurFs)":"rgba(14,14,30,0.97)";
+                  const str=isRoot?GOLD:(isPeeked||isPopup)?BLUE:isCur?GREEN
+                           :isEmpty?"rgba(79,110,247,0.15)":isHov?"rgba(79,110,247,0.45)":"rgba(79,110,247,0.28)";
+                  const strW=(isRoot||isPeeked||isPopup||isCur)?2:1;
+                  const avR=Math.round(nr*0.50);const avFS=cfg.avFS;
+                  const avOY=cfg.showLabel?Math.round(-nr*0.08):0;
+                  return(
+                    <g key={`frn${ring}:${id}:${cx.toFixed(0)}`}
+                      onClick={e=>{if(node&&!isRoot)handleNodeTap(e,node);}}
+                      onMouseEnter={()=>{if(node)setHov(node.userId);}}
+                      onMouseLeave={()=>setHov(null)}
+                      style={{cursor:node?"pointer":"default",
+                        transform:(isPeeked||isPopup)?`translate(${cx}px,${cy}px) scale(1.10) translate(${-cx}px,${-cy}px)`:"none",
+                        transition:"transform 0.18s ease",
+                      }}
+                      filter={(isRoot||isPeeked||isPopup)?"url(#rcGlowFs)":"url(#rcShdwFs)"}
+                    >
+                      <circle cx={cx} cy={cy} r={thr} fill="transparent"/>
+                      {isRoot&&<circle cx={cx} cy={cy} r={nr+8} fill="none"
+                        stroke={GOLD} strokeWidth={0.9} strokeOpacity={0.28} strokeDasharray="7 4"/>}
+                      {(isPeeked||isPopup)&&<>
+                        <circle cx={cx} cy={cy} r={nr+7} fill="none"
+                          stroke={BLUE} strokeWidth={1.2} strokeOpacity={0.50}/>
+                        <circle cx={cx} cy={cy} r={nr+13} fill="none"
+                          stroke={BLUE} strokeWidth={0.5} strokeOpacity={0.20} strokeDasharray="4 3"/>
+                      </>}
+                      <circle cx={cx} cy={cy} r={nr} fill={bg} stroke={str} strokeWidth={strW}
+                        strokeDasharray={isEmpty?"4 3":undefined}/>
+                      {node?(
+                        <>
+                          <circle cx={cx} cy={cy+avOY} r={avR} fill={avc} fillOpacity={0.20}/>
+                          {avFS>0&&<text x={cx} y={cy+avOY+avFS*0.38}
+                            textAnchor="middle" fontSize={avFS} fontWeight={800}
+                            fill={(isPeeked||isPopup)?"#c5d4ff":isCur?"#a7f3d0":"#eef4ff"}
+                            style={{fontFamily:"Syne,sans-serif"}}>{avL}</text>}
+                          {cfg.showLabel&&cfg.lblFS>0&&<text x={cx} y={cy+Math.round(nr*0.55)}
+                            textAnchor="middle" fontSize={cfg.lblFS} fontWeight={600}
+                            fill="rgba(255,255,255,0.52)"
+                            style={{fontFamily:"DM Sans,sans-serif"}}>{clamp(lbl,cfg.labelMax)}</text>}
+                          {cfg.showWallet&&cfg.walFS>0&&<text x={cx} y={cy+Math.round(nr*0.80)}
+                            textAnchor="middle" fontSize={cfg.walFS}
+                            fill="rgba(255,255,255,0.30)"
+                            style={{fontFamily:"ui-monospace,monospace"}}>{shortWallet(node.account)}</text>}
+                          {cfg.showPkg&&cfg.pkgFS>0&&<>
+                            <rect x={cx-13} y={cy+nr-12} width={26} height={13} rx={6.5} ry={6.5}
+                              fill="rgba(201,168,76,0.18)"/>
+                            <text x={cx} y={cy+nr-2} textAnchor="middle"
+                              fontSize={cfg.pkgFS} fontWeight={700} fill={GOLD}
+                              style={{fontFamily:"DM Sans,sans-serif"}}>P{node.packageLevel}</text>
+                          </>}
+                          {cfg.showSide&&ring>0&&<>
+                            <circle cx={cx+Math.round(nr*0.72)} cy={cy-Math.round(nr*0.72)} r={9}
+                              fill={`${ring%2===1?CYAN:PURPLE}20`}
+                              stroke={`${ring%2===1?CYAN:PURPLE}50`} strokeWidth={0.8}/>
+                            <text x={cx+Math.round(nr*0.72)} y={cy-Math.round(nr*0.72)+3.5}
+                              textAnchor="middle" fontSize={7} fontWeight={800}
+                              fill={ring%2===1?CYAN:PURPLE}
+                              style={{fontFamily:"DM Sans,sans-serif"}}>{ring%2===1?"L":"R"}</text>
+                          </>}
+                        </>
+                      ):(
+                        !isEmpty&&<text x={cx} y={cy+avFS*0.38} textAnchor="middle"
+                          fontSize={avFS} fontWeight={200} fill="rgba(255,255,255,0.18)">+</text>
+                      )}
+                    </g>
+                  );
+                })}
+              </g>
+            </svg>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
