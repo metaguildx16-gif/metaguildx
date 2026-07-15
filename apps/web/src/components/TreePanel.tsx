@@ -249,6 +249,7 @@ export default function TreePanel(props: TreePanelProps) {
                   currentUserId={snapshot.userId??null}
                   onNodeClick={focusTreeUser}
                   userDisplayNames={userDisplayNames}
+                  treePreview={treePreview}
                 />
               ):(
                 <TreeCanvas
