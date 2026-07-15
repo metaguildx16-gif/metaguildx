@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import TreeCanvas from "./TreeCanvas";
+import RadarCanvas from "./RadarCanvas";
 
 type TreeNodeLike = {
   userId: number;
@@ -71,6 +72,7 @@ export default function TreePanel(props: TreePanelProps) {
   const rootNode = treePreview.find((node: TreeNodeLike) => node.parentId === 0) ?? treePreview[0] ?? null;
   const preferredRootNode =
     initialRootId && treeNodeMap.has(initialRootId) ? treeNodeMap.get(initialRootId) ?? rootNode : rootNode;
+  const [viewMode,setViewMode]=useState<"radar"|"tree">("radar");
   const [treeViewRootId, setTreeViewRootId] = useState<number | null>(preferredRootNode?.userId ?? null);
   const [manualRootSet, setManualRootSet] = useState(false);
   const [showIncomeDetails, setShowIncomeDetails] = useState(false);
@@ -226,15 +228,37 @@ export default function TreePanel(props: TreePanelProps) {
             </div>
           </div>
 
-          <div className="tree-canvas-shell" style={{padding:0,border:"none",background:"none"}}>
+          <div className="tree-canvas-shell" style={{padding:0,border:"none",background:"none",position:"relative"}}>
+            {visualTree&&(
+              <div style={{display:"flex",justifyContent:"center",gap:8,padding:"10px 0 6px",position:"absolute",top:0,left:"50%",transform:"translateX(-50%)",zIndex:20}}>
+                {(["radar","tree"] as const).map(m=>(
+                  <button key={m} type="button" onClick={()=>setViewMode(m)} style={{
+                    padding:"4px 14px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",
+                    border:viewMode===m?"1px solid #4f6ef7":"1px solid rgba(79,110,247,0.22)",
+                    background:viewMode===m?"rgba(79,110,247,0.25)":"rgba(79,110,247,0.08)",
+                    color:viewMode===m?"#c5d4ff":"#64748b",transition:"all 0.18s",
+                  }}>{m==="radar"?"◉ Radar":"⊞ Tree"}</button>
+                ))}
+              </div>
+            )}
             {visualTree?(
-              <TreeCanvas
-                visualTree={visualTree}
-                selectedId={selectedTreeUserId}
-                currentUserId={snapshot.userId??null}
-                onNodeClick={focusTreeUser}
-                userDisplayNames={userDisplayNames}
-              />
+              viewMode==="radar"?(
+                <RadarCanvas
+                  visualTree={visualTree}
+                  selectedId={selectedTreeUserId}
+                  currentUserId={snapshot.userId??null}
+                  onNodeClick={focusTreeUser}
+                  userDisplayNames={userDisplayNames}
+                />
+              ):(
+                <TreeCanvas
+                  visualTree={visualTree}
+                  selectedId={selectedTreeUserId}
+                  currentUserId={snapshot.userId??null}
+                  onNodeClick={focusTreeUser}
+                  userDisplayNames={userDisplayNames}
+                />
+              )
             ):(
               <div className="empty-state">
                 <p className="empty-state-text">{emptyStateText}</p>
