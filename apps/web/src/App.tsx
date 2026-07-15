@@ -4989,7 +4989,7 @@ function App() {
             <div className="center-box" style={loadingShellStyle}>Access restricted</div>
           ) : (
             <>
-          <section className="panel dashboard-intro dashboard-view w-full max-w-full">
+          {dashboardView === "overview" && <section className="panel dashboard-intro dashboard-view w-full max-w-full">
             <p className="section-label">Home</p>
             <div className="dashboard-hero-row">
               <div>
@@ -5048,7 +5048,8 @@ function App() {
                 </button>
               </div>
             ) : null}
-          </section>
+          </section>}
+
 
           {!isAdminRoute && dashboardView === "overview" ? <OverviewPage {...dashboardPageProps} /> : null}
           {!isAdminRoute && dashboardView === "crosschain" ? <CrossChainHubPage /> : null}

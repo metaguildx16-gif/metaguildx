@@ -267,24 +267,6 @@ export default function TreePanel(props: TreePanelProps) {
             )}
           </div>
 
-          <div className="tree-focus-strip">
-            <div className="tree-focus-card">
-              <span>Parent</span>
-              <strong>{selectedTreeParent ? getDisplayName(userDisplayNames, selectedTreeParent) : "Root"}</strong>
-            </div>
-            <div className="tree-focus-card">
-              <span>Left</span>
-              <strong>{formatSideUser(effectiveLeftSideId, treeNodeMap, userDisplayNames)}</strong>
-            </div>
-            <div className="tree-focus-card">
-              <span>Selected</span>
-              <strong>{selectedTreeNode ? getDisplayName(userDisplayNames, selectedTreeNode) : "Pick a node"}</strong>
-            </div>
-            <div className="tree-focus-card">
-              <span>Right</span>
-              <strong>{formatSideUser(effectiveRightSideId, treeNodeMap, userDisplayNames)}</strong>
-            </div>
-          </div>
         </article>
 
         <div className="tree-side-column">
