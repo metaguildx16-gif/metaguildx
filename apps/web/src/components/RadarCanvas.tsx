@@ -310,7 +310,7 @@ export default function RadarCanvas({
   const [popup,setPopup]=useState<{node:TreeNodeLike;sx:number;sy:number}|null>(null);
   const cs=(v:number)=>Math.min(Math.max(v,0.3),4);
 
-  useEffect(()=>{setPeeked(null);setPopup(null);},[treePreview]);
+  useEffect(()=>{setPeeked(null);setPopup(null);lastTappedRef.current=null;},[treePreview]);
 
   useEffect(()=>{
     const el=svgRef.current;if(!el)return;
@@ -410,7 +410,8 @@ export default function RadarCanvas({
   // Build nodeMap
   const nodeMap=new Map<number,TreeNodeLike>((treePreview??[]).map(n=>[n.userId,n]));
   const hasFullData=nodeMap.size>3;
-  const rootId=hasFullData?(treePreview?.[0]?.userId??currentUserId??0):(visualTree.node?.userId??currentUserId??0);
+  // rootId follows visualTree root so re-centering via focusTreeUser() rebuilds the radar
+  const rootId=visualTree.node?.userId??currentUserId??0;
   if(!hasFullData){
     const addNode=(b:DisplayTreeNode|null)=>{if(!b||!b.node)return;nodeMap.set(b.node.userId,b.node);addNode(b.left);addNode(b.right);};
     addNode(visualTree);
@@ -448,7 +449,7 @@ export default function RadarCanvas({
           <RadarMiniPopup
             node={popup.node} sx={popup.sx} sy={popup.sy}
             names={userDisplayNames}
-            onMakeCenter={()=>{onNodeClick(popup.node.userId);setPopup(null);}}
+            onMakeCenter={()=>{lastTappedRef.current=null;onNodeClick(popup.node.userId);setPopup(null);}}
           />
         </>,
         document.body
