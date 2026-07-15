@@ -85,6 +85,8 @@ function RadarMiniPopup({node,sx,sy,names,onMakeCenter}:{
   top=Math.max(M,Math.min(top,vh-PH-M));
   return(
     <div
+      onClick={e=>{e.stopPropagation();}}
+      onTouchStart={e=>{e.stopPropagation();}}
       style={{
         position:"fixed",zIndex:9999,left,top,width:PW,
         background:"rgba(9,11,26,0.97)",
@@ -93,7 +95,6 @@ function RadarMiniPopup({node,sx,sy,names,onMakeCenter}:{
         boxShadow:"0 8px 32px rgba(0,0,0,0.75),0 0 0 1px rgba(79,110,247,0.10)",
         backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
       }}
-      onClick={e=>e.stopPropagation()}
     >
       {/* Avatar + name */}
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
@@ -313,6 +314,17 @@ export default function RadarCanvas({
   useEffect(()=>{setPeeked(null);setPopup(null);lastTappedRef.current=null;},[treePreview]);
 
   useEffect(()=>{
+    if(!popup)return;
+    const timer=setTimeout(()=>{
+      const close=()=>{setPopup(p=>{if(p)lastTappedRef.current=null;return null;});};
+      document.addEventListener("click",close,{once:true});
+      document.addEventListener("touchstart",close,{once:true,passive:true});
+      return()=>{document.removeEventListener("click",close);document.removeEventListener("touchstart",close);};
+    },200);
+    return()=>clearTimeout(timer);
+  },[popup?.node.userId]);
+
+  useEffect(()=>{
     const el=svgRef.current;if(!el)return;
     const wh=(e:WheelEvent)=>{
       e.preventDefault();
@@ -440,18 +452,12 @@ export default function RadarCanvas({
 
   return(
     <>
-      {/* Mobile popup via portal (avoids overflow:hidden clipping) */}
       {popup&&typeof document!=="undefined"&&createPortal(
-        <>
-          <div style={{position:"fixed",inset:0,zIndex:9998}}
-            onClick={()=>setPopup(null)} onTouchEnd={()=>setPopup(null)}
-          />
-          <RadarMiniPopup
-            node={popup.node} sx={popup.sx} sy={popup.sy}
-            names={userDisplayNames}
-            onMakeCenter={()=>{lastTappedRef.current=null;onNodeClick(popup.node.userId);setPopup(null);}}
-          />
-        </>,
+        <RadarMiniPopup
+          node={popup.node} sx={popup.sx} sy={popup.sy}
+          names={userDisplayNames}
+          onMakeCenter={()=>{lastTappedRef.current=null;onNodeClick(popup.node.userId);setPopup(null);}}
+        />,
         document.body
       )}
 

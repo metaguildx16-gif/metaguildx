@@ -48,9 +48,12 @@ export default function TreeCanvas({
   visualTree,selectedId,currentUserId,onNodeClick,userDisplayNames
 }:TreeCanvasProps){
   const svgRef=useRef<SVGSVGElement>(null);
+  const gRef=useRef<SVGGElement>(null);
   const drag=useRef({on:false,x:0,y:0});
   const pinch=useRef({on:false,d:0});
   const [tx,setTx]=useState({x:0,y:0,s:1});
+  const txRef=useRef({x:0,y:0,s:1});
+  const getRs=useCallback(()=>{const el=svgRef.current;if(!el)return 1;const r=el.getBoundingClientRect();return r.width>0?r.width/CW:1;},[]);
   const [hov,setHov]=useState<number|null>(null);
   const [anim,setAnim]=useState(false);
   const cs=(v:number)=>Math.min(Math.max(v,0.3),4);
@@ -72,10 +75,11 @@ export default function TreeCanvas({
   },[]);
   const mMove=useCallback((e:React.MouseEvent)=>{
     if(!drag.current.on)return;
-    setTx(t=>({...t,x:t.x+e.clientX-drag.current.x,y:t.y+e.clientY-drag.current.y}));
+    const rs=getRs();const nt={x:txRef.current.x+(e.clientX-drag.current.x)/rs,y:txRef.current.y+(e.clientY-drag.current.y)/rs,s:txRef.current.s};
+    txRef.current=nt;const g=gRef.current;if(g)g.setAttribute("transform",`translate(${nt.x},${nt.y}) scale(${nt.s})`);
     drag.current.x=e.clientX;drag.current.y=e.clientY;
-  },[]);
-  const mUp=useCallback(()=>{drag.current.on=false;},[]);
+  },[getRs]);
+  const mUp=useCallback(()=>{drag.current.on=false;setTx({...txRef.current});},[]);
 
   const tdist=(e:React.TouchEvent)=>Math.hypot(
     e.touches[0].clientX-e.touches[1].clientX,
@@ -87,14 +91,20 @@ export default function TreeCanvas({
   },[]);
   const tMove=useCallback((e:React.TouchEvent)=>{
     if(e.touches.length===1&&drag.current.on){
-      setTx(t=>({...t,x:t.x+e.touches[0].clientX-drag.current.x,y:t.y+e.touches[0].clientY-drag.current.y}));
+      const rs2=getRs();const nt2={x:txRef.current.x+(e.touches[0].clientX-drag.current.x)/rs2,y:txRef.current.y+(e.touches[0].clientY-drag.current.y)/rs2,s:txRef.current.s};
+      txRef.current=nt2;const g2=gRef.current;if(g2)g2.setAttribute("transform",`translate(${nt2.x},${nt2.y}) scale(${nt2.s})`);
       drag.current.x=e.touches[0].clientX;drag.current.y=e.touches[0].clientY;
     }else if(e.touches.length===2&&pinch.current.on){
       const d=tdist(e);const ratio=d/(pinch.current.d||d);
-      pinch.current.d=d;setTx(t=>({...t,s:cs(t.s*ratio)}));
+      const el2=svgRef.current;if(!el2)return;const r2=el2.getBoundingClientRect();const rs3=r2.width>0?r2.width/CW:1;
+      const pcx=(e.touches[0].clientX+e.touches[1].clientX)/2,pcy=(e.touches[0].clientY+e.touches[1].clientY)/2;
+      const mx2=pcx-r2.left,my2=pcy-r2.top;const pt=txRef.current;const ns2=cs(pt.s*ratio);
+      const np={x:mx2/rs3-(mx2/rs3-pt.x)/pt.s*ns2,y:my2/rs3-(my2/rs3-pt.y)/pt.s*ns2,s:ns2};
+      txRef.current=np;const gp=gRef.current;if(gp)gp.setAttribute("transform",`translate(${np.x},${np.y}) scale(${np.s})`);
+      pinch.current.d=d;
     }
   },[]);
-  const tEnd=useCallback(()=>{drag.current.on=false;pinch.current.on=false;},[]);
+  const tEnd=useCallback(()=>{drag.current.on=false;pinch.current.on=false;setTx({...txRef.current});},[]);
   const reset=useCallback(()=>{setAnim(true);setTx({x:0,y:0,s:1});setTimeout(()=>setAnim(false),320);},[]);
 
   const pos:Pos[]=[];
@@ -114,8 +124,8 @@ export default function TreeCanvas({
     }}>
       <div style={{position:"absolute",top:10,right:10,zIndex:10,display:"flex",flexDirection:"column",gap:5}}>
         {([
-          ["+",()=>setTx(t=>({...t,s:cs(t.s*1.25)}))],
-          ["\u2212",()=>setTx(t=>({...t,s:cs(t.s*0.80)}))],
+          ["+",()=>{const n={...txRef.current,s:cs(txRef.current.s*1.25)};txRef.current=n;setTx(n);}],
+          ["−",()=>{const n={...txRef.current,s:cs(txRef.current.s*0.80)};txRef.current=n;setTx(n);}],
           ["\u229f",reset],
         ] as [string,()=>void][]).map(([lbl,fn])=>(
           <button key={lbl} type="button" onClick={fn} style={{
@@ -160,7 +170,7 @@ export default function TreeCanvas({
         </defs>
 
         <g transform={`translate(${tx.x},${tx.y}) scale(${tx.s})`}
-           style={{transition:anim?"transform 0.32s cubic-bezier(0.4,0,0.2,1)":"none"}}>
+           ref={gRef} style={{transition:anim?"transform 0.32s cubic-bezier(0.4,0,0.2,1)":"none",willChange:"transform"}}>
 
           {pos.map(({b,cx,cy})=>{
             const botY=cy+NH/2;
