@@ -135,17 +135,18 @@ export default function TreePanel(props: TreePanelProps) {
   const viewRootNode = treeViewRootId ? treeNodeMap.get(treeViewRootId) ?? rootNode : rootNode;
 
   function focusTreeUser(userId: number) {
+    setManualRootSet(true);   // prevent useEffect reset to preferredRootNode
     setSelectedTreeUserId(userId);
     setTreeViewRootId(userId);
   }
 
   function buildDisplayTree(node: TreeNodeLike | null, depth: number, side: "ROOT" | "Left" | "Right"): DisplayTreeNode | null {
-    if (depth >= 3) {
+    if (depth >= 6) {
       return null;
     }
 
     if (!node) {
-      if (depth === 2) {
+      if (depth === 5) {
         return {
           node: null,
           side,
@@ -471,7 +472,7 @@ export default function TreePanel(props: TreePanelProps) {
             background:"rgba(79,110,247,0.12)",border:"1px solid rgba(79,110,247,0.22)",
             color:"#94a3b8",fontSize:11,fontWeight:700,cursor:"pointer"}}>Root</button>
         </div>
-        <div style={{flex:"1 1 0",overflow:"hidden",touchAction:"none",position:"relative"}}>
+        <div style={{flex:"1 1 0",overflow:"auto",WebkitOverflowScrolling:"touch",position:"relative",background:"#0a0a18"}}>
           <TreeCanvas
             visualTree={visualTree}
             selectedId={selectedTreeUserId}
