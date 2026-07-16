@@ -403,9 +403,16 @@ export default function RadarCanvas({
         setPeeked(null);
       }
     }else{
-      lastTappedRef.current=null;
+      // Desktop: same two-tap logic as mobile
       setPopup(null);
-      setPeeked(p=>p?.userId===node.userId?null:node);
+      if(lastTappedRef.current===node.userId){
+        lastTappedRef.current=null;
+        setPeeked(null);
+        onNodeClick(node.userId);
+      }else{
+        lastTappedRef.current=node.userId;
+        setPeeked(node);
+      }
     }
   },[onNodeClick]);
 
@@ -504,7 +511,7 @@ export default function RadarCanvas({
             style={{display:"block",cursor:drag.current.on?"grabbing":"grab",minHeight:"min(70vw,340px)"}}
             onMouseDown={mDown} onMouseMove={mMove} onMouseUp={mUp} onMouseLeave={mUp}
             onTouchStart={tStart} onTouchMove={tMove} onTouchEnd={tEnd}
-            onClick={()=>{setPeeked(null);lastTappedRef.current=null;}} // empty space click closes desktop panel
+            onClick={()=>{setPeeked(null);setPopup(null);lastTappedRef.current=null;}}
           >
             <defs>
               <radialGradient id="rcBg" cx="50%" cy="50%" r="55%">
