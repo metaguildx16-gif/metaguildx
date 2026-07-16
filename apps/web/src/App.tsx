@@ -2002,6 +2002,7 @@ function App() {
     }
   }
 
+  useEffect(()=>{const h=(e:KeyboardEvent)=>{if(e.key==="Escape")setMobileNavOpen(false);};document.addEventListener("keydown",h);return()=>document.removeEventListener("keydown",h);},[]);
   const activeTreePreview = treeMode === "level" ? levelTreePreview : treeMode === "personal" ? personalTreePreview : snapshot.treePreview;
   const rootNode = activeTreePreview.find((node) => node.parentId === 0) ?? activeTreePreview[0] ?? null;
   const selectedTreeNode =
@@ -4604,6 +4605,11 @@ function App() {
               </div>
             </div>
             <div className="dashboard-actions">
+            <button type="button" onClick={()=>setMobileNavOpen(o=>!o)}
+              style={{padding:"7px 13px",borderRadius:8,background:"rgba(46,111,216,.15)",
+                border:"1px solid rgba(46,111,216,.25)",color:"var(--text-primary)",
+                fontSize:".82rem",fontWeight:600,cursor:"pointer"}}
+            >☰ Menu</button>
               <button type="button" onClick={handleLogout} disabled={isLoading}>
                 Logout
               </button>
@@ -4824,143 +4830,89 @@ function App() {
           </div>
         </header>
 
-        {!isAdminRoute || isAdminAuthorized ? (
-        <section className={`tab-nav dashboard-menu dashboard-nav desktop-hide ${mobileNavOpen ? "mobile-open" : ""}`}>
-          <div className="dashboard-nav-grid">
-            {isAdminRoute ? null : (
-              <>
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "overview" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => setDashboardView("overview")}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">🏠</span> Home</p>
-            </button>
-
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "income" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => setDashboardView("income")}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">💰</span> Earnings</p>
-            </button>
-
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "network" || dashboardView === "tree" || dashboardView === "referrals"
-                  ? "ring-1 ring-blue-500 bg-gray-800"
-                  : ""
-              }`}
-              onClick={() => {
-                setDashboardView("network");
-                setTreeMode("personal");
-              }}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">🌐</span> Network</p>
-            </button>
-
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "upgrade" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => setDashboardView("upgrade")}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">⬆️</span> Upgrade</p>
-            </button>
-
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "rebirth" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => setDashboardView("rebirth")}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">♻️</span> Rebirth</p>
-            </button>
-
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "wallet" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => {
-                setDashboardView("wallet");
-                setWalletSubView("main");
-              }}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">👛</span> Wallet</p>
-            </button>
-
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "team" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => setDashboardView("team")}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">👥</span> My Team</p>
-            </button>
-
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "usersearch" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => setDashboardView("usersearch")}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">🔍</span> Search</p>
-            </button>
-
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "support" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => setDashboardView("support")}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">🎧</span> Support</p>
-            </button>
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "crosschain" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => setDashboardView("crosschain")}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">🔁</span> Cross-Chain Hub</p>
-            </button>
-
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "profile" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => setDashboardView("profile")}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">👤</span> My Profile</p>
-            </button>
-
-            <button
-              type="button"
-              className={`bg-gray-900 p-4 rounded-xl text-center cursor-pointer hover:bg-gray-800 transition duration-200 ease-in-out ${
-                dashboardView === "settings" ? "ring-1 ring-blue-500 bg-gray-800" : ""
-              }`}
-              onClick={() => setDashboardView("settings")}
-            >
-              <p className="text-lg font-semibold"><span className="nav-icon">✔️</span> Settings</p>
-            </button>
-              </>
-            )}
+        {/* ── Right-side Drawer Nav ──────────────────────── */}
+        {mobileNavOpen&&<div onClick={()=>setMobileNavOpen(false)}
+          style={{position:"fixed",inset:0,zIndex:149,background:"rgba(0,0,0,0.45)",
+            backdropFilter:"blur(2px)"}}/>}
+        <nav style={{
+          position:"fixed",top:0,right:0,bottom:0,zIndex:150,
+          width:"min(300px,85vw)",display:"flex",flexDirection:"column",
+          background:"rgba(5,9,26,0.97)",
+          borderLeft:"1px solid rgba(46,111,216,.18)",
+          backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",
+          boxShadow:"-8px 0 40px rgba(0,0,0,.55)",
+          transform:mobileNavOpen?"translateX(0)":"translateX(100%)",
+          transition:"transform 0.28s cubic-bezier(0.4,0,0.2,1)",
+          overflowY:"auto",overflowX:"hidden",
+          paddingTop:"env(safe-area-inset-top,0px)",
+        }}>
+          {/* Header */}
+          <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(46,111,216,.14)",
+            display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:34,height:34,borderRadius:"50%",
+                background:"linear-gradient(135deg,#C9A84C,#E8C96A)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:11,fontWeight:800,color:"#060402",flexShrink:0}}>MGX</div>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:"#C9A84C",fontFamily:"Syne,sans-serif"}}>MetaGuildX</div>
+                {snapshot.walletAddress&&<div style={{fontSize:10,color:"#475569",fontFamily:"monospace",marginTop:1}}>{snapshot.walletAddress.slice(0,6)+"…"+snapshot.walletAddress.slice(-4)}</div>}
+              </div>
+            </div>
+            <button type="button" onClick={()=>setMobileNavOpen(false)}
+              style={{width:28,height:28,borderRadius:7,border:"1px solid rgba(79,110,247,.22)",
+                background:"rgba(79,110,247,.10)",color:"#94a3b8",fontSize:14,
+                cursor:"pointer",display:"grid",placeItems:"center"}}>✕</button>
           </div>
-        </section>
+          {/* Nav items */}
+          {isAdminRoute?null:(
+          <div style={{display:"flex",flexDirection:"column",gap:1,padding:"8px 8px",flex:1}}>
+            {[
+              ["🏠","Home","overview",()=>setDashboardView("overview")],
+              ["💰","Earnings","income",()=>setDashboardView("income")],
+              ["🌐","Network","network",()=>{setDashboardView("network");setTreeMode("personal");}],
+              ["⬆️","Upgrade","upgrade",()=>setDashboardView("upgrade")],
+              ["♻️","Rebirth","rebirth",()=>setDashboardView("rebirth")],
+              ["👛","Wallet","wallet",()=>{setDashboardView("wallet");setWalletSubView("main");}],
+              ["👥","My Team","team",()=>setDashboardView("team")],
+              ["🔍","Search","usersearch",()=>setDashboardView("usersearch")],
+              ["🎧","Support","support",()=>setDashboardView("support")],
+              ["🔗","Cross-Chain Hub","crosschain",()=>setDashboardView("crosschain")],
+              ["👤","My Profile","profile",()=>setDashboardView("profile")],
+              ["⚙️","Settings","settings",()=>setDashboardView("settings")],
+            ].map(([icon,label,view,fn])=>{
+              const active=dashboardView===view||(view==="network"&&(dashboardView==="tree"||dashboardView==="referrals"))||(view==="usersearch"&&dashboardView==="usersearch");
+              return(
+                <button key={view as string} type="button"
+                  onClick={()=>{(fn as ()=>void)();setMobileNavOpen(false);}}
+                  style={{display:"flex",alignItems:"center",gap:12,width:"100%",
+                    padding:"10px 14px",borderRadius:9,border:"1px solid transparent",
+                    background:active?"rgba(46,111,216,.18)":"transparent",
+                    color:active?"#eef4ff":"#89a0b8",fontSize:13,fontWeight:active?600:500,
+                    cursor:"pointer",textAlign:"left",fontFamily:"DM Sans,sans-serif",
+                    transition:"all .15s",
+                    borderColor:active?"rgba(46,111,216,.30)":"transparent",
+                  }}
+                >
+                  <span style={{fontSize:17,width:22,textAlign:"center",flexShrink:0}}>{icon as string}</span>
+                  <span>{label as string}</span>
+                </button>
+              );
+            })}
+          </div>
+          )}
+          {/* Logout */}
+          <div style={{padding:"12px 16px",borderTop:"1px solid rgba(46,111,216,.10)",flexShrink:0}}>
+            {snapshot.walletAddress?(
+              <button type="button" onClick={()=>{handleLogout();setMobileNavOpen(false);}}
+                style={{width:"100%",padding:"9px",borderRadius:9,border:"1px solid rgba(239,68,68,.25)",
+                  background:"rgba(239,68,68,.08)",color:"#f87171",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                Logout
+              </button>
+            ):null}
+          </div>
+        </nav>
 
-        ) : null}
         <main className="dashboard-content">
             {isLoading ? (
             <div className="center-box" style={loadingShellStyle}>
