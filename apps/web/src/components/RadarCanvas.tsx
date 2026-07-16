@@ -501,7 +501,7 @@ export default function RadarCanvas({
           <button type="button"
             onClick={()=>{const t={x:0,y:0,s:1.5};fsTxRef.current=t;setFsTx(t);setFsOpen(true);}}
             className="radar-expand-btn"
-            style={{display:"none",position:"absolute",bottom:36,right:10,zIndex:15,
+            style={{position:"absolute",bottom:36,right:10,zIndex:15,
               padding:"6px 12px",borderRadius:10,
               background:"rgba(79,110,247,0.22)",border:"1px solid rgba(79,110,247,0.40)",
               color:"#c5d4ff",fontSize:11,fontWeight:700,cursor:"pointer"}}

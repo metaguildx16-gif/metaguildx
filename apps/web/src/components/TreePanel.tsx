@@ -275,7 +275,7 @@ export default function TreePanel(props: TreePanelProps) {
                     onClick={()=>setTreeFsOpen(true)}
                     className="tree-fs-btn"
                     style={{position:"absolute",bottom:10,right:10,zIndex:15,
-                      padding:"6px 12px",borderRadius:10,display:"none",
+                      padding:"6px 12px",borderRadius:10,
                       background:"rgba(79,110,247,0.22)",border:"1px solid rgba(79,110,247,0.40)",
                       color:"#c5d4ff",fontSize:11,fontWeight:700,cursor:"pointer"}}
                   >⛶ Fullscreen</button>
