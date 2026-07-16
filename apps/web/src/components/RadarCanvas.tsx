@@ -676,8 +676,7 @@ export default function RadarCanvas({
       <style>{`
         .radar-side-panel{display:none!important;}
         @media(min-width:768px){.radar-side-panel{display:block!important;}}
-        .radar-expand-btn{display:none!important;}
-        @media(max-width:767px){.radar-expand-btn{display:block!important;}}
+        .radar-expand-btn{display:inline-flex;}
       `}</style>
 
       {/* ── Fullscreen portal (mobile only) ─────────────────── */}

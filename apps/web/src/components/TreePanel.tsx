@@ -448,7 +448,7 @@ export default function TreePanel(props: TreePanelProps) {
           ) : null}
         </div>
       </div>
-    <style>{`.tree-fs-btn{display:none!important;}@media(max-width:767px){.tree-fs-btn{display:block!important;}}`}</style>
+    <style>{`.tree-fs-btn{display:inline-flex;}.tree-fs-body{display:flex;flex-direction:column;overflow:hidden;}.tree-fs-body>div{height:100%!important;border-radius:0!important;overflow:hidden!important;flex:1;display:flex;flex-direction:column;}.tree-fs-body svg{flex:1!important;height:100%!important;min-height:0!important;}`}</style>
 
     {treeFsOpen&&visualTree&&typeof document!=="undefined"&&createPortal(
       <div style={{position:"fixed",inset:0,zIndex:9990,background:"#0a0a18",
@@ -472,7 +472,7 @@ export default function TreePanel(props: TreePanelProps) {
             background:"rgba(79,110,247,0.12)",border:"1px solid rgba(79,110,247,0.22)",
             color:"#94a3b8",fontSize:11,fontWeight:700,cursor:"pointer"}}>Root</button>
         </div>
-        <div style={{flex:"1 1 0",overflow:"auto",WebkitOverflowScrolling:"touch",position:"relative",background:"#0a0a18"}}>
+        <div className="tree-fs-body" style={{flex:"1 1 0",position:"relative",background:"#0a0a18"}}>
           <TreeCanvas
             visualTree={visualTree}
             selectedId={selectedTreeUserId}
