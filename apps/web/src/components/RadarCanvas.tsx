@@ -710,7 +710,16 @@ export default function RadarCanvas({
                 background:"rgba(79,110,247,0.16)",color:"#7c9ef8",
                 letterSpacing:"0.04em"}}>{activeRings} Ring{activeRings!==1?"s":""}</span>
             </div>
-            <div style={{display:"flex",gap:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <button type="button" onClick={()=>{
+                lastTappedRef.current=null;setPopup(null);
+                const rootId=treePreview&&treePreview.length>0?treePreview[0].userId:currentUserId;
+                if(rootId){onNodeClick(rootId);}
+              }} style={{
+                padding:"6px 10px",borderRadius:9,
+                background:"rgba(79,110,247,0.12)",border:"1px solid rgba(79,110,247,0.22)",
+                color:"#94a3b8",fontSize:11,fontWeight:700,cursor:"pointer",
+              }}>Root</button>
               {([
                 ["+",()=>setFsTx(t=>({...t,s:fsCsZoom(t.s*1.25)}))],
                 ["−",()=>setFsTx(t=>({...t,s:fsCsZoom(t.s*0.80)}))],
