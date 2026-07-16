@@ -4605,11 +4605,20 @@ function App() {
               </div>
             </div>
             <div className="dashboard-actions">
-            <button type="button" onClick={()=>setMobileNavOpen(o=>!o)}
-              style={{padding:"7px 13px",borderRadius:8,background:"rgba(46,111,216,.15)",
-                border:"1px solid rgba(46,111,216,.25)",color:"var(--text-primary)",
-                fontSize:".82rem",fontWeight:600,cursor:"pointer"}}
-            >☰ Menu</button>
+            <button type="button" onClick={()=>setMobileNavOpen(p=>!p)}
+              aria-label="Open menu"
+              style={{width:42,height:42,borderRadius:10,flexShrink:0,
+                background:"#111B38",border:"1px solid #2C3E73",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                cursor:"pointer",padding:0}}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="#FFFFFF" strokeWidth="2.25" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </button>
               <button type="button" onClick={handleLogout} disabled={isLoading}>
                 Logout
               </button>
@@ -4684,9 +4693,16 @@ function App() {
               className="hamburger-btn"
               onClick={() => setMobileNavOpen((current) => !current)}
               aria-label="Toggle menu"
-              style={{padding:"6px 12px",borderRadius:8,background:"rgba(46,111,216,.15)",border:"1px solid rgba(46,111,216,.25)",color:"var(--text-primary)",fontSize:".8rem",cursor:"pointer"}}
+              style={{width:40,height:40,borderRadius:10,background:"#111B38",
+                border:"1px solid #2C3E73",display:"flex",alignItems:"center",
+                justifyContent:"center",cursor:"pointer",padding:0,flexShrink:0}}
             >
-              {mobileNavOpen ? "" : ""}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="#FFFFFF" strokeWidth="2.25" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
             </button>
           </div>
         </div>
