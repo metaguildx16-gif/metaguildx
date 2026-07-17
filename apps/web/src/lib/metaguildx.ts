@@ -4609,11 +4609,9 @@ async function computeLostEarnings(
   let totalLost = 0n;
   try {
     const currentBlock = await provider.getBlockNumber();
-    // Compute fromBlock from joinedAt so we never miss early events
-    const nowSec = Math.floor(Date.now() / 1000);
-    const secSinceJoin = userJoinedAt ? Math.max(0, nowSec - userJoinedAt) : 2_600_000;
-    // opBNB ~1 block/sec; add 100k block buffer before join
-    const fromBlock = Math.max(0, currentBlock - secSinceJoin - 100_000);
+    // Scan full 5M blocks (opBNB ~1 block/sec ≈ 58 days)
+    // Covers entire MetaGuildX platform history from launch
+    const fromBlock = Math.max(0, currentBlock - 5_000_000);
     const refsToScan = directReferralIds.slice(0, 20);
     await Promise.all(refsToScan.map(async (refId) => {
       try {
@@ -5085,7 +5083,6 @@ export async function loadDashboardSnapshot(
         { history: [], error: null, cursor: null }
       );
       const directReferralIds = directReferralIdsRaw.map((value: bigint) => Number(value));
-      const lostEarningsRaw = await computeLostEarnings(userId, directReferralIds, provider, configuredIncomeRouterAddress ?? TESTNET_INCOME_ROUTER_ADDRESS, Number(registeredProfile?.joinedAt ?? 0));
       const crosslineAmount = 0n;
       const spilloverAmount = 0n;
       const directReferralIncomeByUserId: Record<number, string> = {};
@@ -5184,7 +5181,7 @@ export async function loadDashboardSnapshot(
       isSurrendered: Boolean(profile.surrendered),
       surrenderStatus,
       rebirthEscrowBalance: formatTokenAmount(rebirthEscrowMainRaw),
-    lostEarnings: formatTokenAmount(lostEarningsRaw)
+    lostEarnings: "0" // Contract emits no per-user event for skipped income — needs contract upgrade
     };
       cacheDashboardSnapshot(cacheKey, persistentCacheKey, snapshot, { emitRefresh: Boolean(options?.forceRefresh) });
       return snapshot;

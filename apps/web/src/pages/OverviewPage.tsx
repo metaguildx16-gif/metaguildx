@@ -182,18 +182,16 @@ export function OverviewPage(props: DashboardPageProps) {
                 <div className="income-row dashboard-summary-row"><span className="income-label">Rebirth Escrow</span><span className="income-amount">${rebirthEscrowDisplay}</span></div>
                 {/* ── Lost Earnings row ────────────────────────── */}
                 <div className="income-row dashboard-summary-row" style={{borderTop:"1px solid rgba(251,191,36,0.12)",marginTop:2,paddingTop:6}}>
-                  <span className="income-label" style={{color:"#FBBF24",display:"flex",alignItems:"center",gap:5}}>
-                    <span>❌</span>
+                  <span className="income-label" style={{color:"#94a3b8",display:"flex",alignItems:"center",gap:5}}>
+                    <span>🔒</span>
                     <span>Lost Earnings</span>
                   </span>
-                  <span className="income-amount" style={{color:"#FBBF24"}}>
-                    ${(parseFloat(snapshot.lostEarnings ?? "0") || 0).toFixed(2)}
+                  <span className="income-amount" style={{color:"#94a3b8"}}>
+                    Pending
                   </span>
                 </div>
-                <p style={{fontSize:"0.72rem",color:"#64748b",margin:"3px 0 6px",lineHeight:1.5,padding:"0 2px"}}>
-                  {(parseFloat(snapshot.lostEarnings ?? "0") || 0) > 0
-                    ? "⚠ You permanently missed these earnings because you were not eligible when they were generated. Upgrade earlier to avoid future lost earnings."
-                    : "✅ You have not lost any earnings."}
+                <p style={{fontSize:"0.72rem",color:"#475569",margin:"3px 0 6px",lineHeight:1.5,padding:"0 2px"}}>
+                  Lost earnings tracking requires a contract upgrade to emit per-user skip events. Coming soon.
                 </p>
                 <div className="dashboard-summary-total">
                   <span>Total</span>
