@@ -532,163 +532,134 @@ export function WalletPage(props: DashboardPageProps) {
       </div>
     ) : (
     <div className="wallet-container">
-      <div className="wallet-section balance-section">
-        <div className="section-header">
-          <span className="section-badge blue">CONNECTED WALLET</span>
-          <button type="button" className="btn-refresh-reward" onClick={() => void handleRefreshSection("Wallet")} disabled={isLoading}>
-            ? Refresh
-          </button>
-        </div>
-      <div className="wallet-address-row">
-          <div className="wallet-address premium-wallet-address" title={snapshot.walletAddress ?? "Wallet pending"}>
-            <div className="premium-wallet-address-copy">
-              <span className="premium-wallet-address-label">Connected Wallet</span>
-              <span>{shortWalletAddress}</span>
-            </div>
-            <button type="button" className="premium-wallet-copy-btn" onClick={handleCopyWalletAddress} disabled={!snapshot.walletAddress}>Copy</button>
-          </div>
-          <button type="button" className="btn-disconnect" onClick={handleLogout} disabled={isLoading}>
-            Disconnect
-          </button>
-        </div>
-        <div className="wallet-total-balance wallet-total-balance-premium">
-          <span className="balance-label">Total Balance</span>
-          <span className={`balance-amount ${parseFloat(connectedWalletTotalDisplay) > 0 ? "is-positive" : ""}`}>${connectedWalletTotalDisplay}</span>
-        </div>
-        <div className="wallet-action-buttons premium-action-grid" style={{gridTemplateColumns:"repeat(2,1fr)",maxWidth:500,margin:"0 auto",gap:8}}>
-          <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("mgxboxes"); }}>
-            <span className="premium-action-icon">💎</span>
-            <span className="premium-action-title">Inner Wallet</span>
-            <span className="premium-action-subtitle">Transfer earnings to wallet</span>
-          </button>
-          <button
-            type="button"
-            className="btn-action premium-action-card"
-            onClick={() => {
-              setDashboardView("wallet");
-              setWalletSubView("stakingclaim");
-            }}
-          >
-            <span className="premium-action-icon">🎁</span>
-            <span className="premium-action-title">Reward Wallet</span>
-            <span className="premium-action-subtitle">Claim platform rewards</span>
-          </button>
-          <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("stake"); }}>
-            <span className="premium-action-icon">🔒</span>
-            <span className="premium-action-title">Staking</span>
-            <span className="premium-action-subtitle">Stake MGX tokens</span>
-            {parseDisplayNumber(displayedPersonalStaked) > 0 ? (
-              <span className="premium-action-badge">{`${displayedPersonalStaked} MGX staked`}</span>
-            ) : null}
-          </button>
-          <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("cashback"); }}>
-            <span className="premium-action-icon">💰</span>
-            <span className="premium-action-title">Cashback Pool</span>
-            <span className="premium-action-subtitle">View cashback status</span>
-          </button>
-        </div>
-      </div>
-      <div className="wallet-section balance-section premium-balance-section">
-        <div className="section-header">
-          <span className="section-badge orange">INNER BALANCE</span>
-          <span className="section-sub">Platform earnings and managed balances</span>
-        </div>
-        <div className="balance-row premium-balance-row">
-          <div className="token-icon">ESC</div>
-          <div className="token-info">
-            <span className="token-name">Frozen (Auto-Upgrade)</span>
-            <span className="token-sub">Current package escrow</span>
-          </div>
-          <div className="token-amount">
-            <span className="amount-main">${frozenEscrowDisplay}</span>
-          </div>
-        </div>
-        <div className="balance-row premium-balance-row">
-          <div className="token-icon mgx-icon">MGX</div>
-          <div className="token-info">
-            <span className="token-name">MGX Staked</span>
-            <span className="token-sub">Active staking positions</span>
-          </div>
-          <div className="token-amount">
-            <span className="amount-main">{displayedPersonalStaked}</span>
-            <span className="amount-sub">MGX</span>
-          </div>
-        </div>
-      </div>
 
-      <div className="wallet-section escrow-section premium-balance-section">
-        <div className="section-header">
-          <span className="section-badge blue">WALLET BALANCE</span>
-          <span className="section-sub">{shortWalletAddress}</span>
-        </div>
-        {isConnectedWalletLoading ? <p className="status-text">Loading connected wallet assets...</p> : null}
-        {snapshot.connectedWalletAssetsError ? (
-          <p className="warning-text">Unable to load wallet assets right now. Please try again.</p>
-        ) : null}
-        <div className="balance-row premium-balance-row">
-          <div className="token-icon">USDT</div>
-          <div className="token-info">
-            <span className="token-name">USDT</span>
-            <span className="token-sub">External wallet balance</span>
-          </div>
-          <div className="token-amount">
-            <span className="amount-main amount-main-highlight">{outerUsdtBalanceDisplay}</span>
-            <span className="amount-sub">USDT</span>
-          </div>
-        </div>
-        <div className="balance-row premium-balance-row">
-          <div className="token-icon">BNB</div>
-          <div className="token-info">
-            <span className="token-name">opBNB Gas</span>
-            <span className="token-sub">Native gas balance</span>
-          </div>
-          <div className="token-amount">
-            <span className="amount-main">{opBnbGasDisplay}</span>
-            <span className="amount-sub">BNB</span>
-          </div>
-        </div>
-        <div className="balance-row premium-balance-row">
-          <div className="token-icon mgx-icon">MGX</div>
-          <div className="token-info">
-            <span className="token-name">MGX</span>
-            <span className="token-sub">Available MGX</span>
-          </div>
-          <div className="token-amount">
-            <span className="amount-main">{mgxAvailableDisplay}</span>
-            <span className="amount-sub">MGX</span>
-          </div>
-        </div>
-      </div>
+      {/* ── Compact header card ─────────────────────────── */}
+      <div style={{background:"#0d0d1f",border:"1px solid #1e1e3f",borderRadius:12,padding:"10px 12px"}}>
 
-      <div className="wallet-section balance-section">
-        <div className="section-header" style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1rem"}}>
-          <span className="section-badge blue">Recent Wallet Activity</span>
-          <button type="button" className="btn-refresh-reward" onClick={() => void handleLoadMoreHistory()} disabled={isConnectedWalletHistoryLoading}>
-            {isConnectedWalletHistoryLoading ? "Loading..." : "↻ Refresh"}
-          </button>
+        {/* Top row: badge + refresh */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <span className="section-badge blue">Connected Wallet</span>
+          <button type="button" className="btn-refresh-reward" onClick={()=>void handleRefreshSection("Wallet")} disabled={isLoading}>↻ Refresh</button>
         </div>
-        <div className="space-y-3">
-          {connectedWalletHistoryRows.length > 0 ? (
-            connectedWalletHistoryRows.slice(0, 10).map((row: any) => (
-              <div key={row.hash} className="tx-row">
-                <div>
-                  <div className="income-label">{row.type}</div>
-                  <div className="income-sublabel">{row.date}</div>
-                </div>
-                <div className="text-right">
-                  <div className="token-amount">{row.amount}</div>
-                  <div className="token-usd">{row.status}</div>
-                </div>
+
+        {/* Address row */}
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <div style={{flex:1,fontSize:".78rem",color:"#94a3b8",fontFamily:"monospace",
+            overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {shortWalletAddress}
+          </div>
+          <button type="button" className="premium-wallet-copy-btn" onClick={handleCopyWalletAddress} disabled={!snapshot.walletAddress}
+            style={{padding:"3px 10px",fontSize:".72rem",flexShrink:0}}>Copy</button>
+          <button type="button" className="btn-disconnect" onClick={handleLogout} disabled={isLoading}
+            style={{padding:"3px 10px",fontSize:".72rem",flexShrink:0}}>Disconnect</button>
+        </div>
+
+        {/* Total balance inline */}
+        <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:10,paddingBottom:10,
+          borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <span style={{fontSize:".7rem",color:"#64748b",textTransform:"uppercase",letterSpacing:"0.06em"}}>Total Balance</span>
+          <span style={{fontSize:"1.4rem",fontWeight:700,color:"#f1f5f9"}}>${connectedWalletTotalDisplay}</span>
+        </div>
+
+        {/* 2×2 action grid */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {[
+            {icon:"💎",title:"Inner Wallet",  sub:"Platform assets",   view:"mgxboxes"},
+            {icon:"🎁",title:"Reward Wallet", sub:"Claim rewards",     view:"rewardwallet"},
+            {icon:"🔒",title:"Staking",       sub:"MGX staking",       view:"stake"},
+            {icon:"💰",title:"Cashback Pool", sub:"Cashback status",   view:"cashback"},
+          ].map(({icon,title,sub,view})=>(
+            <button key={view} type="button"
+              onClick={()=>{setDashboardView("wallet");setWalletSubView(view as any);}}
+              style={{
+                display:"flex",alignItems:"center",gap:10,
+                padding:"8px 10px",borderRadius:10,border:"1px solid rgba(46,111,216,.18)",
+                background:"rgba(12,22,48,.6)",cursor:"pointer",textAlign:"left",
+                minHeight:0,
+              }}>
+              <span style={{fontSize:"1.1rem",flexShrink:0}}>{icon}</span>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:".78rem",fontWeight:700,color:"#f1f5f9",
+                  whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{title}</div>
+                <div style={{fontSize:".65rem",color:"#64748b",marginTop:1}}>{sub}</div>
               </div>
-            ))
-          ) : (
-            <div className="empty-state">
-              <p className="empty-state-text">No transaction history available yet.</p>
-            </div>
-          )}
-          {snapshot.connectedWalletHistoryError ? <p className="warning-text">{snapshot.connectedWalletHistoryError}</p> : null}
+            </button>
+          ))}
         </div>
+        {displayedPersonalStaked&&parseFloat(displayedPersonalStaked)>0?(
+          <div style={{fontSize:".68rem",color:"#94a3b8",marginTop:6,textAlign:"center"}}>
+            🔒 {displayedPersonalStaked} MGX staked
+          </div>
+        ):null}
       </div>
+
+      {/* ── Inner Balance ────────────────────────────────── */}
+      <div style={{background:"#0d0d1f",border:"1px solid #1e1e3f",borderRadius:12,padding:"8px 12px"}}>
+        <div style={{fontSize:".65rem",fontWeight:700,color:"#f97316",textTransform:"uppercase",
+          letterSpacing:"0.08em",marginBottom:4}}>Inner Balance</div>
+        {[
+          {label:"Frozen (Auto-Upgrade)",value:`$${frozenEscrowDisplay}`},
+          {label:"MGX Staked",value:`${displayedPersonalStaked} MGX`},
+        ].map(({label,value})=>(
+          <div key={label} style={{display:"flex",justifyContent:"space-between",
+            alignItems:"center",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+            <span style={{fontSize:".78rem",color:"#94a3b8"}}>{label}</span>
+            <span style={{fontSize:".82rem",fontWeight:600,color:"#f1f5f9"}}>{value}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Wallet Balance ───────────────────────────────── */}
+      <div style={{background:"#0d0d1f",border:"1px solid #1e1e3f",borderRadius:12,padding:"8px 12px"}}>
+        <div style={{fontSize:".65rem",fontWeight:700,color:"#38BDF8",textTransform:"uppercase",
+          letterSpacing:"0.08em",marginBottom:4}}>Wallet Balance</div>
+        {[
+          {icon:"💵",label:"USDT",value:outerUsdtBalanceDisplay,unit:"USDT"},
+          {icon:"⛽",label:"opBNB Gas",value:opBnbGasDisplay,unit:"BNB"},
+          {icon:"⭐",label:"MGX",value:mgxAvailableDisplay,unit:"MGX"},
+        ].map(({icon,label,value,unit})=>(
+          <div key={label} style={{display:"flex",justifyContent:"space-between",
+            alignItems:"center",padding:"5px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+            <span style={{fontSize:".78rem",color:"#94a3b8",display:"flex",alignItems:"center",gap:6}}>
+              <span>{icon}</span>{label}
+            </span>
+            <span style={{fontSize:".82rem",fontWeight:600,color:"#f1f5f9"}}>{value} <span style={{fontSize:".68rem",color:"#64748b"}}>{unit}</span></span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Recent Activity ──────────────────────────────── */}
+      <div style={{background:"#0d0d1f",border:"1px solid #1e1e3f",borderRadius:12,padding:"8px 12px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+          <span style={{fontSize:".65rem",fontWeight:700,color:"#94a3b8",textTransform:"uppercase",
+            letterSpacing:"0.08em"}}>Recent Activity</span>
+          <button type="button" className="btn-refresh-reward"
+            onClick={()=>void handleLoadMoreHistory()} disabled={isConnectedWalletHistoryLoading}
+            style={{fontSize:".7rem",padding:"2px 8px"}}>
+            {isConnectedWalletHistoryLoading?"Loading...":"↻"}
+          </button>
+        </div>
+        {connectedWalletHistoryRows.length>0?(
+          connectedWalletHistoryRows.slice(0,10).map((row:any)=>(
+            <div key={row.hash} className="tx-row" style={{padding:"4px 0"}}>
+              <div>
+                <div style={{fontSize:".78rem",color:"#f1f5f9"}}>{row.type}</div>
+                <div style={{fontSize:".68rem",color:"#64748b"}}>{row.date}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:".78rem",fontWeight:600,color:"#f1f5f9"}}>{row.amount}</div>
+                <div style={{fontSize:".68rem",color:"#64748b"}}>{row.status}</div>
+              </div>
+            </div>
+          ))
+        ):(
+          <div style={{textAlign:"center",padding:"10px 0",color:"#475569",fontSize:".75rem"}}>
+            No recent transactions
+          </div>
+        )}
+        {snapshot.connectedWalletHistoryError?<p className="warning-text">{snapshot.connectedWalletHistoryError}</p>:null}
+      </div>
+
     </div>
     )}
   </section>
