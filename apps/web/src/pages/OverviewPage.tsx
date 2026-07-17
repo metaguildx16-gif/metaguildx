@@ -187,12 +187,9 @@ export function OverviewPage(props: DashboardPageProps) {
                     <span>Lost Earnings</span>
                   </span>
                   <span className="income-amount" style={{color:"#94a3b8"}}>
-                    Pending
+                    ${snapshot.lostEarnings}
                   </span>
                 </div>
-                <p style={{fontSize:"0.72rem",color:"#475569",margin:"3px 0 6px",lineHeight:1.5,padding:"0 2px"}}>
-                  Lost earnings tracking requires a contract upgrade to emit per-user skip events. Coming soon.
-                </p>
                 <div className="dashboard-summary-total">
                   <span>Total</span>
                   <strong>{`$${totalReceivedDisplay}`}</strong>

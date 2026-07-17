@@ -89,6 +89,14 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
         uint256 amount,
         uint8 cyclePkgLevel
     );
+    event LevelIncomeSkipped(
+        uint256 indexed skippedUserId,
+        uint256 indexed fromUserId,
+        uint8 indexed level,
+        address asset,
+        uint256 amount,
+        uint256 timestamp
+    );
     event SpilloverIncome(uint256 indexed receiver, uint256 amount, uint8 fromLevel);
     event SpilloverToPlatform(uint256 amount, uint8 fromLevel);
     event CrossLineIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint256 amount);
@@ -403,6 +411,7 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
             }
 
             if (!core.isLevelEligibleUser(candidateId)) {
+                emit LevelIncomeSkipped(candidateId, fromUserId, level, paymentAsset, baseLevelAmount, block.timestamp);
                 if (level > 1) {
                     uint256 next = core.getLevelParent(placementCursor);
                     if (next == 0) {
@@ -417,6 +426,7 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
             uint8 unlockedLevels = _getUnlockedLevels(core, candidateId, juniorPkgLevel);
 
             if (uplinePkgLevel < juniorPkgLevel) {
+                emit LevelIncomeSkipped(candidateId, fromUserId, level, paymentAsset, baseLevelAmount, block.timestamp);
                 uint256 next;
                 if (level == 1) {
                     next = core.getLevelParent(sponsorId);
@@ -448,6 +458,8 @@ contract IncomeRouter is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pau
                     if (paidCount < 10) {
                         paidIds[paidCount++] = spilloverReceiver;
                     }
+                } else {
+                    emit LevelIncomeSkipped(candidateId, fromUserId, level, paymentAsset, baseLevelAmount, block.timestamp);
                 }
                 // FIX 2: Advance placementCursor after spillover so next level starts fresh
                 uint256 nextCursor = core.getLevelParent(candidateId);
