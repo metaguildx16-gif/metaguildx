@@ -555,7 +555,7 @@ export function WalletPage(props: DashboardPageProps) {
           <span className="balance-label">Total Balance</span>
           <span className={`balance-amount ${parseFloat(connectedWalletTotalDisplay) > 0 ? "is-positive" : ""}`}>${connectedWalletTotalDisplay}</span>
         </div>
-        <div className="wallet-action-buttons premium-action-grid" style={{gridTemplateColumns:"repeat(2,1fr)",maxWidth:500,margin:"0 auto",gap:12}}>
+        <div className="wallet-action-buttons premium-action-grid" style={{gridTemplateColumns:"repeat(2,1fr)",maxWidth:500,margin:"0 auto",gap:8}}>
           <button type="button" className="btn-action premium-action-card" onClick={() => { setDashboardView("wallet"); setWalletSubView("mgxboxes"); }}>
             <span className="premium-action-icon">💎</span>
             <span className="premium-action-title">Inner Wallet</span>
@@ -588,70 +588,6 @@ export function WalletPage(props: DashboardPageProps) {
           </button>
         </div>
       </div>
-
-      <style>{`
-        /* ── Wallet page compact overrides ─────────────────── */
-        .wallet-page-root,.wallet-main{gap:8px!important;}
-
-        /* Connected wallet */
-        .wallet-connected,.wallet-header-card{padding:8px 12px!important;margin-bottom:8px!important;}
-        .wallet-address-row,.connected-wallet-row{padding:6px 0!important;}
-        .wallet-action-buttons,.wallet-buttons-row{gap:6px!important;margin-top:6px!important;}
-
-        /* Total balance */
-        .wallet-total-card,.wallet-total-balance,.total-balance-card{
-          padding:10px 14px!important;margin-bottom:8px!important;}
-        .balance-label{font-size:.7rem!important;margin-bottom:2px!important;}
-        .balance-amount,.balance-amount-large,.wallet-balance-value{
-          font-size:1.6rem!important;line-height:1.2!important;}
-
-        /* Quick action cards */
-        .wallet-actions-grid,.wallet-quick-actions{
-          gap:8px!important;margin-bottom:8px!important;}
-        .premium-action-card,.btn-action,.wallet-action-card{
-          padding:10px 8px!important;min-height:100px!important;max-height:120px!important;}
-        .premium-action-icon{font-size:1.2rem!important;margin-bottom:3px!important;}
-        .premium-action-title{font-size:.78rem!important;font-weight:700!important;
-          margin-bottom:2px!important;line-height:1.2!important;}
-        .premium-action-subtitle{font-size:.68rem!important;line-height:1.1!important;
-          margin:0!important;opacity:.7;}
-        .premium-action-badge{font-size:.65rem!important;padding:2px 6px!important;
-          margin-top:3px!important;}
-
-        /* Inner Balance + Wallet Balance */
-        .premium-balance-section,.wallet-section,.balance-section,.escrow-section{
-          padding:10px 12px!important;margin-bottom:8px!important;border-radius:12px!important;}
-        .section-header,.inner-balance-header{
-          padding-bottom:6px!important;margin-bottom:4px!important;}
-        .section-badge{font-size:.65rem!important;padding:2px 8px!important;}
-        .section-sub{font-size:.68rem!important;}
-        .balance-row,.premium-balance-row,.token-row,.balance-row-item{
-          padding:5px 0!important;min-height:0!important;}
-        .token-icon,.token-icon-circle{
-          width:30px!important;height:30px!important;font-size:.65rem!important;
-          border-radius:8px!important;flex-shrink:0;}
-        .token-name{font-size:.8rem!important;font-weight:600!important;}
-        .token-sub{font-size:.68rem!important;margin-top:1px!important;}
-        .amount-main{font-size:.85rem!important;font-weight:700!important;}
-        .amount-sub{font-size:.68rem!important;}
-        .token-info{gap:1px!important;}
-        .token-amount,.token-amount-right{gap:1px!important;}
-
-        /* Recent activity */
-        .wallet-history,.wallet-activity,.history-section{
-          padding:10px 12px!important;margin-bottom:8px!important;}
-        .history-header,.activity-header{
-          padding-bottom:6px!important;margin-bottom:4px!important;}
-        .empty-state,.wallet-empty-state{
-          padding:12px 8px!important;min-height:60px!important;}
-        .empty-state-text{font-size:.78rem!important;}
-        .history-row,.activity-row{padding:5px 0!important;}
-
-        /* Global */
-        .wallet-section{margin-bottom:8px!important;}
-        .dashboard-card.wallet-card,.inner-balance-section{
-          padding:10px 12px!important;border-radius:12px!important;}
-      `}</style>
       <div className="wallet-section balance-section premium-balance-section">
         <div className="section-header">
           <span className="section-badge orange">INNER BALANCE</span>

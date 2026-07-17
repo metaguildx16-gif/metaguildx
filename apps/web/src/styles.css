@@ -2359,10 +2359,10 @@ button:disabled {
   width: 100%;
   max-width: 720px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 8px;
 }
 
 .wallet-header {
@@ -2612,7 +2612,7 @@ button:disabled {
 }
 
 .wallet-section .section-header {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .section-badge {
@@ -2656,9 +2656,9 @@ button:disabled {
 .balance-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: nowrap;
-  padding: 12px 0;
+  padding: 6px 0;
   border-bottom: 1px solid #0f0f22;
 }
 
@@ -2668,7 +2668,7 @@ button:disabled {
 }
 
 .premium-balance-row {
-  padding: 16px 0;
+  padding: 6px 0;
   border-bottom-color: rgba(255, 255, 255, 0.06);
 }
 
@@ -2993,8 +2993,8 @@ button:disabled {
   }
 
   .wallet-container {
-    padding: 12px;
-    gap: 12px;
+    padding: 8px;
+    gap: 8px;
   }
 
   .wallet-header,
