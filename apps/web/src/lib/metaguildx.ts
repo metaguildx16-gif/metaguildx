@@ -4591,6 +4591,42 @@ export async function loadPostTransactionQuickSnapshot(walletAddress?: string | 
   return snapshot;
 }
 
+
+// ── Lost Earnings: scans Level-1 LevelIncomeRecorded events ──────
+async function computeLostEarnings(
+  userId: number,
+  directReferralIds: number[],
+  provider: BrowserProvider | JsonRpcProvider,
+  routerAddress: string
+): Promise<bigint> {
+  if (!routerAddress || userId <= 0 || directReferralIds.length === 0) return 0n;
+  const routerAbi = [
+    "event LevelIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint8 level, uint256 amount, uint8 cyclePkgLevel)"
+  ];
+  const router = new Contract(routerAddress, routerAbi, provider);
+  let totalLost = 0n;
+  try {
+    const currentBlock = await provider.getBlockNumber();
+    const fromBlock = Math.max(0, currentBlock - 2_000_000);
+    const refsToScan = directReferralIds.slice(0, 20);
+    await Promise.all(refsToScan.map(async (refId) => {
+      try {
+        const logs = await router.queryFilter(
+          router.filters.LevelIncomeRecorded(BigInt(refId), null, 1),
+          fromBlock, currentBlock
+        );
+        for (const log of logs) {
+          const args = (log as unknown as { args: { toUserId: bigint; amount: bigint } }).args;
+          if (Number(args.toUserId) !== userId) {
+            totalLost += BigInt(args.amount);
+          }
+        }
+      } catch { /* skip individual ref failure */ }
+    }));
+  } catch { /* non-fatal, return 0 */ }
+  return totalLost;
+}
+
 export async function loadDashboardSnapshot(
   walletAddress?: string | null,
   options?: { forceRefresh?: boolean }
@@ -5032,6 +5068,7 @@ export async function loadDashboardSnapshot(
         { history: [], error: null, cursor: null }
       );
       const directReferralIds = directReferralIdsRaw.map((value: bigint) => Number(value));
+      const lostEarningsRaw = await computeLostEarnings(userId, directReferralIds, provider, configuredIncomeRouterAddress ?? TESTNET_INCOME_ROUTER_ADDRESS);
       const crosslineAmount = 0n;
       const spilloverAmount = 0n;
       const directReferralIncomeByUserId: Record<number, string> = {};
@@ -5130,7 +5167,7 @@ export async function loadDashboardSnapshot(
       isSurrendered: Boolean(profile.surrendered),
       surrenderStatus,
       rebirthEscrowBalance: formatTokenAmount(rebirthEscrowMainRaw),
-    lostEarnings: "0" // TODO: compute from LevelIncomeRecorded event scan
+    lostEarnings: formatTokenAmount(lostEarningsRaw)
     };
       cacheDashboardSnapshot(cacheKey, persistentCacheKey, snapshot, { emitRefresh: Boolean(options?.forceRefresh) });
       return snapshot;
