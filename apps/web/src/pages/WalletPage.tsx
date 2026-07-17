@@ -589,6 +589,20 @@ export function WalletPage(props: DashboardPageProps) {
         </div>
       </div>
 
+      <style>{`
+        .premium-action-card{padding:12px 10px!important;min-height:0!important;}
+        .premium-action-icon{font-size:1.3rem!important;}
+        .premium-action-title{font-size:.82rem!important;}
+        .premium-action-subtitle{font-size:.72rem!important;line-height:1.2!important;}
+        .premium-balance-section{padding:12px!important;}
+        .premium-balance-row{padding:8px 0!important;}
+        .section-header{padding-bottom:8px!important;}
+        .wallet-section{margin-bottom:10px!important;}
+        .wallet-actions-grid{gap:8px!important;}
+        .wallet-total-card{padding:12px!important;}
+        .wallet-connected-row{padding:8px 12px!important;}
+        .wallet-total-balance{padding:14px!important;}
+      `}</style>
       <div className="wallet-section balance-section premium-balance-section">
         <div className="section-header">
           <span className="section-badge orange">INNER BALANCE</span>
@@ -612,17 +626,6 @@ export function WalletPage(props: DashboardPageProps) {
           </div>
           <div className="token-amount">
             <span className="amount-main">{displayedPersonalStaked}</span>
-            <span className="amount-sub">MGX</span>
-          </div>
-        </div>
-        <div className="balance-row premium-balance-row">
-          <div className="token-icon mgx-icon">MGX</div>
-          <div className="token-info">
-            <span className="token-name">MGX Allocated (Total)</span>
-            <span className="token-sub">Primary + rebirth allocations</span>
-          </div>
-          <div className="token-amount">
-            <span className="amount-main">{displayedTotalMgxAllocated}</span>
             <span className="amount-sub">MGX</span>
           </div>
         </div>
