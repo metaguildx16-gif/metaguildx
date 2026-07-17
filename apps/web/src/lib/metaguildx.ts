@@ -4597,9 +4597,11 @@ async function computeLostEarnings(
   userId: number,
   directReferralIds: number[],
   provider: BrowserProvider | JsonRpcProvider,
-  routerAddress: string
+  routerAddress: string,
+  userJoinedAt?: number   // unix timestamp — used to compute scan start block
 ): Promise<bigint> {
   if (!routerAddress || userId <= 0 || directReferralIds.length === 0) return 0n;
+  const CHUNK = 45_000;   // opBNB max block range per query
   const routerAbi = [
     "event LevelIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint8 level, uint256 amount, uint8 cyclePkgLevel)"
   ];
@@ -4607,19 +4609,34 @@ async function computeLostEarnings(
   let totalLost = 0n;
   try {
     const currentBlock = await provider.getBlockNumber();
-    const fromBlock = Math.max(0, currentBlock - 2_000_000);
+    // Compute fromBlock from joinedAt so we never miss early events
+    const nowSec = Math.floor(Date.now() / 1000);
+    const secSinceJoin = userJoinedAt ? Math.max(0, nowSec - userJoinedAt) : 2_600_000;
+    // opBNB ~1 block/sec; add 100k block buffer before join
+    const fromBlock = Math.max(0, currentBlock - secSinceJoin - 100_000);
     const refsToScan = directReferralIds.slice(0, 20);
     await Promise.all(refsToScan.map(async (refId) => {
       try {
-        const logs = await router.queryFilter(
-          router.filters.LevelIncomeRecorded(BigInt(refId), null, 1),
-          fromBlock, currentBlock
-        );
-        for (const log of logs) {
-          const args = (log as unknown as { args: { toUserId: bigint; amount: bigint } }).args;
-          if (Number(args.toUserId) !== userId) {
-            totalLost += BigInt(args.amount);
-          }
+        // Scan in 45k-block chunks (opBNB limit)
+        for (let b = fromBlock; b <= currentBlock; b += CHUNK) {
+          const end = Math.min(b + CHUNK - 1, currentBlock);
+          try {
+            const logs = await router.queryFilter(
+              router.filters.LevelIncomeRecorded(BigInt(refId)),
+              b, end
+            );
+            for (const log of logs) {
+              const args = (log as unknown as { args: [bigint, bigint, bigint, bigint, bigint] }).args;
+              const level = Number(args[2]);
+              const toUserId = Number(args[1]);
+              const amount = BigInt(args[3]);
+              // Level 1 income always goes to direct sponsor
+              // If it went elsewhere, user was permanently skipped
+              if (level === 1 && toUserId !== userId) {
+                totalLost += amount;
+              }
+            }
+          } catch { /* skip failed chunk */ }
         }
       } catch { /* skip individual ref failure */ }
     }));
@@ -5068,7 +5085,7 @@ export async function loadDashboardSnapshot(
         { history: [], error: null, cursor: null }
       );
       const directReferralIds = directReferralIdsRaw.map((value: bigint) => Number(value));
-      const lostEarningsRaw = await computeLostEarnings(userId, directReferralIds, provider, configuredIncomeRouterAddress ?? TESTNET_INCOME_ROUTER_ADDRESS);
+      const lostEarningsRaw = await computeLostEarnings(userId, directReferralIds, provider, configuredIncomeRouterAddress ?? TESTNET_INCOME_ROUTER_ADDRESS, Number(registeredProfile?.joinedAt ?? 0));
       const crosslineAmount = 0n;
       const spilloverAmount = 0n;
       const directReferralIncomeByUserId: Record<number, string> = {};
