@@ -326,6 +326,7 @@ export type DashboardSnapshot = {
   xCount: number;
   internalWalletBalance: string;
   rebirthEscrowBalance: string;
+  lostEarnings: string;
   currentPackageEscrow: string;
   currentPackageBucketEarnings: string;
   packageOneBucketEarnings: string;
@@ -473,6 +474,7 @@ export type TreeNodeDetails = {
   totalEarnings: string;
   internalWalletBalance: string;
   rebirthEscrowBalance: string;
+  lostEarnings: string;
   directIncome: string;
   levelIncome: string;
   spilloverIncome: string;
@@ -546,6 +548,7 @@ export const fallbackSnapshot: DashboardSnapshot = {
   xCount: 0,
   internalWalletBalance: "0",
   rebirthEscrowBalance: "0",
+  lostEarnings: "0",
   currentPackageEscrow: "0",
   currentPackageBucketEarnings: "0",
   packageOneBucketEarnings: "0",
@@ -4179,6 +4182,7 @@ export async function loadTreeNodeDetails(userId: number): Promise<TreeNodeDetai
     totalEarnings: formatTokenAmount(profile.totalEarnings),
     internalWalletBalance: formatTokenAmount(escrowBalance),
     rebirthEscrowBalance: formatTokenAmount(rebirthEscrowRaw),
+    lostEarnings: "0",
     directIncome: formatTokenAmount(incomes.direct),
     levelIncome: formatTokenAmount(incomes.level),
     spilloverIncome: formatTokenAmount(spilloverAmount),
@@ -5125,7 +5129,8 @@ export async function loadDashboardSnapshot(
       incomeDistributionPendingPackageLevel: Number(incomeDistributionPendingPackageLevelRaw) || null,
       isSurrendered: Boolean(profile.surrendered),
       surrenderStatus,
-      rebirthEscrowBalance: formatTokenAmount(rebirthEscrowMainRaw)
+      rebirthEscrowBalance: formatTokenAmount(rebirthEscrowMainRaw),
+    lostEarnings: "0" // TODO: compute from LevelIncomeRecorded event scan
     };
       cacheDashboardSnapshot(cacheKey, persistentCacheKey, snapshot, { emitRefresh: Boolean(options?.forceRefresh) });
       return snapshot;

@@ -180,20 +180,20 @@ export function OverviewPage(props: DashboardPageProps) {
                 ) : null}
                 <div className="income-row dashboard-summary-row"><span className="income-label">Upgrade Escrow</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
                 <div className="income-row dashboard-summary-row"><span className="income-label">Rebirth Escrow</span><span className="income-amount">${rebirthEscrowDisplay}</span></div>
-                {/* ── Locked Earnings row ───────────────────────── */}
+                {/* ── Lost Earnings row ────────────────────────── */}
                 <div className="income-row dashboard-summary-row" style={{borderTop:"1px solid rgba(251,191,36,0.12)",marginTop:2,paddingTop:6}}>
                   <span className="income-label" style={{color:"#FBBF24",display:"flex",alignItems:"center",gap:5}}>
-                    <span>🔒</span>
-                    <span>Locked Earnings</span>
+                    <span>❌</span>
+                    <span>Lost Earnings</span>
                   </span>
                   <span className="income-amount" style={{color:"#FBBF24"}}>
-                    ${(parseFloat((snapshot as any).lockedEarnings ?? "0") || 0).toFixed(2)}
+                    ${(parseFloat(snapshot.lostEarnings ?? "0") || 0).toFixed(2)}
                   </span>
                 </div>
                 <p style={{fontSize:"0.72rem",color:"#64748b",margin:"3px 0 6px",lineHeight:1.5,padding:"0 2px"}}>
-                  {(parseFloat((snapshot as any).lockedEarnings ?? "0") || 0) > 0
-                    ? "🔒 You are currently not eligible for these earnings. Upgrade your package to unlock future earning opportunities."
-                    : "✅ You are currently eligible for all available earnings."}
+                  {(parseFloat(snapshot.lostEarnings ?? "0") || 0) > 0
+                    ? "⚠ You permanently missed these earnings because you were not eligible when they were generated. Upgrade earlier to avoid future lost earnings."
+                    : "✅ You have not lost any earnings."}
                 </p>
                 <div className="dashboard-summary-total">
                   <span>Total</span>
