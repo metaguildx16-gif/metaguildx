@@ -2426,19 +2426,19 @@ button:disabled {
 }
 
 .wallet-total-balance {
-  margin: 20px 0;
+  margin: 8px 0;
 }
 
 .wallet-total-balance-premium,
 .mgx-allocation-hero {
-  border-radius: 22px;
-  padding: 22px;
+  border-radius: 14px;
+  padding: 12px 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background:
     radial-gradient(circle at top right, rgba(0, 212, 255, 0.12), transparent 30%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
     rgba(10, 15, 26, 0.94);
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
 }
 
 .balance-label {
@@ -2529,7 +2529,7 @@ button:disabled {
   background: rgba(12,22,48,.7);
   border: 1px solid rgba(46,111,216,.15);
   border-radius: 14px;
-  padding: 1.5rem 1.25rem;
+  padding: 10px 8px;
   cursor: pointer;
   transition: all 0.3s;
   text-align: center;
@@ -2550,8 +2550,8 @@ button:disabled {
 
 .premium-action-card:hover {
   border-color: rgba(201,168,76,.4);
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0,0,0,.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,.4);
 }
 
 .premium-action-card:hover::before {
@@ -2559,9 +2559,9 @@ button:disabled {
 }
 
 .premium-action-icon {
-  font-size: 1.75rem;
+  font-size: 1.2rem;
   display: block;
-  margin-bottom: 0.75rem;
+  margin-bottom: 4px;
   filter: drop-shadow(0 0 8px rgba(201,168,76,.3));
 }
 
@@ -2597,8 +2597,8 @@ button:disabled {
 .wallet-section {
   background: #0d0d1f;
   border: 1px solid #1e1e3f;
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 10px 12px;
   min-height: auto;
 }
 
@@ -2612,7 +2612,7 @@ button:disabled {
 }
 
 .wallet-section .section-header {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .section-badge {
