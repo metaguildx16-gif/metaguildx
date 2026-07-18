@@ -341,6 +341,10 @@ function App() {
   const [levelTreePreview, setLevelTreePreview] = useState<TreePreviewNode[]>([]);
   const [levelBreakdown, setLevelBreakdown] = useState<{ level: number; amount: string; members: number }[]>([]);
   const [personalTreePreview, setPersonalTreePreview] = useState<TreePreviewNode[]>([]);
+  // ── Phase 4/5/6: Background Lost Earnings ──────────────────
+  const [bgLostEarnings, setBgLostEarnings] = useState<string>("0");
+  const [bgLostEarningsLoading, setBgLostEarningsLoading] = useState(false);
+  const lostEarningsCache = useRef<{userId:number;value:string;block:number}|null>(null);
   const [isLoadingLevelTree, setIsLoadingLevelTree] = useState(false);
   const [isBoxEarningsSyncing, setIsBoxEarningsSyncing] = useState(false);
   const [selectedRebirthId, setSelectedRebirthId] = useState<number | null>(null);
@@ -2003,6 +2007,29 @@ function App() {
   }
 
   useEffect(()=>{const h=(e:KeyboardEvent)=>{if(e.key==="Escape")setMobileNavOpen(false);};document.addEventListener("keydown",h);return()=>document.removeEventListener("keydown",h);},[]);
+  // ── Phase 4/5/6: Background Lost Earnings loader ────────────
+  useEffect(()=>{
+    const userId = snapshot.userId;
+    const walletAddress = snapshot.walletAddress;
+    if(!userId||userId<=0||!walletAddress) return;
+    // Session cache: skip if already computed for this user
+    if(lostEarningsCache.current?.userId===userId){
+      setBgLostEarnings(lostEarningsCache.current.value);
+      return;
+    }
+    let cancelled=false;
+    setBgLostEarningsLoading(true);
+    metaguildx.loadLostEarnings(userId, walletAddress).then(val=>{
+      if(cancelled)return;
+      setBgLostEarnings(val);
+      lostEarningsCache.current={userId,value:val,block:0};
+      setBgLostEarningsLoading(false);
+    }).catch(()=>{
+      if(!cancelled){setBgLostEarnings("0");setBgLostEarningsLoading(false);}
+    });
+    return()=>{cancelled=true;};
+  },[snapshot.userId, snapshot.walletAddress]);
+
   const activeTreePreview = treeMode === "level" ? levelTreePreview : treeMode === "personal" ? personalTreePreview : snapshot.treePreview;
   const rootNode = activeTreePreview.find((node) => node.parentId === 0) ?? activeTreePreview[0] ?? null;
   const selectedTreeNode =
@@ -4468,6 +4495,8 @@ function App() {
       handleCopyReferralLink,
       handleCopyWalletAddress,
       handleLoadMoreHistory,
+    bgLostEarnings,
+    bgLostEarningsLoading,
       handleLogout,
       handleRefreshRewards,
       handleRefreshSection,

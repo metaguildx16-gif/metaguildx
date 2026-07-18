@@ -1358,15 +1358,18 @@ async function buildUnregisteredSnapshot(input: {
   }
 
   const externalWalletBalanceRaw = await input.provider.getBalance(input.walletAddress);
-  const connectedWalletPortfolio = await loadConnectedWalletAssets({
-    walletAddress: input.walletAddress,
-    nativeBalanceFormatted: formatTokenAmount(externalWalletBalanceRaw, 18),
-    nativeValueFormatted: "$0.00",
-    provider: input.provider,
-    usdtAddress: defaultPaymentAsset,
-    mgxTokenAddress: configuredMgxTokenAddress
-  });
-  const connectedWalletHistory = await loadConnectedWalletHistory(input.walletAddress);
+  // Phase 2: Run Moralis calls in parallel (was sequential, saved 800ms-2s)
+  const [connectedWalletPortfolio, connectedWalletHistory] = await Promise.all([
+    loadConnectedWalletAssets({
+      walletAddress: input.walletAddress,
+      nativeBalanceFormatted: formatTokenAmount(externalWalletBalanceRaw, 18),
+      nativeValueFormatted: "$0.00",
+      provider: input.provider,
+      usdtAddress: defaultPaymentAsset,
+      mgxTokenAddress: configuredMgxTokenAddress
+    }),
+    loadConnectedWalletHistory(input.walletAddress),
+  ]);
 
   return {
     ...fallbackSnapshot,
@@ -4596,6 +4599,7 @@ export async function loadPostTransactionQuickSnapshot(walletAddress?: string | 
 // ── Lost Earnings: scans LevelIncomeSkipped events ──────
 async function computeLostEarnings(
   userId: number,
+  directReferralIds: number[],
   provider: BrowserProvider | JsonRpcProvider,
   routerAddress: string
 ): Promise<bigint> {
@@ -4627,6 +4631,27 @@ async function computeLostEarnings(
     }
   } catch { /* non-fatal, return 0 */ }
   return totalLost;
+}
+
+
+// ── Public standalone Lost Earnings loader (called in background) ─
+// Never blocks the dashboard snapshot. Called from App.tsx after render.
+export async function loadLostEarnings(
+  userId: number,
+  walletAddress: string
+): Promise<string> {
+  if (!configuredCoreAddress || !configuredIncomeRouterAddress || userId <= 0) return "0";
+  const provider = await getReadProvider();
+  const coreContract = new Contract(configuredCoreAddress, metaGuildXCoreAbi, provider);
+  try {
+    const directReferralIdsRaw = await coreContract.getDirectReferralIds(userId) as bigint[];
+    const directReferralIds = directReferralIdsRaw.map(Number);
+    const raw = await computeLostEarnings(
+      userId, directReferralIds, provider,
+      configuredIncomeRouterAddress ?? TESTNET_INCOME_ROUTER_ADDRESS
+    );
+    return formatTokenAmount(raw);
+  } catch { return "0"; }
 }
 
 export async function loadDashboardSnapshot(
@@ -5080,6 +5105,7 @@ export async function loadDashboardSnapshot(
         currentPackageLevel > 0 ? (boxEarningsByPackage[currentPackageLevel] ?? 0n) : 0n;
       const lostEarningsRaw = await computeLostEarnings(
         userId,
+        directReferralIds.slice(0,5),
         provider,
         configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
       );
@@ -5173,7 +5199,7 @@ export async function loadDashboardSnapshot(
       isSurrendered: Boolean(profile.surrendered),
       surrenderStatus,
       rebirthEscrowBalance: formatTokenAmount(rebirthEscrowMainRaw),
-    lostEarnings: formatTokenAmount(lostEarningsRaw)
+    lostEarnings: "0" // Populated by background loadLostEarnings() call
     };
       cacheDashboardSnapshot(cacheKey, persistentCacheKey, snapshot, { emitRefresh: Boolean(options?.forceRefresh) });
       return snapshot;

@@ -30,6 +30,8 @@ export function OverviewPage(props: DashboardPageProps) {
     handleCopyReferralLink,
     handleCopyWalletAddress,
     handleLoadMoreHistory,
+  bgLostEarnings,
+  bgLostEarningsLoading,
     handleLogout,
     handleRefreshRewards,
     handleRefreshSection,
