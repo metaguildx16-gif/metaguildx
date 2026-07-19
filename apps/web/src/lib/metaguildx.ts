@@ -5074,14 +5074,21 @@ export async function loadDashboardSnapshot(
     const availableMgxAllocation =
       totalMgxAllocation > totalPersonalStaked ? totalMgxAllocation - totalPersonalStaked : 0n;
     const stakePositions = mapStakePositions(stakePositionsRaw);
-    const connectedWalletAssets = await loadConnectedWalletAssets({
-      walletAddress: normalizedWalletAddress,
-      nativeBalanceFormatted: formatTokenAmount(externalWalletBalanceRaw, 18),
-      nativeValueFormatted: connectedWalletValue,
-      provider,
-      usdtAddress: defaultPaymentAsset,
-      mgxTokenAddress: configuredMgxTokenAddress
-    });
+    const [connectedWalletAssets, connectedWalletHistory] = await Promise.all([
+      loadConnectedWalletAssets({
+        walletAddress: normalizedWalletAddress,
+        nativeBalanceFormatted: formatTokenAmount(externalWalletBalanceRaw, 18),
+        nativeValueFormatted: connectedWalletValue,
+        provider,
+        usdtAddress: defaultPaymentAsset,
+        mgxTokenAddress: configuredMgxTokenAddress
+      }),
+      withTimeout(
+        loadConnectedWalletHistory(normalizedWalletAddress),
+        3000,
+        { history: [], error: null, cursor: null }
+      ),
+    ]);
     const usdtAsset = connectedWalletAssets.assets.find(
       (asset) => asset.name === "USDT"
     );
@@ -5089,11 +5096,6 @@ export async function loadDashboardSnapshot(
     const correctedConnectedWalletValue = usdtAsset?.amount
       ? `$${usdtAsset.amount}`
       : connectedWalletValue;
-      const connectedWalletHistory = await withTimeout(
-        loadConnectedWalletHistory(normalizedWalletAddress),
-        3000,
-        { history: [], error: null, cursor: null }
-      );
       const directReferralIds = directReferralIdsRaw.map((value: bigint) => Number(value));
       const crosslineAmount = 0n;
       const spilloverAmount = 0n;
