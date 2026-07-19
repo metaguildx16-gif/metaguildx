@@ -914,6 +914,26 @@ function App() {
         : "";
       const currentAccount = (snapshot.walletAddress ?? localStorage.getItem(WALLET_STORAGE_KEY) ?? "").toLowerCase();
       if (nextAccount !== currentAccount) {
+        // Phase 1: Clear previous userId-keyed caches before reload
+        // Prevents localStorage accumulation across account switches
+        const prevUserId = snapshot.userId;
+        if (prevUserId && typeof window !== "undefined") {
+          const ns = (window as any).__MGX_CACHE_NS__ ?? "";
+          const prefixes = [
+            `mgx_branch_stats_`,`mgx_level_branch_`,`mgx_direct_ref_`,
+            `mgx_crossline_`,`mgx_spillover_`,`genealogy-`,
+            `level-${ns}-${prevUserId}`,
+            `mgx_level_breakdown_v1_`,
+          ];
+          const keysToRemove: string[] = [];
+          for(let i=0;i<localStorage.length;i++){
+            const k=localStorage.key(i);
+            if(k&&prefixes.some(p=>k.includes(String(prevUserId))||k.startsWith(p))){
+              keysToRemove.push(k);
+            }
+          }
+          keysToRemove.forEach(k=>{ try{localStorage.removeItem(k);}catch{} });
+        }
         clearWalletSession();
         window.location.reload();
       }

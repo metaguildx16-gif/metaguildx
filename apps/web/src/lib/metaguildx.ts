@@ -1012,7 +1012,7 @@ function queueBackgroundDashboardRefresh(walletAddress?: string | null) {
 
   backgroundRefreshScheduled.add(key);
   const runRefresh = () => {
-    backgroundRefreshScheduled.delete(key);
+    backgroundRefreshScheduled.delete(key); // Phase 4: Ensures no duplicate background scans
     if (backgroundRefreshInFlight.has(key)) {
       return;
     }
@@ -5085,7 +5085,8 @@ export async function loadDashboardSnapshot(
       }),
       withTimeout(
         loadConnectedWalletHistory(normalizedWalletAddress),
-        3000,
+        // Adaptive timeout: shorter on mobile to reduce blocking time
+        (typeof window!=="undefined"&&window.innerWidth<768)?1800:3000,
         { history: [], error: null, cursor: null }
       ),
     ]);
