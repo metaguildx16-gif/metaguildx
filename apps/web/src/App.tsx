@@ -768,6 +768,21 @@ function App() {
     startTransition(() => {
       const { savedWallet, wasConnected, isExpired } = hasValidWalletSession();
       const boot = async () => {
+        // Startup validation: if MetaMask active account differs from saved session, clear stale session
+        if (savedWallet && wasConnected && !isExpired) {
+          try {
+            const accs = await (window.ethereum as any)?.request({method:"eth_accounts"}).catch(()=>[] as string[]) as string[];
+            const active = accs?.[0]?.toLowerCase() ?? null;
+            if (active && active !== savedWallet.toLowerCase()) {
+              clearWalletSession();
+              // Fall through to landing page — do NOT restore stale Wallet A
+              beginLoadPhase("loading user profile", "Loading user profile...");
+              const nextSnapshot = await withDashboardTimeout(metaguildx.loadDashboardSnapshot(null),"fetchDashboardData");
+              if (isActive) { setSnapshot(nextSnapshot); finishLoadingSession("complete"); }
+              return;
+            }
+          } catch { /* eth_accounts failed — proceed with saved session */ }
+        }
         if (savedWallet && wasConnected && !isExpired) {
           try {
             beginLoadPhase("connecting wallet", "Connecting wallet...");
