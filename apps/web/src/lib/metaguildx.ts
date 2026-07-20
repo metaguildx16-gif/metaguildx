@@ -2772,13 +2772,12 @@ export async function loadDeferredDashboardAnalytics(input: {
   const provider = await getReadProvider();
   const contract = new Contract(configuredCoreAddress, metaGuildXCoreAbi, provider);
   const incomeRouterAddress = configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS;
+  // P3: getDirectReferralIds runs first (needed for loadDirectReferralIncomeByUserId)
+  // branchStats + levelBranchStats + crossline + spillover run in parallel after
   const directReferralIdsRaw = await withTimeout(
-    contract.getDirectReferralIds(input.userId),
-    5000,
-    [] as bigint[]
+    contract.getDirectReferralIds(input.userId), 5000, [] as bigint[]
   );
   const directReferralIds = (directReferralIdsRaw as bigint[]).map((value: bigint) => Number(value));
-
   const [
     branchStats,
     levelBranchStats,
@@ -3979,6 +3978,12 @@ export async function loadPersonalTreePreview(
     if (!connectedUserId || connectedUserId <= 0) {
       return [];
     }
+    // Hot-path cache: tree preview rarely changes within a session
+    const previewCacheKey = getHotPathCacheKey("tree-preview", connectedUserId);
+    const previewCached = readPersistentJson<{ data: TreePreviewNode[]; timestamp: number }>(previewCacheKey);
+    if (previewCached && previewCached.data.length > 0 && Date.now() - previewCached.timestamp < HOT_PATH_CACHE_TTL) {
+      return previewCached.data;
+    }
 
     const provider = await getReadProvider();
     const treeContract = new Contract(
@@ -4017,7 +4022,7 @@ export async function loadPersonalTreePreview(
       subtreeIds
     );
 
-    return subtreeIds
+    const previewResult = subtreeIds
       .map((id) => previewDataByUserId.get(id))
       .filter(
         (entry): entry is NonNullable<typeof entry> => Boolean(entry)
@@ -4036,6 +4041,11 @@ export async function loadPersonalTreePreview(
         mgxAllocated: entry.mgxAllocated,
         userActiveBoxId: entry.userActiveBoxId
       }));
+    // Write to hot-path cache
+    if (previewResult.length > 0 && previewCacheKey) {
+      writePersistentJson(previewCacheKey, { data: previewResult, timestamp: Date.now() });
+    }
+    return previewResult
   });
 }
 
@@ -5152,12 +5162,8 @@ export async function loadDashboardSnapshot(
       const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
       const currentPackageBucketEarningsRaw =
         currentPackageLevel > 0 ? (boxEarningsByPackage[currentPackageLevel] ?? 0n) : 0n;
-      const lostEarningsRaw = await computeLostEarnings(
-        userId,
-        directReferralIds.slice(0,5),
-        provider,
-        configuredIncomeRouterAddress || TESTNET_INCOME_ROUTER_ADDRESS
-      );
+      // lostEarnings computed in background via loadLostEarnings() — not per-click
+      const lostEarningsRaw = 0n;
       const formattedBoxEarningsByPackage = Object.fromEntries(
         Object.entries(boxEarningsByPackage)
           .filter(([, amount]) => amount > 0n)
