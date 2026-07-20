@@ -2618,8 +2618,10 @@ async function loadBranchStats(contract: Contract, userId: number) {
     }
 
     const [profile, node] = await Promise.all([contract.usersById(nodeId), activeTreeContract.nodes(nodeId)]);
-    const left = await subtree(Number(node.leftChildId));
-    const right = await subtree(Number(node.rightChildId));
+    const [left, right] = await Promise.all([
+      subtree(Number(node.leftChildId)),
+      subtree(Number(node.rightChildId))
+    ]);
 
     return {
       nodes: 1 + left.nodes + right.nodes,
@@ -2690,8 +2692,10 @@ async function loadLevelBranchStats(contract: Contract, userId: number) {
     }
 
     const [leftRaw, rightRaw] = await activeTreeContract.getLevelChildren(nodeId);
-    const left = await subtree(Number(leftRaw));
-    const right = await subtree(Number(rightRaw));
+    const [left, right] = await Promise.all([
+      subtree(Number(leftRaw)),
+      subtree(Number(rightRaw))
+    ]);
     return 1 + left + right;
   }
 
