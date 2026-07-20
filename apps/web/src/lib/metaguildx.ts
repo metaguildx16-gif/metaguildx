@@ -1933,16 +1933,15 @@ async function loadBoxEarnings(input: {
     }
   }
 
+  // Always cache in-memory (partial or full — used within this 5-min session)
   boxEarningsCache.set(cacheKey, { data: pkgEarnings, timestamp: Date.now() });
+  // Write persistent cache ONLY on full successful scan.
+  // Partial results are NEVER persisted to avoid:
+  //   (a) double-counting on next session rescan overlap
+  //   (b) permanently incorrect totals from stale partial data
+  // On partial scan: in-memory cache serves this session; next session does a fresh full scan.
   if (allChunksSucceeded) {
-    // Full scan succeeded — cache at currentBlock
     writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, currentBlock);
-  } else if (Object.keys(pkgEarnings).length > 0) {
-    // Partial scan — cache what we have, but set lastScannedBlock conservatively
-    // so the next load rescans from a safe point (not from scratch)
-    // Use startBlock - 1 so we rescan the failed ranges next time
-    const safeBlock = Math.max(0, currentBlock - BLOCK_CHUNK_SIZE * 5); // rescan last 5 chunks
-    writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, safeBlock);
   }
   return pkgEarnings;
 }
