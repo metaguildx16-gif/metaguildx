@@ -1757,10 +1757,20 @@ function App() {
       if (!prev || prev.userId !== userId || !prev.isRegistered) {
         return prev;
       }
-      return {
-        ...prev,
-        ...analytics
-      };
+      // Guard: never overwrite valid non-zero counts with deferred zeros
+      // (happens when timeout fires fallback before real data arrives)
+      const safeAnalytics: Partial<DashboardSnapshot> = { ...analytics };
+      const zeroGuards: (keyof DashboardSnapshot)[] = [
+        'leftBranchNodes','rightBranchNodes','levelTreeLeft','levelTreeRight',
+      ];
+      for (const key of zeroGuards) {
+        const incoming = (safeAnalytics as Record<string,unknown>)[key];
+        const existing = (prev as Record<string,unknown>)[key];
+        if ((incoming === 0 || incoming === '0') && existing && Number(existing) > 0) {
+          delete (safeAnalytics as Record<string,unknown>)[key];
+        }
+      }
+      return { ...prev, ...safeAnalytics };
     });
   }
 

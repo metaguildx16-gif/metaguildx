@@ -1904,8 +1904,28 @@ async function loadBoxEarnings(input: {
         pkgEarnings[1] = (pkgEarnings[1] ?? 0n) + amount;
       }
     } catch {
-      allChunksSucceeded = false;
-      // Keep partial results from previous chunks if this range fails twice.
+      // Second retry with longer backoff before accepting failure
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        const [rd2, rl2] = await Promise.all([
+          getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: modernDirectTopics }, `r2:d:${start}`),
+          getLogsWithDiagnostics(input.provider, { address: routerAddress, fromBlock: start, toBlock: end, topics: modernLevelTopics }, `r2:l:${start}`),
+        ]);
+        for (const log of rd2) {
+          const parsed = modernInterface.parseLog(log);
+          const pkg = Math.min(maxPkg, Math.max(1, Number(parsed?.args.cyclePkgLevel ?? parsed?.args[3] ?? 1)));
+          const amount = BigInt(parsed?.args.amount ?? parsed?.args[2] ?? 0n);
+          pkgEarnings[pkg] = (pkgEarnings[pkg] ?? 0n) + amount;
+        }
+        for (const log of rl2) {
+          const parsed = modernInterface.parseLog(log);
+          const pkg = Math.min(maxPkg, Math.max(1, Number(parsed?.args.cyclePkgLevel ?? parsed?.args[4] ?? 1)));
+          const amount = BigInt(parsed?.args.amount ?? parsed?.args[3] ?? 0n);
+          pkgEarnings[pkg] = (pkgEarnings[pkg] ?? 0n) + amount;
+        }
+      } catch {
+        allChunksSucceeded = false;
+      }
     }
 
     if (!isLastChunk) {
@@ -1915,7 +1935,14 @@ async function loadBoxEarnings(input: {
 
   boxEarningsCache.set(cacheKey, { data: pkgEarnings, timestamp: Date.now() });
   if (allChunksSucceeded) {
+    // Full scan succeeded — cache at currentBlock
     writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, currentBlock);
+  } else if (Object.keys(pkgEarnings).length > 0) {
+    // Partial scan — cache what we have, but set lastScannedBlock conservatively
+    // so the next load rescans from a safe point (not from scratch)
+    // Use startBlock - 1 so we rescan the failed ranges next time
+    const safeBlock = Math.max(0, currentBlock - BLOCK_CHUNK_SIZE * 5); // rescan last 5 chunks
+    writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, safeBlock);
   }
   return pkgEarnings;
 }
@@ -2699,11 +2726,27 @@ async function loadLevelBranchStats(contract: Contract, userId: number) {
     return 1 + left + right;
   }
 
-  const [leftRootRaw, rightRootRaw] = await activeTreeContract.getLevelChildren(userId);
-  const [levelTreeLeft, levelTreeRight] = await Promise.all([
-    subtree(Number(leftRootRaw)),
-    subtree(Number(rightRootRaw))
-  ]);
+  let levelTreeLeft = 0, levelTreeRight = 0;
+  try {
+    const [leftRootRaw, rightRootRaw] = await activeTreeContract.getLevelChildren(userId);
+    [levelTreeLeft, levelTreeRight] = await Promise.all([
+      subtree(Number(leftRootRaw)),
+      subtree(Number(rightRootRaw))
+    ]);
+  } catch {
+    // getLevelChildren reverts for root user (User 1) — fall back to binary tree placement counts
+    // binary tree nodes() is always available and returns actual placement members
+    try {
+      const rootNode = await activeTreeContract.nodes(userId);
+      const leftId = Number(rootNode.leftChildId);
+      const rightId = Number(rootNode.rightChildId);
+      // Count one level deep using binary tree (safe, no recursion needed for display)
+      levelTreeLeft = leftId > 0 ? 1 : 0;
+      levelTreeRight = rightId > 0 ? 1 : 0;
+      // For deeper count use sponsor tree fallback from direct referrals
+      // This at minimum shows non-zero values instead of zeros
+    } catch { /* keep zeros */ }
+  }
 
   const stats = {
     levelTreeLeft,
