@@ -4045,7 +4045,7 @@ export async function loadPersonalTreePreview(
     if (previewResult.length > 0 && previewCacheKey) {
       writePersistentJson(previewCacheKey, { data: previewResult, timestamp: Date.now() });
     }
-    return previewResult
+    return previewResult;
   });
 }
 
@@ -5162,8 +5162,6 @@ export async function loadDashboardSnapshot(
       const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
       const currentPackageBucketEarningsRaw =
         currentPackageLevel > 0 ? (boxEarningsByPackage[currentPackageLevel] ?? 0n) : 0n;
-      // lostEarnings computed in background via loadLostEarnings() — not per-click
-      const lostEarningsRaw = 0n;
       const formattedBoxEarningsByPackage = Object.fromEntries(
         Object.entries(boxEarningsByPackage)
           .filter(([, amount]) => amount > 0n)
