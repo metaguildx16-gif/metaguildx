@@ -340,6 +340,7 @@ function App() {
   const [isLoadingTreeDetails, setIsLoadingTreeDetails] = useState(false);
   const [levelTreePreview, setLevelTreePreview] = useState<TreePreviewNode[]>([]);
   const [levelBreakdown, setLevelBreakdown] = useState<{ level: number; amount: string; members: number }[]>([]);
+  const [levelBreakdownProgress, setLevelBreakdownProgress] = useState<{chunks:number;total:number}|null>(null);
   const [personalTreePreview, setPersonalTreePreview] = useState<TreePreviewNode[]>([]);
   // ── Phase 4/5/6: Background Lost Earnings ──────────────────
   const [bgLostEarnings, setBgLostEarnings] = useState<string>("0");
@@ -348,6 +349,7 @@ function App() {
   const [isLoadingLevelTree, setIsLoadingLevelTree] = useState(false);
   const [isBoxEarningsSyncing, setIsBoxEarningsSyncing] = useState(false);
   const [boxEarningsScanComplete, setBoxEarningsScanComplete] = useState(false);
+  const [boxEarningsProgress, setBoxEarningsProgress] = useState<{chunks:number;total:number}|null>(null);
   const [selectedRebirthId, setSelectedRebirthId] = useState<number | null>(null);
   const [rebirthNavStack, setRebirthNavStack] = useState<number[]>([]);
   const [rebirthNodeDetails, setRebirthNodeDetails] = useState<TreeNodeDetails | null>(null);
@@ -1526,21 +1528,45 @@ function App() {
       return;
     }
     let isActive = true;
-    const currentTotalLevelIncomeValue = parseDisplayNumber(snapshot.levelIncome);
-
+    setLevelBreakdownProgress({chunks:0, total:0});
+    function mergeLevelRows(
+      prev: {level:number;amount:string;members:number}[],
+      next: {level:number;amount:string;members:number}[]
+    ) {
+      if (!next.length) return prev;
+      const prevMap = new Map(prev.map(r=>[r.level,r]));
+      return next.map(row => {
+        const existing = prevMap.get(row.level);
+        if (!existing) return row;
+        const newAmt = parseFloat(row.amount)||0;
+        const oldAmt = parseFloat(existing.amount)||0;
+        return {
+          level: row.level,
+          amount: newAmt > oldAmt ? row.amount : existing.amount,
+          members: Math.max(row.members, existing.members)
+        };
+      });
+    }
     metaguildx.loadLevelIncomeBreakdown(
       snapshot.userId,
-      currentTotalLevelIncomeValue,
-      snapshot.joinedAt ?? undefined
+      parseDisplayNumber(snapshot.levelIncome),
+      snapshot.joinedAt ?? undefined,
+      (partialRows, chunksComplete, chunksTotal) => {
+        if (!isActive) return;
+        setLevelBreakdownProgress({chunks:chunksComplete, total:chunksTotal});
+        setLevelBreakdown(prev => mergeLevelRows(prev, partialRows));
+      }
     ).then((rows) => {
       if (!isActive) return;
-      setLevelBreakdown(rows);
+      setLevelBreakdownProgress(null);
+      setLevelBreakdown(prev => mergeLevelRows(prev, rows));
     }).catch(() => {
-      if (isActive) setLevelBreakdown([]);
+      if (isActive) setLevelBreakdownProgress(null);
+      // Never clear — monotonic: keep whatever accumulated
     });
 
     return () => { isActive = false; };
-  }, [dashboardView, earningsDashTab, snapshot.userId, snapshot.levelIncome]);
+  }, [dashboardView, earningsDashTab, snapshot.userId]);
 
   useEffect(() => {
     if (
@@ -4530,6 +4556,8 @@ function App() {
       availableStakeAmount,
       boxEarningsDisplay,
       isBoxEarningsSyncing,
+      boxEarningsProgress,
+      levelBreakdownProgress,
       canSubmitStake,
       canUpgradeCurrentPackage,
       canUseIndexedStakingActions,

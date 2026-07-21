@@ -3797,7 +3797,8 @@ export async function loadLevelTreePreview(connectedUserId: number | null): Prom
 export async function loadLevelIncomeBreakdown(
   userId: number,
   totalLevelIncome = 0,
-  userJoinedAt?: number
+  userJoinedAt?: number,
+  onProgress?: (rows: LevelBreakdownRow[], chunksComplete: number, chunksTotal: number) => void
 ): Promise<LevelBreakdownRow[]> {
   const fallbackRows = Array.from({ length: 10 }, (_, i) => ({
     level: i + 1,
@@ -3876,33 +3877,55 @@ export async function loadLevelIncomeBreakdown(
     }
 
     let events: any[] = [];
-    try {
-      const eventResults = await Promise.all(
-        routerAddresses.map(async (routerAddress) => {
-          const router = new Contract(
-            routerAddress,
-            [
-              "event LevelIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint8 level, uint256 amount, uint8 cyclePkgLevel)"
-            ],
-            provider
-          );
-          return withTimeout(
-            queryAllEvents(
-              router,
-              router.filters.LevelIncomeRecorded(null, BigInt(userId)),
-              startBlock,
-              currentBlock,
-              44000
-            ),
-            30000,
-            []
-          );
-        })
+    const LEVEL_CHUNK = 44000;
+    const totalChunks = Math.ceil(Math.max(0, currentBlock - startBlock) / LEVEL_CHUNK);
+    let chunksComplete = 0;
+    // Progressive chunk scanning — update UI after every chunk
+    const routerAddress = routerAddresses[0];
+    if (routerAddress) {
+      const router = new Contract(
+        routerAddress,
+        ["event LevelIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint8 level, uint256 amount, uint8 cyclePkgLevel)"],
+        provider
       );
-      events = eventResults.flat();
-    } catch (error) {
-      console.warn("Event scan timeout:", error);
-      events = [];
+      const lvlIface = router.interface;
+      for (let b = startBlock; b <= currentBlock; b += LEVEL_CHUNK) {
+        const end = Math.min(b + LEVEL_CHUNK - 1, currentBlock);
+        try {
+          const chunkLogs = await withTimeout(
+            router.queryFilter(router.filters.LevelIncomeRecorded(null, BigInt(userId)), b, end),
+            15000,
+            [] as any[]
+          );
+          events.push(...chunkLogs);
+          chunksComplete++;
+          // Emit progressive update every 10 chunks or on last chunk
+          if (onProgress && (chunksComplete % 10 === 0 || end >= currentBlock)) {
+            // Build current rows from events so far
+            const partialAmounts: Record<number, bigint> = {};
+            const partialMembers: Record<number, Set<number>> = {};
+            for (const ev of events) {
+              try {
+                const args = ev.args as { level: bigint; amount: bigint; fromUserId: bigint };
+                const lvl = Number(args.level);
+                const amt = BigInt(args.amount);
+                const from = Number(args.fromUserId);
+                partialAmounts[lvl] = (partialAmounts[lvl] ?? 0n) + amt;
+                if (!partialMembers[lvl]) partialMembers[lvl] = new Set();
+                partialMembers[lvl].add(from);
+              } catch {}
+            }
+            const partialRows = Array.from({ length: 10 }, (_, i) => ({
+              level: i + 1,
+              amount: formatTokenAmount(partialAmounts[i + 1] ?? 0n),
+              members: partialMembers[i + 1]?.size ?? 0
+            }));
+            onProgress(partialRows, chunksComplete, totalChunks);
+          }
+        } catch {
+          // chunk failed — continue with next chunk, keep accumulated events
+        }
+      }
     }
     if (events.length === 0) {
       // Timeout or scan failure — return previous data without advancing cache
