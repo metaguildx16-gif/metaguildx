@@ -523,6 +523,8 @@ function App() {
   const isDashboardPolling = useRef(false);
   const isStakePending = useRef(false);
   const deferredDashboardAnalyticsInFlight = useRef<string | null>(null);
+  const _renderCount = useRef(0);
+  const _scanIdCounter = useRef(0);
 
   function beginLoadPhase(phase: DashboardLoadPhase, nextStatus?: string) {
     setLoadPhase(phase);
@@ -811,13 +813,16 @@ function App() {
             setSnapshot(restoredSnapshot);
             if (restoredSnapshot.isRegistered && restoredSnapshot.userId) {
               const _boxProvider = new JsonRpcProvider(activeNetworkConfig.rpcUrl || PUBLIC_TESTNET_RPC);
+              const _boxScanId1 = `box-boot-${++_scanIdCounter.current}-${Date.now()}`;
+              console.log(`[SCAN-START] scanId=${_boxScanId1} source=boot-restored ts=${Date.now()}`);
               metaguildx.loadBoxEarningsForUser({
                 userId: restoredSnapshot.userId,
                 provider: _boxProvider,
                 incomeAddress: metaguildx.getConfiguredIncomeAddress,
                 userJoinedAt: restoredSnapshot.joinedAt ?? undefined
               }).then((boxResult) => {
-                applyDeferredBoxEarnings(restoredSnapshot.walletAddress, restoredSnapshot.userId!, boxResult, "boot-restored");
+                console.log(`[SCAN-FINISH] scanId=${_boxScanId1} source=boot-restored scanComplete=${boxResult.scanComplete} ts=${Date.now()}`);
+                applyDeferredBoxEarnings(restoredSnapshot.walletAddress, restoredSnapshot.userId!, {...boxResult, _scanId: _boxScanId1} as any, "boot-restored");
               }).catch(() => {});
             }
             beginLoadPhase("loading tree", "Loading tree...");
@@ -877,13 +882,16 @@ function App() {
         setSnapshot(nextSnapshot);
         if (nextSnapshot.isRegistered && nextSnapshot.userId) {
           const _boxProvider = new JsonRpcProvider(activeNetworkConfig.rpcUrl || PUBLIC_TESTNET_RPC);
+          const _boxScanId2 = `box-boot-fresh-${++_scanIdCounter.current}-${Date.now()}`;
+          console.log(`[SCAN-START] scanId=${_boxScanId2} source=boot-fresh ts=${Date.now()}`);
           metaguildx.loadBoxEarningsForUser({
             userId: nextSnapshot.userId,
             provider: _boxProvider,
             incomeAddress: metaguildx.getConfiguredIncomeAddress
           }).then((boxResult) => {
+            console.log(`[SCAN-FINISH] scanId=${_boxScanId2} source=boot-fresh scanComplete=${boxResult.scanComplete} ts=${Date.now()}`);
             if (isActive) {
-              applyDeferredBoxEarnings(nextSnapshot.walletAddress, nextSnapshot.userId!, boxResult, "boot-fresh");
+              applyDeferredBoxEarnings(nextSnapshot.walletAddress, nextSnapshot.userId!, {...boxResult, _scanId: _boxScanId2} as any, "boot-fresh");
             }
           }).catch(() => {});
         }
@@ -1521,6 +1529,7 @@ function App() {
 
   useEffect(() => {
     if (!snapshot.userId || snapshot.userId <= 0) {
+      console.log(`[STATE-WRITE] setLevelBreakdown=[] source=userId-invalid ts=${Date.now()}`);
       setLevelBreakdown([]);
       return;
     }
@@ -1528,6 +1537,8 @@ function App() {
       return;
     }
     let isActive = true;
+    const _lvlScanId = `lvl-${++_scanIdCounter.current}-${Date.now()}`;
+    console.log(`[SCAN-START] scanId=${_lvlScanId} userId=${snapshot.userId} source=level-breakdown ts=${Date.now()}`);
     setLevelBreakdownProgress({chunks:0, total:0});
     function mergeLevelRows(
       prev: {level:number;amount:string;members:number}[],
@@ -1563,12 +1574,24 @@ function App() {
       (partialRows, chunksComplete, chunksTotal) => {
         if (!isActive) return;
         setLevelBreakdownProgress({chunks:chunksComplete, total:chunksTotal});
-        setLevelBreakdown(prev => mergeLevelRows(prev, partialRows, "onProgress"));
+        setLevelBreakdown(prev => {
+          const result = mergeLevelRows(prev, partialRows, "onProgress");
+          const prevT = prev.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+          const nextT = result.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+          console.log(`[STATE-WRITE] scanId=${_lvlScanId} setLevelBreakdown source=onProgress ts=${Date.now()} prevTotal=${prevT.toFixed(2)} nextTotal=${nextT.toFixed(2)} isActive=${isActive}`);
+          return result;
+        });
       }
     ).then((rows) => {
       if (!isActive) return;
       setLevelBreakdownProgress(null);
-      setLevelBreakdown(prev => mergeLevelRows(prev, rows, "scan-complete"));
+      setLevelBreakdown(prev => {
+        const result = mergeLevelRows(prev, rows, "scan-complete");
+        const prevT = prev.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+        const nextT = result.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+        console.log(`[STATE-WRITE] scanId=${_lvlScanId} setLevelBreakdown source=scan-complete ts=${Date.now()} prevTotal=${prevT.toFixed(2)} nextTotal=${nextT.toFixed(2)} isActive=${isActive}`);
+        return result;
+      });
     }).catch(() => {
       if (isActive) setLevelBreakdownProgress(null);
       // Never clear — monotonic: keep whatever accumulated
@@ -1590,14 +1613,17 @@ function App() {
 
     let isActive = true;
     setIsBoxEarningsSyncing(true);
+    const _boxScanId3 = `box-income-tab-${++_scanIdCounter.current}-${Date.now()}`;
+    console.log(`[SCAN-START] scanId=${_boxScanId3} source=income-tab ts=${Date.now()}`);
     const _boxProvider = new JsonRpcProvider(activeNetworkConfig.rpcUrl || PUBLIC_TESTNET_RPC);
     metaguildx.loadBoxEarningsForUser({
       userId: snapshot.userId,
       provider: _boxProvider,
       incomeAddress: metaguildx.getConfiguredIncomeAddress
     }).then((boxResult) => {
+      console.log(`[SCAN-FINISH] scanId=${_boxScanId3} source=income-tab scanComplete=${boxResult.scanComplete} ts=${Date.now()}`);
       if (isActive) {
-        applyDeferredBoxEarnings(snapshot.walletAddress, snapshot.userId!, boxResult, "income-tab");
+        applyDeferredBoxEarnings(snapshot.walletAddress, snapshot.userId!, {...boxResult, _scanId: _boxScanId3} as any, "income-tab");
       }
     }).catch(() => {}).finally(() => {
       if (isActive) {
@@ -1782,7 +1808,8 @@ function App() {
     }
     setSnapshot((prev) => {
       const _prevPkgs = Object.entries(prev?.boxEarningsByPackage??{}).map(([k,v])=>`Box${k}=${v}`).join(' ') || 'empty';
-      console.log(`[BOX-WRITE] prev=${_prevPkgs} hasPositive=${hasPositive}`);
+      const _nextPkgs = Object.entries(boxResult.boxEarningsByPackage??{}).map(([k,v])=>`Box${k}=${v}`).join(' ') || 'empty';
+      console.log(`[STATE-WRITE] setSnapshot source=applyDeferredBoxEarnings scanId=${(boxResult as any)._scanId??_source} ts=${Date.now()} prev=[${_prevPkgs}] next=[${_nextPkgs}] hasPositive=${hasPositive}`);
       if (!prev || prev.userId !== userId || !prev.isRegistered) {
         return prev;
       }
@@ -2547,6 +2574,13 @@ function App() {
   const packageOneBucketEarnings = parseDisplayNumber(snapshot.packageOneBucketEarnings);
   const currentPackageEscrow = parseDisplayNumber(snapshot.currentPackageEscrow);
   const pkg1UnitsToRebirth = Math.max(((snapshot.packagePrices?.[0] ?? 10) * 5) - packageOneBucketEarnings, 0);
+  _renderCount.current += 1;
+  const _rc = _renderCount.current;
+  const _lvlTotal = levelBreakdown.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+  const _boxPkgs = Object.keys(snapshot.boxEarningsByPackage??{}).length;
+  const _boxTotal = Object.values(snapshot.boxEarningsByPackage??{}).reduce((s,v)=>s+(parseFloat(v as string)||0),0);
+  console.log(`[RENDER] #${_rc} ts=${Date.now()} levelRows=${levelBreakdown.length} levelTotal=${_lvlTotal.toFixed(2)} boxPkgs=${_boxPkgs} boxTotal=${_boxTotal.toFixed(2)} scanComplete=${boxEarningsScanComplete}`);
+
   const boxEarningsDisplay = (() => {
     const result: Record<number, string> = { ...(snapshot.boxEarningsByPackage ?? {}) };
 
