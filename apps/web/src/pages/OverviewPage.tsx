@@ -182,16 +182,25 @@ export function OverviewPage(props: DashboardPageProps) {
                 ) : null}
                 <div className="income-row dashboard-summary-row"><span className="income-label">Upgrade Escrow</span><span className="income-amount">${frozenEscrowDisplay}</span></div>
                 <div className="income-row dashboard-summary-row"><span className="income-label">Rebirth Escrow</span><span className="income-amount">${rebirthEscrowDisplay}</span></div>
-                {/* ── Lost Earnings row ────────────────────────── */}
-                <div className="income-row dashboard-summary-row" style={{borderTop:"1px solid rgba(251,191,36,0.12)",marginTop:2,paddingTop:6}}>
-                  <span className="income-label" style={{color:"#94a3b8",display:"flex",alignItems:"center",gap:5}}>
-                    <span>🔒</span>
-                    <span>Lost Earnings</span>
-                  </span>
-                  <span className="income-amount" style={{color:"#94a3b8"}}>
-                    ${snapshot.lostEarnings}
-                  </span>
-                </div>
+                {/* ── Lost Earnings row (background-calculated) ─── */}
+                {(() => {
+                  const lostVal = parseFloat(bgLostEarnings ?? "0") || 0;
+                  const hasLost = lostVal > 0;
+                  const isLoading = bgLostEarningsLoading;
+                  return (
+                    <div className="income-row dashboard-summary-row" style={{borderTop:"1px solid rgba(251,191,36,0.12)",marginTop:2,paddingTop:6}}>
+                      <span className="income-label" style={{color:hasLost?"#FBBF24":"#94a3b8",display:"flex",alignItems:"center",gap:5}}>
+                        <span>{hasLost?"❌":"🔒"}</span>
+                        <span>Lost Earnings</span>
+                      </span>
+                      <span className="income-amount" style={{color:hasLost?"#FBBF24":"#94a3b8"}}>
+                        {isLoading
+                          ? <span style={{fontSize:"0.75rem",color:"#475569"}}>Scanning…</span>
+                          : `$${lostVal.toFixed(2)}`}
+                      </span>
+                    </div>
+                  );
+                })()}
                 <div className="dashboard-summary-total">
                   <span>Total</span>
                   <strong>{`$${totalReceivedDisplay}`}</strong>
