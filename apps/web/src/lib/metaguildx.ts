@@ -3888,51 +3888,65 @@ export async function loadLevelIncomeBreakdown(
         ["event LevelIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint8 level, uint256 amount, uint8 cyclePkgLevel)"],
         provider
       );
-      const lvlIface = router.interface;
+      const failedChunks: {chunkNum:number;start:number;end:number;error:string}[] = [];
+      let chunkNum = 0;
       for (let b = startBlock; b <= currentBlock; b += LEVEL_CHUNK) {
         const end = Math.min(b + LEVEL_CHUNK - 1, currentBlock);
-        try {
-          const chunkLogs = await withTimeout(
-            router.queryFilter(router.filters.LevelIncomeRecorded(null, BigInt(userId)), b, end),
-            15000,
-            [] as any[]
-          );
-          events.push(...chunkLogs);
-          chunksComplete++;
-          // Emit progressive update every 10 chunks or on last chunk
-          if (onProgress && (chunksComplete % 10 === 0 || end >= currentBlock)) {
-            // Build rows from accumulated amountByLevel (includes persisted base + new events)
-            // amountByLevel is updated after the event loop below, so rebuild from events here
-            // using persisted base + current scan events
-            const partialAmounts: Record<number, bigint> = {};
-            const partialMembers: Record<number, Set<number>> = {};
-            // Start with persisted base amounts
-            for (let lvl = 1; lvl <= 10; lvl++) {
-              partialAmounts[lvl] = BigInt(persistedAmountRawByLevel[String(lvl)] ?? "0");
-              partialMembers[lvl] = new Set(persistedMemberIdsByLevel[String(lvl)] ?? []);
-            }
-            // Add current scan events
-            for (const ev of events) {
-              try {
-                const args = ev.args as { level: bigint; amount: bigint; fromUserId: bigint };
-                const lvl = Number(args.level);
-                const amt = BigInt(args.amount);
-                const from = Number(args.fromUserId);
-                partialAmounts[lvl] = (partialAmounts[lvl] ?? 0n) + amt;
-                if (!partialMembers[lvl]) partialMembers[lvl] = new Set();
-                partialMembers[lvl].add(from);
-              } catch {}
-            }
-            const partialRows = Array.from({ length: 10 }, (_, i) => ({
-              level: i + 1,
-              amount: formatTokenAmount(partialAmounts[i + 1] ?? 0n),
-              members: partialMembers[i + 1]?.size ?? 0
-            }));
-            onProgress(partialRows, chunksComplete, totalChunks);
+        const isLastChunk = end >= currentBlock;
+        chunkNum++;
+        // 3-attempt retry with backoff — same philosophy as loadBoxEarnings
+        let chunkSuccess = false;
+        let lastErr = "unknown";
+        for (let attempt = 0; attempt < 3 && !chunkSuccess; attempt++) {
+          if (attempt === 1) await new Promise(r => setTimeout(r, 500));
+          if (attempt === 2) await new Promise(r => setTimeout(r, 800));
+          try {
+            const chunkLogs = await withTimeout(
+              router.queryFilter(router.filters.LevelIncomeRecorded(null, BigInt(userId)), b, end),
+              15000,
+              [] as any[]
+            );
+            events.push(...chunkLogs);
+            chunkSuccess = true;
+          } catch (e: any) {
+            lastErr = e?.code ?? (e?.message ?? "error").slice(0, 40);
           }
-        } catch {
-          // chunk failed — continue with next chunk, keep accumulated events
         }
+        if (!chunkSuccess) {
+          failedChunks.push({chunkNum, start: b, end, error: lastErr});
+        }
+        chunksComplete++;
+        // 300ms inter-chunk delay to avoid RPC rate limiting
+        if (!isLastChunk) await new Promise(r => setTimeout(r, 300));
+        // Progressive update every 10 chunks or on last chunk
+        if (onProgress && (chunksComplete % 10 === 0 || isLastChunk)) {
+          const partialAmounts: Record<number, bigint> = {};
+          const partialMembers: Record<number, Set<number>> = {};
+          for (let lvl = 1; lvl <= 10; lvl++) {
+            partialAmounts[lvl] = BigInt(persistedAmountRawByLevel[String(lvl)] ?? "0");
+            partialMembers[lvl] = new Set(persistedMemberIdsByLevel[String(lvl)] ?? []);
+          }
+          for (const ev of events) {
+            try {
+              const args = ev.args as { level: bigint; amount: bigint; fromUserId: bigint };
+              const lvl = Number(args.level);
+              const amt = BigInt(args.amount);
+              const from = Number(args.fromUserId);
+              partialAmounts[lvl] = (partialAmounts[lvl] ?? 0n) + amt;
+              if (!partialMembers[lvl]) partialMembers[lvl] = new Set();
+              partialMembers[lvl].add(from);
+            } catch {}
+          }
+          const partialRows = Array.from({ length: 10 }, (_, i) => ({
+            level: i + 1,
+            amount: formatTokenAmount(partialAmounts[i + 1] ?? 0n),
+            members: partialMembers[i + 1]?.size ?? 0
+          }));
+          onProgress(partialRows, chunksComplete, totalChunks);
+        }
+      }
+      if (failedChunks.length > 0) {
+        console.warn(`[MGX] level scan: ${failedChunks.length}/${chunkNum} chunks failed`, failedChunks.slice(0,3));
       }
     }
     if (events.length === 0) {
