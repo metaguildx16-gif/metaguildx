@@ -1821,6 +1821,9 @@ async function loadBoxEarnings(input: {
   const persistentCacheKey = getPersistentBoxEarningsCacheKey(input.userId, routerAddress, input.deployBlock);
   const persisted = readPersistentBoxEarnings(persistentCacheKey);
   if (persisted && Date.now() - persisted.timestamp < SNAPSHOT_LOCAL_CACHE_TTL) {
+    const _bTotal = Object.values(persisted.data).reduce((s:bigint,v:any)=>s+BigInt(v),0n);
+    console.log(`[BOX-PIPELINE] userId=${input.userId} source=PERSISTENT-CACHE pkgs=${Object.keys(persisted.data).join(',')} total=${Number(_bTotal)/10} ts=${Date.now()}`);
+    _lastBoxEarningsScanComplete = true;
     boxEarningsCache.set(cacheKey, { data: persisted.data, timestamp: Date.now() });
     return persisted.data;
   }
@@ -3818,6 +3821,8 @@ export async function loadLevelIncomeBreakdown(
   const levelCacheKey = `level-${getDeploymentCacheNamespace()}-${userId}`;
   const cachedLevelBreakdown = levelBreakdownCache.get(levelCacheKey);
   if (cachedLevelBreakdown && Date.now() - cachedLevelBreakdown.timestamp < SNAPSHOT_CACHE_TTL) {
+    const _lvlTotal = cachedLevelBreakdown.data.reduce((s:number,r:any)=>s+(parseFloat(r.amount)||0),0);
+    console.log(`[LVL-PIPELINE] userId=${userId} source=MEMORY-CACHE rows=${cachedLevelBreakdown.data.length} total=${_lvlTotal.toFixed(2)} ts=${Date.now()}`);
     return cachedLevelBreakdown.data;
   }
 
@@ -3836,10 +3841,13 @@ export async function loadLevelIncomeBreakdown(
         data: persisted.data,
         timestamp: Date.now()
       });
+      const _pTotal = persisted.data.reduce((s:number,r:any)=>s+(parseFloat(r.amount)||0),0);
+      console.log(`[LVL-PIPELINE] userId=${userId} source=PERSISTENT-CACHE rows=${persisted.data.length} total=${_pTotal.toFixed(2)} lastBlock=${persisted.lastScannedBlock} ts=${Date.now()}`);
       return persisted.data;
     }
 
     const routerAddresses = getHistoricalIncomeRouterAddresses(configuredIncomeRouterAddress);
+    console.log(`[LVL-PIPELINE] userId=${userId} source=FRESH-SCAN-START startBlock=pending currentBlock=${await provider.getBlockNumber()} ts=${Date.now()}`);
     // Use deployment start block — income events exist from first registration tx
     // joinedAt-based calculation is WRONG: joinedAt ≠ registration block timestamp
     const startBlock = Math.max(
@@ -3995,6 +4003,9 @@ export async function loadLevelIncomeBreakdown(
         members
       };
     });
+    const _scanTotal = rows.reduce((s:number,r:any)=>s+(parseFloat(r.amount)||0),0);
+    console.log(`[LVL-PIPELINE] userId=${userId} source=FRESH-SCAN-COMPLETE rows=${rows.length} total=${_scanTotal.toFixed(2)} ts=${Date.now()}`);
+    for(const r of rows.filter((x:any)=>parseFloat(x.amount)>0)) console.log(`  L${r.level}: $${r.amount} ${r.members}m`);
     levelBreakdownCache.set(levelCacheKey, {
       data: rows,
       timestamp: Date.now()

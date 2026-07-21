@@ -817,7 +817,7 @@ function App() {
                 incomeAddress: metaguildx.getConfiguredIncomeAddress,
                 userJoinedAt: restoredSnapshot.joinedAt ?? undefined
               }).then((boxResult) => {
-                applyDeferredBoxEarnings(restoredSnapshot.walletAddress, restoredSnapshot.userId!, boxResult);
+                applyDeferredBoxEarnings(restoredSnapshot.walletAddress, restoredSnapshot.userId!, boxResult, "boot-restored");
               }).catch(() => {});
             }
             beginLoadPhase("loading tree", "Loading tree...");
@@ -843,7 +843,7 @@ function App() {
                     incomeAddress: metaguildx.getConfiguredIncomeAddress
                   }).then((boxResult) => {
                     if (isActive) {
-                      applyDeferredBoxEarnings(retrySnapshot.walletAddress, retrySnapshot.userId!, boxResult);
+                      applyDeferredBoxEarnings(retrySnapshot.walletAddress, retrySnapshot.userId!, boxResult, "boot-retry");
                     }
                   }).catch(() => {});
                 }
@@ -883,7 +883,7 @@ function App() {
             incomeAddress: metaguildx.getConfiguredIncomeAddress
           }).then((boxResult) => {
             if (isActive) {
-              applyDeferredBoxEarnings(nextSnapshot.walletAddress, nextSnapshot.userId!, boxResult);
+              applyDeferredBoxEarnings(nextSnapshot.walletAddress, nextSnapshot.userId!, boxResult, "boot-fresh");
             }
           }).catch(() => {});
         }
@@ -1531,11 +1531,17 @@ function App() {
     setLevelBreakdownProgress({chunks:0, total:0});
     function mergeLevelRows(
       prev: {level:number;amount:string;members:number}[],
-      next: {level:number;amount:string;members:number}[]
+      next: {level:number;amount:string;members:number}[],
+      _src = ""
     ) {
-      if (!next.length) return prev;
+      const prevTotal = prev.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+      const nextTotal = next.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+      if (!next.length) {
+        console.log(`[LVL-MERGE] src=${_src} next=EMPTY returning prev total=${prevTotal.toFixed(2)}`);
+        return prev;
+      }
       const prevMap = new Map(prev.map(r=>[r.level,r]));
-      return next.map(row => {
+      const merged = next.map(row => {
         const existing = prevMap.get(row.level);
         if (!existing) return row;
         const newAmt = parseFloat(row.amount)||0;
@@ -1546,6 +1552,9 @@ function App() {
           members: Math.max(row.members, existing.members)
         };
       });
+      const mergedTotal = merged.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+      console.log(`[LVL-MERGE] src=${_src} prev=${prevTotal.toFixed(2)} next=${nextTotal.toFixed(2)} merged=${mergedTotal.toFixed(2)} ts=${Date.now()}`);
+      return merged;
     }
     metaguildx.loadLevelIncomeBreakdown(
       snapshot.userId,
@@ -1554,12 +1563,12 @@ function App() {
       (partialRows, chunksComplete, chunksTotal) => {
         if (!isActive) return;
         setLevelBreakdownProgress({chunks:chunksComplete, total:chunksTotal});
-        setLevelBreakdown(prev => mergeLevelRows(prev, partialRows));
+        setLevelBreakdown(prev => mergeLevelRows(prev, partialRows, "onProgress"));
       }
     ).then((rows) => {
       if (!isActive) return;
       setLevelBreakdownProgress(null);
-      setLevelBreakdown(prev => mergeLevelRows(prev, rows));
+      setLevelBreakdown(prev => mergeLevelRows(prev, rows, "scan-complete"));
     }).catch(() => {
       if (isActive) setLevelBreakdownProgress(null);
       // Never clear — monotonic: keep whatever accumulated
@@ -1588,7 +1597,7 @@ function App() {
       incomeAddress: metaguildx.getConfiguredIncomeAddress
     }).then((boxResult) => {
       if (isActive) {
-        applyDeferredBoxEarnings(snapshot.walletAddress, snapshot.userId!, boxResult);
+        applyDeferredBoxEarnings(snapshot.walletAddress, snapshot.userId!, boxResult, "income-tab");
       }
     }).catch(() => {}).finally(() => {
       if (isActive) {
@@ -1761,14 +1770,19 @@ function App() {
       currentPackageBucketEarnings: string;
       boxEarningsByPackage: Record<number, string>;
       scanComplete?: boolean;
-    }
+    },
+    _source = "unknown"
   ) {
+    const _pkgs = Object.entries(boxResult.boxEarningsByPackage??{}).map(([k,v])=>`Box${k}=${v}`).join(' ');
+    console.log(`[BOX-WRITE] source=${_source} scanComplete=${boxResult.scanComplete} ts=${Date.now()} ${_pkgs}`);
     const hasPositive = hasPositiveBoxEarnings(boxResult);
     // Mark scan as complete only when all chunks succeeded
     if (boxResult.scanComplete === true) {
       setBoxEarningsScanComplete(true);
     }
     setSnapshot((prev) => {
+      const _prevPkgs = Object.entries(prev?.boxEarningsByPackage??{}).map(([k,v])=>`Box${k}=${v}`).join(' ') || 'empty';
+      console.log(`[BOX-WRITE] prev=${_prevPkgs} hasPositive=${hasPositive}`);
       if (!prev || prev.userId !== userId || !prev.isRegistered) {
         return prev;
       }
