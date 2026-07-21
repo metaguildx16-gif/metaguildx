@@ -1974,6 +1974,7 @@ export async function loadBoxEarningsForUser(input: {
   userId: number;
   provider: BrowserProvider | JsonRpcProvider;
   incomeAddress: string | null;
+  userJoinedAt?: number;
 }): Promise<{ packageOneBucketEarnings: string; currentPackageBucketEarnings: string; boxEarningsByPackage: Record<number, string>; packageLevel: number }> {
   if (input.userId <= 0 || !input.incomeAddress || input.incomeAddress === "0x0000000000000000000000000000000000000000") {
     return { packageOneBucketEarnings: "0", currentPackageBucketEarnings: "0", boxEarningsByPackage: {}, packageLevel: 0 };
@@ -1983,11 +1984,17 @@ export async function loadBoxEarningsForUser(input: {
   const contract = new Contract(coreAddress, metaGuildXCoreAbi, input.provider);
   const profileRaw = await contract.usersById(input.userId);
   const currentPackageLevel = Number(profileRaw.packageLevel ?? 0);
+  // Compute effective start block from user's joinedAt to avoid scanning unnecessary blocks
+  const _bsNow = Math.floor(Date.now() / 1000);
+  const _bsCur = await input.provider.getBlockNumber();
+  const _bsSince = input.userJoinedAt ? Math.max(0, _bsNow - input.userJoinedAt) : 40_000_000;
+  const _bsJoin = Math.max(0, _bsCur - _bsSince - 10_000);
+  const _bsDeploy = Math.max(getDeploymentAnalyticsStartBlock(), _bsJoin);
   const boxEarningsByPackage = await loadBoxEarnings({
     incomeModule,
     routerContract: null,
     userId: input.userId,
-    deployBlock: getDeploymentAnalyticsStartBlock(),
+    deployBlock: _bsDeploy,
     provider: input.provider
   });
   const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
@@ -3786,7 +3793,8 @@ export async function loadLevelTreePreview(connectedUserId: number | null): Prom
 
 export async function loadLevelIncomeBreakdown(
   userId: number,
-  totalLevelIncome = 0
+  totalLevelIncome = 0,
+  userJoinedAt?: number
 ): Promise<LevelBreakdownRow[]> {
   const fallbackRows = Array.from({ length: 10 }, (_, i) => ({
     level: i + 1,
@@ -3828,9 +3836,15 @@ export async function loadLevelIncomeBreakdown(
     }
 
     const routerAddresses = getHistoricalIncomeRouterAddresses(configuredIncomeRouterAddress);
+    // Use userJoinedAt to compute actual earliest relevant block
+    // opBNB ~1 block/sec — add 10k block safety buffer before join
+    const nowSec = Math.floor(Date.now() / 1000);
+    const secSinceJoin = userJoinedAt ? Math.max(0, nowSec - userJoinedAt) : 40_000_000;
+    const joinBlock = Math.max(0, currentBlock - secSinceJoin - 10_000);
+    const effectiveStartBlock = Math.max(OPBNB_TESTNET_DEPLOYMENT_START_BLOCK, joinBlock);
     const startBlock = Math.max(
       persisted && Number.isFinite(persisted.lastScannedBlock) ? persisted.lastScannedBlock + 1 : 0,
-      OPBNB_TESTNET_DEPLOYMENT_START_BLOCK
+      effectiveStartBlock
     );
     const amountByLevel: Record<number, bigint> = {};
     const membersByLevel: Record<number, Set<number>> = {};

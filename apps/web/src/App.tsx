@@ -811,7 +811,8 @@ function App() {
               metaguildx.loadBoxEarningsForUser({
                 userId: restoredSnapshot.userId,
                 provider: _boxProvider,
-                incomeAddress: metaguildx.getConfiguredIncomeAddress
+                incomeAddress: metaguildx.getConfiguredIncomeAddress,
+                userJoinedAt: restoredSnapshot.joinedAt ?? undefined
               }).then((boxResult) => {
                 applyDeferredBoxEarnings(restoredSnapshot.walletAddress, restoredSnapshot.userId!, boxResult);
               }).catch(() => {});
@@ -1528,7 +1529,8 @@ function App() {
 
     metaguildx.loadLevelIncomeBreakdown(
       snapshot.userId,
-      currentTotalLevelIncomeValue
+      currentTotalLevelIncomeValue,
+      snapshot.joinedAt ?? undefined
     ).then((rows) => {
       if (!isActive) return;
       setLevelBreakdown(rows);
