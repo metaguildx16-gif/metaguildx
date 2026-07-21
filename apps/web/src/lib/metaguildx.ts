@@ -1043,7 +1043,7 @@ function queueBackgroundDashboardRefresh(walletAddress?: string | null) {
 }
 
 function getConfiguredDeploymentStartBlockValue() {
-  const configuredBlock = Number(readTrimmedEnv("VITE_DEPLOY_BLOCK") || "125000000");
+  const configuredBlock = Number(readTrimmedEnv("VITE_DEPLOY_BLOCK") || "151879381");
   if (Number.isFinite(configuredBlock) && configuredBlock >= 0) {
     return configuredBlock;
   }
@@ -1984,17 +1984,14 @@ export async function loadBoxEarningsForUser(input: {
   const contract = new Contract(coreAddress, metaGuildXCoreAbi, input.provider);
   const profileRaw = await contract.usersById(input.userId);
   const currentPackageLevel = Number(profileRaw.packageLevel ?? 0);
-  // Compute effective start block from user's joinedAt to avoid scanning unnecessary blocks
-  const _bsNow = Math.floor(Date.now() / 1000);
-  const _bsCur = await input.provider.getBlockNumber();
-  const _bsSince = input.userJoinedAt ? Math.max(0, _bsNow - input.userJoinedAt) : 40_000_000;
-  const _bsJoin = Math.max(0, _bsCur - _bsSince - 10_000);
-  const _bsDeploy = Math.max(getDeploymentAnalyticsStartBlock(), _bsJoin);
+  // Use deployment start block — income events exist from first registration
+  // joinedAt-based calculation is WRONG: joinedAt ≠ registration block timestamp
+  // Income is emitted in same tx as registration, which predates joinedAt by hours
   const boxEarningsByPackage = await loadBoxEarnings({
     incomeModule,
     routerContract: null,
     userId: input.userId,
-    deployBlock: _bsDeploy,
+    deployBlock: getDeploymentAnalyticsStartBlock(),
     provider: input.provider
   });
   const packageOneBucketEarningsRaw = boxEarningsByPackage[1] ?? 0n;
@@ -3836,15 +3833,11 @@ export async function loadLevelIncomeBreakdown(
     }
 
     const routerAddresses = getHistoricalIncomeRouterAddresses(configuredIncomeRouterAddress);
-    // Use userJoinedAt to compute actual earliest relevant block
-    // opBNB ~1 block/sec — add 10k block safety buffer before join
-    const nowSec = Math.floor(Date.now() / 1000);
-    const secSinceJoin = userJoinedAt ? Math.max(0, nowSec - userJoinedAt) : 40_000_000;
-    const joinBlock = Math.max(0, currentBlock - secSinceJoin - 10_000);
-    const effectiveStartBlock = Math.max(OPBNB_TESTNET_DEPLOYMENT_START_BLOCK, joinBlock);
+    // Use deployment start block — income events exist from first registration tx
+    // joinedAt-based calculation is WRONG: joinedAt ≠ registration block timestamp
     const startBlock = Math.max(
       persisted && Number.isFinite(persisted.lastScannedBlock) ? persisted.lastScannedBlock + 1 : 0,
-      effectiveStartBlock
+      OPBNB_TESTNET_DEPLOYMENT_START_BLOCK
     );
     const amountByLevel: Record<number, bigint> = {};
     const membersByLevel: Record<number, Set<number>> = {};
