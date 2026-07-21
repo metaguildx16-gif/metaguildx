@@ -1043,7 +1043,7 @@ function queueBackgroundDashboardRefresh(walletAddress?: string | null) {
 }
 
 function getConfiguredDeploymentStartBlockValue() {
-  const configuredBlock = Number(readTrimmedEnv("VITE_DEPLOY_BLOCK") || "151879381");
+  const configuredBlock = Number(readTrimmedEnv("VITE_DEPLOY_BLOCK") || "125000000");
   if (Number.isFinite(configuredBlock) && configuredBlock >= 0) {
     return configuredBlock;
   }
@@ -1758,7 +1758,7 @@ async function loadSpilloverDisplayIncome(input: {
             router.filters.LevelIncomeRecorded(null, BigInt(input.userId)),
             startBlock,
             currentBlock,
-            49000
+            44000
           ),
           30000,
           []
@@ -3879,7 +3879,7 @@ export async function loadLevelIncomeBreakdown(
               router.filters.LevelIncomeRecorded(null, BigInt(userId)),
               startBlock,
               currentBlock,
-              49000
+              44000
             ),
             30000,
             []
@@ -4404,7 +4404,7 @@ async function loadDirectReferralIncomeByUserId(input: {
             router.filters.DirectIncomeRecorded(null, BigInt(input.sponsorUserId)),
             startBlock,
             currentBlock,
-            49000
+            44000
           ),
           25000,
           []
