@@ -3901,9 +3901,17 @@ export async function loadLevelIncomeBreakdown(
           chunksComplete++;
           // Emit progressive update every 10 chunks or on last chunk
           if (onProgress && (chunksComplete % 10 === 0 || end >= currentBlock)) {
-            // Build current rows from events so far
+            // Build rows from accumulated amountByLevel (includes persisted base + new events)
+            // amountByLevel is updated after the event loop below, so rebuild from events here
+            // using persisted base + current scan events
             const partialAmounts: Record<number, bigint> = {};
             const partialMembers: Record<number, Set<number>> = {};
+            // Start with persisted base amounts
+            for (let lvl = 1; lvl <= 10; lvl++) {
+              partialAmounts[lvl] = BigInt(persistedAmountRawByLevel[String(lvl)] ?? "0");
+              partialMembers[lvl] = new Set(persistedMemberIdsByLevel[String(lvl)] ?? []);
+            }
+            // Add current scan events
             for (const ev of events) {
               try {
                 const args = ev.args as { level: bigint; amount: bigint; fromUserId: bigint };
