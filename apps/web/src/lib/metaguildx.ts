@@ -1787,6 +1787,9 @@ async function loadSpilloverDisplayIncome(input: {
   }
 }
 
+// Tracks whether the last loadBoxEarnings call completed all chunks
+let _lastBoxEarningsScanComplete = true;
+
 async function loadBoxEarnings(input: {
   incomeModule: Contract | null;
   routerContract?: Contract | null;
@@ -1940,6 +1943,7 @@ async function loadBoxEarnings(input: {
   //   (a) double-counting on next session rescan overlap
   //   (b) permanently incorrect totals from stale partial data
   // On partial scan: in-memory cache serves this session; next session does a fresh full scan.
+  _lastBoxEarningsScanComplete = allChunksSucceeded;
   if (allChunksSucceeded) {
     writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, currentBlock);
   }
@@ -1975,9 +1979,9 @@ export async function loadBoxEarningsForUser(input: {
   provider: BrowserProvider | JsonRpcProvider;
   incomeAddress: string | null;
   userJoinedAt?: number;
-}): Promise<{ packageOneBucketEarnings: string; currentPackageBucketEarnings: string; boxEarningsByPackage: Record<number, string>; packageLevel: number }> {
+}): Promise<{ packageOneBucketEarnings: string; currentPackageBucketEarnings: string; boxEarningsByPackage: Record<number, string>; packageLevel: number; scanComplete: boolean }> {
   if (input.userId <= 0 || !input.incomeAddress || input.incomeAddress === "0x0000000000000000000000000000000000000000") {
-    return { packageOneBucketEarnings: "0", currentPackageBucketEarnings: "0", boxEarningsByPackage: {}, packageLevel: 0 };
+    return { packageOneBucketEarnings: "0", currentPackageBucketEarnings: "0", boxEarningsByPackage: {}, packageLevel: 0, scanComplete: false };
   }
   const incomeModule = new Contract(input.incomeAddress, metaGuildXIncomeAbi, input.provider);
   const coreAddress = configuredCoreAddress;
@@ -2004,9 +2008,11 @@ export async function loadBoxEarningsForUser(input: {
         .filter(([, amount]) => amount > 0n)
         .map(([pkg, amount]) => [Number(pkg), formatTokenAmount(amount)])
     ),
-    packageLevel: currentPackageLevel
+    packageLevel: currentPackageLevel,
+    scanComplete: _lastBoxEarningsScanComplete
   };
 }
+
 
 async function loadCrosslineDisplayIncome(input: {
   provider: BrowserProvider | JsonRpcProvider;
@@ -3899,27 +3905,22 @@ export async function loadLevelIncomeBreakdown(
       events = [];
     }
     if (events.length === 0) {
-      const emptyRows = persisted?.data ?? Array.from({ length: 10 }, (_, i) => ({
+      // Timeout or scan failure — return previous data without advancing cache
+      // NEVER write empty data to persistent cache (would lock out correct data)
+      const fallbackRows = persisted?.data ?? Array.from({ length: 10 }, (_, i) => ({
         level: i + 1,
         amount: "0.00",
         members: 0
       }));
-      levelBreakdownCache.set(levelCacheKey, {
-        data: emptyRows,
-        timestamp: Date.now()
-      });
-      writePersistentJson<PersistedLevelBreakdown>(persistentCacheKey, {
-        lastScannedBlock: currentBlock,
-        data: emptyRows,
-        amountRawByLevel: Object.fromEntries(
-          Object.entries(amountByLevel).map(([level, amount]) => [level, amount.toString()])
-        ),
-        memberIdsByLevel: Object.fromEntries(
-          Object.entries(membersByLevel).map(([level, members]) => [level, [...members]])
-        ),
-        timestamp: Date.now()
-      });
-      return emptyRows;
+      // Only write memory cache if we have real prior data (prevents empty lock)
+      if (persisted?.data) {
+        levelBreakdownCache.set(levelCacheKey, {
+          data: persisted.data,
+          timestamp: Date.now()
+        });
+      }
+      // DO NOT write persistent cache — lastScannedBlock must NOT advance on failure
+      return fallbackRows;
     }
 
     for (const ev of events) {

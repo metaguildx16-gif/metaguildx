@@ -347,6 +347,7 @@ function App() {
   const lostEarningsCache = useRef<{userId:number;value:string;block:number}|null>(null);
   const [isLoadingLevelTree, setIsLoadingLevelTree] = useState(false);
   const [isBoxEarningsSyncing, setIsBoxEarningsSyncing] = useState(false);
+  const [boxEarningsScanComplete, setBoxEarningsScanComplete] = useState(false);
   const [selectedRebirthId, setSelectedRebirthId] = useState<number | null>(null);
   const [rebirthNavStack, setRebirthNavStack] = useState<number[]>([]);
   const [rebirthNodeDetails, setRebirthNodeDetails] = useState<TreeNodeDetails | null>(null);
@@ -1547,7 +1548,7 @@ function App() {
       earningsDashTab !== "boxcross" ||
       !snapshot.isRegistered ||
       !snapshot.userId ||
-      Object.keys(snapshot.boxEarningsByPackage ?? {}).length > 0
+      boxEarningsScanComplete
     ) {
       return;
     }
@@ -1572,7 +1573,7 @@ function App() {
     return () => {
       isActive = false;
     };
-  }, [dashboardView, earningsDashTab, snapshot.isRegistered, snapshot.userId, snapshot.walletAddress, snapshot.boxEarningsByPackage]);
+  }, [dashboardView, earningsDashTab, snapshot.isRegistered, snapshot.userId, snapshot.walletAddress, boxEarningsScanComplete]);
 
   useEffect(() => {
     if (["tree", "network"].includes(dashboardView)) {
@@ -1733,9 +1734,14 @@ function App() {
       packageOneBucketEarnings: string;
       currentPackageBucketEarnings: string;
       boxEarningsByPackage: Record<number, string>;
+      scanComplete?: boolean;
     }
   ) {
     const hasPositive = hasPositiveBoxEarnings(boxResult);
+    // Mark scan as complete only when all chunks succeeded
+    if (boxResult.scanComplete === true) {
+      setBoxEarningsScanComplete(true);
+    }
     setSnapshot((prev) => {
       if (!prev || prev.userId !== userId || !prev.isRegistered) {
         return prev;
@@ -2070,6 +2076,7 @@ function App() {
     let cancelled=false;
     setBgLostEarnings("0");
     setBgLostEarningsLoading(true);
+    setBoxEarningsScanComplete(false);  // reset on wallet/user change
     metaguildx.loadLostEarnings(userId, walletAddress).then(val=>{
       if(cancelled)return;
       setBgLostEarnings(val);
