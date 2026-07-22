@@ -56,7 +56,14 @@ async function getLogsWithDiagnostics(
   filter: Parameters<BrowserProvider["getLogs"]>[0],
   label: string
 ) {
-  return timedAsync(label, () => withTimeout(provider.getLogs(filter), 15000, []));
+  const _t0 = Date.now();
+  const _result = await withTimeout(provider.getLogs(filter), 15000, [] as any[]);
+  const _elapsed = Date.now() - _t0;
+  const _timedOut = _elapsed >= 14900 && _result.length === 0;
+  if (_timedOut || _elapsed > 5000) {
+    console.log(`[DIAG-TIMEOUT] label=${label} elapsed=${_elapsed}ms timedOut=${_timedOut} logs=${_result.length} from=${(filter as any).fromBlock} to=${(filter as any).toBlock}`);
+  }
+  return _result;
 }
 
 const TESTNET_CORE_ADDRESS = "0xB7607Ed884C665BE1ddE73e6D82d0ac5AD4095af";
@@ -1956,8 +1963,13 @@ async function loadBoxEarnings(input: {
         pkgEarnings[1] = (pkgEarnings[1] ?? 0n) + amount;
       }
       const _totalLogs = modernDirectLogs.length+modernLevelLogs.length+crosslineLogs.length+legacyDirectLogs.length+legacyLevelLogs.length;
-      if (_totalLogs > 0 || (pkgEarnings[4] || pkgEarnings[5])) {
-        console.log(`[BOX-CHUNK-RESULT] userId=${input.userId} chunk=${_chunkCounter} range=${start}-${end} logs=${_totalLogs} pkgs=[${Object.keys(pkgEarnings).join(',')}] elapsed=${Date.now()-_scanStartTs}ms ts=${Date.now()}`);
+      // Log chunk 56 area always + any chunk with events
+      const _isBox45Zone = _chunkCounter >= 54 && _chunkCounter <= 58;
+      if (_totalLogs > 0 || _isBox45Zone || (pkgEarnings[4] || pkgEarnings[5])) {
+        console.log(`[BOX-CHUNK-RESULT] userId=${input.userId} chunk=${_chunkCounter} range=${start}-${end} logs=${_totalLogs} allChunksSucceeded=${allChunksSucceeded} pkgs=[${Object.keys(pkgEarnings).join(',')}] ts=${Date.now()}`);
+        if (_isBox45Zone && _totalLogs === 0) {
+          console.log(`[BOX-CHUNK-EMPTY] CRITICAL: chunk=${_chunkCounter} in Box4/5 zone returned 0 logs — possible silent timeout`);
+        }
       }
 
       for (const log of legacyDirectLogs) {
@@ -1972,6 +1984,8 @@ async function loadBoxEarnings(input: {
         pkgEarnings[1] = (pkgEarnings[1] ?? 0n) + amount;
       }
     } catch {
+      // Note: if getLogsWithDiagnostics returned [] due to timeout (no throw),
+      // we never reach here — allChunksSucceeded stays true with 0 logs
       // Second retry with longer backoff before accepting failure
       try {
         await new Promise((resolve) => setTimeout(resolve, 800));
