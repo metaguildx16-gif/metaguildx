@@ -341,6 +341,7 @@ function App() {
   const [levelTreePreview, setLevelTreePreview] = useState<TreePreviewNode[]>([]);
   const [levelBreakdown, setLevelBreakdown] = useState<{ level: number; amount: string; members: number }[]>([]);
   const [levelBreakdownProgress, setLevelBreakdownProgress] = useState<{chunks:number;total:number}|null>(null);
+  const [levelBreakdownRefreshKey, setLevelBreakdownRefreshKey] = useState(0);
   const [personalTreePreview, setPersonalTreePreview] = useState<TreePreviewNode[]>([]);
   // ── Phase 4/5/6: Background Lost Earnings ──────────────────
   const [bgLostEarnings, setBgLostEarnings] = useState<string>("0");
@@ -1598,7 +1599,7 @@ function App() {
     });
 
     return () => { isActive = false; };
-  }, [dashboardView, earningsDashTab, snapshot.userId]);
+  }, [dashboardView, earningsDashTab, snapshot.userId, levelBreakdownRefreshKey]);
 
   useEffect(() => {
     if (
@@ -4623,6 +4624,14 @@ function App() {
       isBoxEarningsSyncing,
       boxEarningsProgress,
       levelBreakdownProgress,
+      onRefreshLevelBreakdown: () => {
+        // Clear memory cache so next scan is fresh
+        metaguildx.clearLevelBreakdownCache(snapshot.userId!);
+        setLevelBreakdown([]);
+        setLevelBreakdownProgress({chunks:0,total:0});
+        // Re-trigger the useEffect by bumping a counter
+        setLevelBreakdownRefreshKey(k => k + 1);
+      },
       canSubmitStake,
       canUpgradeCurrentPackage,
       canUseIndexedStakingActions,

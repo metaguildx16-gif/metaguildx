@@ -149,6 +149,8 @@ export function IncomePage(props: DashboardPageProps) {
     userPackageLevel,
     userReferralRows,
     userSearchQuery,
+    levelBreakdownProgress,
+    onRefreshLevelBreakdown,
     visibleLevelBreakdownRows,
     walletMoveAmount,
     walletSubView,
@@ -244,6 +246,23 @@ export function IncomePage(props: DashboardPageProps) {
                 </div>
               </div>
               <div className="levels-status-grid compact-level-grid mt-4">
+                {levelBreakdownProgress && (
+                  <div style={{fontSize:"0.75rem",color:"#64748b",marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{display:"inline-block",width:10,height:10,borderRadius:"50%",border:"2px solid #38bdf8",borderTopColor:"transparent",animation:"spin 0.8s linear infinite"}}/>
+                    Scanning… {levelBreakdownProgress.chunks}/{levelBreakdownProgress.total} chunks
+                  </div>
+                )}
+                <div style={{display:"flex",justifyContent:"flex-end",marginBottom:6}}>
+                  <button
+                    onClick={onRefreshLevelBreakdown}
+                    disabled={!!levelBreakdownProgress}
+                    style={{fontSize:"0.72rem",padding:"3px 10px",borderRadius:6,border:"1px solid #334155",background:levelBreakdownProgress?"#1e293b":"#0f172a",color:levelBreakdownProgress?"#475569":"#94a3b8",cursor:levelBreakdownProgress?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:4}}
+                  >
+                    {levelBreakdownProgress
+                      ? <><span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",border:"1.5px solid #38bdf8",borderTopColor:"transparent",animation:"spin 0.8s linear infinite"}}/> Scanning</>
+                      : "↻ Refresh Levels"}
+                  </button>
+                </div>
                 {visibleLevelBreakdownRows.map((row: any) => {
                   const levelSummary = userLevelSummaryRows.find((candidate: any) => candidate.levelNumber === row.level);
                   const isUnlocked = levelSummary?.isUnlocked ?? false;

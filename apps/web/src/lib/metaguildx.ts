@@ -1074,6 +1074,14 @@ function getDeploymentCacheNamespace() {
   return `${configuredCoreAddressForCache.trim().toLowerCase()}:${deployBlock ?? "unset"}`;
 }
 
+export function clearLevelBreakdownCache(userId?: number) {
+  if (userId) {
+    const key = `level-${getDeploymentCacheNamespace()}-${userId}`;
+    levelBreakdownCache.delete(key);
+  } else {
+    levelBreakdownCache.clear();
+  }
+}
 function clearAnalyticsCaches() {
   snapshotCache.clear();
   levelBreakdownCache.clear();
@@ -3850,7 +3858,7 @@ export async function loadLevelIncomeBreakdown(
     console.log(`[LVL-PIPELINE] userId=${userId} source=FRESH-SCAN-START startBlock=pending currentBlock=${await provider.getBlockNumber()} ts=${Date.now()}`);
     // Use deployment start block — income events exist from first registration tx
     // joinedAt-based calculation is WRONG: joinedAt ≠ registration block timestamp
-    const startBlock = Math.max(
+    let startBlock = Math.max(
       persisted && Number.isFinite(persisted.lastScannedBlock) ? persisted.lastScannedBlock + 1 : 0,
       OPBNB_TESTNET_DEPLOYMENT_START_BLOCK
     );
@@ -3866,19 +3874,15 @@ export async function loadLevelIncomeBreakdown(
 
     if (startBlock > currentBlock) {
       // Validate persisted data — never treat all-zero cache as authoritative.
-      // Old timeout code could write zero rows at lastScannedBlock=currentBlock.
-      // If all amounts are zero, force a fresh scan from deployment block instead.
-      const persistedHasRealData = persisted?.data?.some(r => parseFloat(r.amount) > 0) ?? false;
+      const persistedHasRealData = persisted?.data?.some((r: any) => parseFloat(r.amount) > 0) ?? false;
       if (!persistedHasRealData) {
-        // Stale zero cache detected — reset startBlock to force fresh scan
-        console.warn(`[LVL] userId=${userId} stale zero cache detected — forcing fresh scan`);
-        // fall through — do NOT return here, let the scan proceed from DEPLOY block
+        // Stale zero cache — force fresh full scan from deployment block
+        console.warn(`[LVL] userId=${userId} stale zero cache — forcing fresh scan from deploy block`);
+        // Reset startBlock so scan covers full history
+        startBlock = OPBNB_TESTNET_DEPLOYMENT_START_BLOCK;
       } else {
         const rows = persisted!.data;
-        levelBreakdownCache.set(levelCacheKey, {
-          data: rows,
-          timestamp: Date.now()
-        });
+        levelBreakdownCache.set(levelCacheKey, { data: rows, timestamp: Date.now() });
         return rows;
       }
     }
@@ -3887,6 +3891,7 @@ export async function loadLevelIncomeBreakdown(
     const LEVEL_CHUNK = 44000;
     const totalChunks = Math.ceil(Math.max(0, currentBlock - startBlock) / LEVEL_CHUNK);
     let chunksComplete = 0;
+    const failedChunks: {chunkNum:number;start:number;end:number;error:string}[] = [];
     // Progressive chunk scanning — update UI after every chunk
     const routerAddress = routerAddresses[0];
     if (routerAddress) {
@@ -3895,7 +3900,6 @@ export async function loadLevelIncomeBreakdown(
         ["event LevelIncomeRecorded(uint256 indexed fromUserId, uint256 indexed toUserId, uint8 level, uint256 amount, uint8 cyclePkgLevel)"],
         provider
       );
-      const failedChunks: {chunkNum:number;start:number;end:number;error:string}[] = [];
       let chunkNum = 0;
       for (let b = startBlock; b <= currentBlock; b += LEVEL_CHUNK) {
         const end = Math.min(b + LEVEL_CHUNK - 1, currentBlock);
@@ -4003,23 +4007,32 @@ export async function loadLevelIncomeBreakdown(
       };
     });
     const _scanTotal = rows.reduce((s:number,r:any)=>s+(parseFloat(r.amount)||0),0);
-    console.log(`[LVL-PIPELINE] userId=${userId} source=FRESH-SCAN-COMPLETE rows=${rows.length} total=${_scanTotal.toFixed(2)} ts=${Date.now()}`);
+    const _failCount = failedChunks.length;
+    console.log(`[LVL-PIPELINE] userId=${userId} source=FRESH-SCAN-COMPLETE rows=${rows.length} total=${_scanTotal.toFixed(2)} failedChunks=${_failCount} ts=${Date.now()}`);
     for(const r of rows.filter((x:any)=>parseFloat(x.amount)>0)) console.log(`  L${r.level}: $${r.amount} ${r.members}m`);
+    // Always update in-memory cache (session-level, OK with partial data)
     levelBreakdownCache.set(levelCacheKey, {
       data: rows,
       timestamp: Date.now()
     });
-    writePersistentJson<PersistedLevelBreakdown>(persistentCacheKey, {
-      lastScannedBlock: currentBlock,
-      data: rows,
-      amountRawByLevel: Object.fromEntries(
-        Object.entries(amountByLevel).map(([level, amount]) => [level, amount.toString()])
-      ),
-      memberIdsByLevel: Object.fromEntries(
-        Object.entries(membersByLevel).map(([level, members]) => [level, [...members]])
-      ),
-      timestamp: Date.now()
-    });
+    // ONLY write persistent cache when ALL chunks succeeded.
+    // Partial scan results (failed chunks) must NEVER be persisted.
+    // This prevents fluctuating member counts across refreshes.
+    if (_failCount === 0) {
+      writePersistentJson<PersistedLevelBreakdown>(persistentCacheKey, {
+        lastScannedBlock: currentBlock,
+        data: rows,
+        amountRawByLevel: Object.fromEntries(
+          Object.entries(amountByLevel).map(([level, amount]) => [level, amount.toString()])
+        ),
+        memberIdsByLevel: Object.fromEntries(
+          Object.entries(membersByLevel).map(([level, members]) => [level, [...members]])
+        ),
+        timestamp: Date.now()
+      });
+    } else {
+      console.warn(`[LVL] userId=${userId} partial scan (${_failCount} failed chunks) — persistent cache NOT updated`);
+    }
     return rows;
   } catch (e) {
     console.warn("loadLevelIncomeBreakdown failed", e);
