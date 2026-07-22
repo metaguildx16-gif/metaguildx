@@ -3865,23 +3865,22 @@ export async function loadLevelIncomeBreakdown(
     }
 
     if (startBlock > currentBlock) {
-      const rows = persisted?.data ?? fallbackRows.map((row) => ({ ...row, amount: "0.00", members: 0 }));
-      levelBreakdownCache.set(levelCacheKey, {
-        data: rows,
-        timestamp: Date.now()
-      });
-      writePersistentJson<PersistedLevelBreakdown>(persistentCacheKey, {
-        lastScannedBlock: currentBlock,
-        data: rows,
-        amountRawByLevel: Object.fromEntries(
-          Object.entries(amountByLevel).map(([level, amount]) => [level, amount.toString()])
-        ),
-        memberIdsByLevel: Object.fromEntries(
-          Object.entries(membersByLevel).map(([level, members]) => [level, [...members]])
-        ),
-        timestamp: Date.now()
-      });
-      return rows;
+      // Validate persisted data — never treat all-zero cache as authoritative.
+      // Old timeout code could write zero rows at lastScannedBlock=currentBlock.
+      // If all amounts are zero, force a fresh scan from deployment block instead.
+      const persistedHasRealData = persisted?.data?.some(r => parseFloat(r.amount) > 0) ?? false;
+      if (!persistedHasRealData) {
+        // Stale zero cache detected — reset startBlock to force fresh scan
+        console.warn(`[LVL] userId=${userId} stale zero cache detected — forcing fresh scan`);
+        // fall through — do NOT return here, let the scan proceed from DEPLOY block
+      } else {
+        const rows = persisted!.data;
+        levelBreakdownCache.set(levelCacheKey, {
+          data: rows,
+          timestamp: Date.now()
+        });
+        return rows;
+      }
     }
 
     let events: any[] = [];

@@ -1816,11 +1816,28 @@ function App() {
       if (!hasPositive) {
         return prev;
       }
+      // Monotonic merge: never replace a higher value with a lower one.
+      // Concurrent scans (boot + income tab) cannot reduce visible boxes.
+      const mergedBoxEarnings: Record<number, string> = { ...(prev.boxEarningsByPackage ?? {}) };
+      for (const [pkg, val] of Object.entries(boxResult.boxEarningsByPackage ?? {})) {
+        const key = Number(pkg);
+        const existing = parseFloat(mergedBoxEarnings[key] ?? "0") || 0;
+        const incoming = parseFloat(val as string) || 0;
+        if (incoming > existing) mergedBoxEarnings[key] = val as string;
+      }
       const next = {
         ...prev,
-        packageOneBucketEarnings: boxResult.packageOneBucketEarnings,
-        currentPackageBucketEarnings: boxResult.currentPackageBucketEarnings,
-        boxEarningsByPackage: boxResult.boxEarningsByPackage
+        packageOneBucketEarnings: (() => {
+          const ex = parseFloat(prev.packageOneBucketEarnings ?? "0") || 0;
+          const inc = parseFloat(boxResult.packageOneBucketEarnings ?? "0") || 0;
+          return inc > ex ? boxResult.packageOneBucketEarnings : prev.packageOneBucketEarnings;
+        })(),
+        currentPackageBucketEarnings: (() => {
+          const ex = parseFloat(prev.currentPackageBucketEarnings ?? "0") || 0;
+          const inc = parseFloat(boxResult.currentPackageBucketEarnings ?? "0") || 0;
+          return inc > ex ? boxResult.currentPackageBucketEarnings : prev.currentPackageBucketEarnings;
+        })(),
+        boxEarningsByPackage: mergedBoxEarnings
       };
       metaguildx.updatePersistentDashboardSnapshotBoxEarnings(walletAddress ?? prev.walletAddress, boxResult);
       return next;
