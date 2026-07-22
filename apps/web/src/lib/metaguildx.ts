@@ -1076,6 +1076,23 @@ function getDeploymentCacheNamespace() {
   return `${configuredCoreAddressForCache.trim().toLowerCase()}:${deployBlock ?? "unset"}`;
 }
 
+export function clearBoxEarningsCache(userId?: number) {
+  if (userId) {
+    // Remove all 5-min window keys for this user by scanning the cache
+    for (const key of boxEarningsCache.keys()) {
+      if (key.startsWith(`${userId}-`)) {
+        boxEarningsCache.delete(key);
+        boxEarningsInFlight.delete(key);
+      }
+    }
+    for (const key of boxEarningsInFlight.keys()) {
+      if (key.startsWith(`${userId}-`)) boxEarningsInFlight.delete(key);
+    }
+  } else {
+    boxEarningsCache.clear();
+    boxEarningsInFlight.clear();
+  }
+}
 export function clearLevelBreakdownCache(userId?: number) {
   if (userId) {
     const memKey = `level-${getDeploymentCacheNamespace()}-${userId}`;

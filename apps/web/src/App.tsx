@@ -4628,10 +4628,10 @@ function App() {
       isBoxEarningsSyncing,
       boxEarningsProgress,
       onRefreshBoxEarnings: () => {
-        // Clear memory cache for this user's box earnings (5-min key)
+        // Clear memory cache + in-flight promise so fresh scan starts
+        metaguildx.clearBoxEarningsCache(snapshot.userId!);
         setBoxEarningsScanComplete(false);
         setBoxEarningsProgress({chunks:0,total:0});
-        setBoxEarningsScanComplete(false);
       },
       levelBreakdownProgress,
       onRefreshLevelBreakdown: () => {
