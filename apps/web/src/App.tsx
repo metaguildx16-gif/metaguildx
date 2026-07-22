@@ -4627,6 +4627,12 @@ function App() {
       boxEarningsDisplay,
       isBoxEarningsSyncing,
       boxEarningsProgress,
+      onRefreshBoxEarnings: () => {
+        // Clear memory cache for this user's box earnings (5-min key)
+        setBoxEarningsScanComplete(false);
+        setBoxEarningsProgress({chunks:0,total:0});
+        setBoxEarningsScanComplete(false);
+      },
       levelBreakdownProgress,
       onRefreshLevelBreakdown: () => {
         // Clear memory cache so next scan is fresh

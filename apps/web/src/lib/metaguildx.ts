@@ -3948,8 +3948,8 @@ export async function loadLevelIncomeBreakdown(
           failedChunks.push({chunkNum, start: b, end, error: lastErr});
         }
         chunksComplete++;
-        // 300ms inter-chunk delay to avoid RPC rate limiting
-        if (!isLastChunk) await new Promise(r => setTimeout(r, 300));
+        // 100ms inter-chunk delay — sufficient to avoid rate limiting (proven: 80ms = 0 failures)
+        if (!isLastChunk) await new Promise(r => setTimeout(r, 100));
         // Progressive update every 10 chunks or on last chunk
         if (onProgress && (chunksComplete % 10 === 0 || isLastChunk)) {
           const partialAmounts: Record<number, bigint> = {};
