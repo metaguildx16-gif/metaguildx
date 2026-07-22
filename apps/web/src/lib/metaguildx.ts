@@ -57,11 +57,25 @@ async function getLogsWithDiagnostics(
   label: string
 ) {
   const _t0 = Date.now();
-  const _result = await withTimeout(provider.getLogs(filter), 15000, [] as any[]);
+  let _result: any[] = [];
+  let _exception = false;
+  let _timedOut = false;
+  try {
+    // Use withTimeout WITHOUT fallback so timeout throws instead of returning []
+    // This allows the outer .catch() retry to fire on timeout
+    const _inner = withTimeout(provider.getLogs(filter), 15000);
+    _result = await _inner;
+  } catch (err: any) {
+    const _elapsed2 = Date.now() - _t0;
+    _timedOut = _elapsed2 >= 14900 || (err?.message === "RPC timeout");
+    _exception = true;
+    console.log(`[DIAG-EXCEPTION] label=${label} elapsed=${_elapsed2}ms timedOut=${_timedOut} err=${err?.code||err?.message?.slice(0,40)} from=${(filter as any).fromBlock} to=${(filter as any).toBlock}`);
+    throw err; // re-throw so outer .catch() fires and retries
+  }
   const _elapsed = Date.now() - _t0;
-  const _timedOut = _elapsed >= 14900 && _result.length === 0;
-  if (_timedOut || _elapsed > 5000) {
-    console.log(`[DIAG-TIMEOUT] label=${label} elapsed=${_elapsed}ms timedOut=${_timedOut} logs=${_result.length} from=${(filter as any).fromBlock} to=${(filter as any).toBlock}`);
+  if (_elapsed > 3000 || _result.length > 0) {
+    const _type = _result.length === 0 ? 'REAL-EMPTY' : 'HAS-LOGS';
+    console.log(`[DIAG-RESULT] ${_type} label=${label.slice(-40)} elapsed=${_elapsed}ms logs=${_result.length}`);
   }
   return _result;
 }
@@ -948,9 +962,11 @@ function waitForNonCriticalScanDelay(ms = 3000) {
   if (typeof window === "undefined") {
     return Promise.resolve();
   }
-
+  const _wt0 = Date.now();
+  console.log(`[BOOT-TIMING] waitForNonCritical START ts=${_wt0}`);
   return new Promise<void>((resolve) => {
     let resolved = false;
+    const _origFinish = () => { console.log(`[BOOT-TIMING] waitForNonCritical END actual=${Date.now()-_wt0}ms`); };
     const finish = () => {
       if (resolved) {
         return;
@@ -2029,7 +2045,7 @@ async function loadBoxEarnings(input: {
   console.log(`[BOX-SCAN-FINISH] userId=${input.userId} chunks=${_chunkCounter} allOK=${allChunksSucceeded} elapsed=${Date.now()-_scanStartTs}ms pkgs=[${Object.keys(pkgEarnings).join(',')}] ts=${Date.now()}`);
   // Always cache in-memory (partial or full — used within this 5-min session)
   boxEarningsCache.set(cacheKey, { data: pkgEarnings, timestamp: Date.now() });
-  console.log(`[BOX-MEMORY-CACHE-WRITTEN] userId=${input.userId} pkgs=[${Object.keys(pkgEarnings).join(',')}] Box4=${_finalAmounts[4]||0} Box5=${_finalAmounts[5]||0}`);
+  console.log(`[BOX-MEM-CACHE] key=${cacheKey} pkgs=[${Object.keys(pkgEarnings).join(',')}] Box1=${_finalAmounts[1]||0} Box2=${_finalAmounts[2]||0} Box3=${_finalAmounts[3]||0} Box4=${_finalAmounts[4]||0} Box5=${_finalAmounts[5]||0} allOK=${allChunksSucceeded}`);
   // Write persistent cache ONLY on full successful scan.
   // Partial results are NEVER persisted to avoid:
   //   (a) double-counting on next session rescan overlap

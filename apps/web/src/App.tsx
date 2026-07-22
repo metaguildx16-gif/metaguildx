@@ -811,6 +811,7 @@ function App() {
             setStatus("Wallet restored. Loading your dashboard now.");
             setLoadStage("income");
             beginLoadPhase("loading analytics", "Loading analytics...");
+            console.log(`[BOOT-TIMING] setSnapshot(restored) ts=${Date.now()}`);
             setSnapshot(restoredSnapshot);
             if (restoredSnapshot.isRegistered && restoredSnapshot.userId) {
               const _boxProvider = new JsonRpcProvider(activeNetworkConfig.rpcUrl || PUBLIC_TESTNET_RPC);
@@ -1846,6 +1847,7 @@ function App() {
         boxEarningsByPackage: mergedBoxEarnings
       };
       metaguildx.updatePersistentDashboardSnapshotBoxEarnings(walletAddress ?? prev.walletAddress, boxResult);
+      console.log(`[BOX-STATE-MERGED] Box1=${mergedBoxEarnings[1]||0} Box2=${mergedBoxEarnings[2]||0} Box3=${mergedBoxEarnings[3]||0} Box4=${mergedBoxEarnings[4]||0} Box5=${mergedBoxEarnings[5]||0} ts=${Date.now()}`);
       return next;
     });
   }
