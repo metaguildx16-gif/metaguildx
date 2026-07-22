@@ -1986,6 +1986,8 @@ async function loadBoxEarnings(input: {
     } catch {
       // Note: if getLogsWithDiagnostics returned [] due to timeout (no throw),
       // we never reach here — allChunksSucceeded stays true with 0 logs
+      // Second retry with longer backoff — log entry to this catch means OUTER throw
+      console.log(`[BOX-OUTER-CATCH] chunk=${_chunkCounter} range=${start}-${end} allChunksSucceeded=${allChunksSucceeded} pkgs=[${Object.keys(pkgEarnings).join(',')}]`);
       // Second retry with longer backoff before accepting failure
       try {
         await new Promise((resolve) => setTimeout(resolve, 800));
@@ -2022,9 +2024,12 @@ async function loadBoxEarnings(input: {
     }
   }
 
-  console.log(`[BOX-SCAN-FINISH] userId=${input.userId} chunks=${_chunkCounter} allOK=${allChunksSucceeded} elapsed=${Date.now()-_scanStartTs}ms pkgs=[${Object.keys(pkgEarnings).join(',')}] amounts=${JSON.stringify(Object.fromEntries(Object.entries(pkgEarnings).map(([k,v])=>[k,Number(v)/10])))} ts=${Date.now()}`);
+  const _finalAmounts = Object.fromEntries(Object.entries(pkgEarnings).map(([k,v])=>[k,Number(v)/10]));
+  console.log(`[BOX-ACCUMULATOR] userId=${input.userId} chunks=${_chunkCounter} allOK=${allChunksSucceeded} BEFORE-MEMORY-CACHE Box1=${_finalAmounts[1]||0} Box2=${_finalAmounts[2]||0} Box3=${_finalAmounts[3]||0} Box4=${_finalAmounts[4]||0} Box5=${_finalAmounts[5]||0} ts=${Date.now()}`);
+  console.log(`[BOX-SCAN-FINISH] userId=${input.userId} chunks=${_chunkCounter} allOK=${allChunksSucceeded} elapsed=${Date.now()-_scanStartTs}ms pkgs=[${Object.keys(pkgEarnings).join(',')}] ts=${Date.now()}`);
   // Always cache in-memory (partial or full — used within this 5-min session)
   boxEarningsCache.set(cacheKey, { data: pkgEarnings, timestamp: Date.now() });
+  console.log(`[BOX-MEMORY-CACHE-WRITTEN] userId=${input.userId} pkgs=[${Object.keys(pkgEarnings).join(',')}] Box4=${_finalAmounts[4]||0} Box5=${_finalAmounts[5]||0}`);
   // Write persistent cache ONLY on full successful scan.
   // Partial results are NEVER persisted to avoid:
   //   (a) double-counting on next session rescan overlap
@@ -2032,7 +2037,11 @@ async function loadBoxEarnings(input: {
   // On partial scan: in-memory cache serves this session; next session does a fresh full scan.
   _lastBoxEarningsScanComplete = allChunksSucceeded;
   if (allChunksSucceeded) {
+    console.log(`[BOX-PERSISTENT-CACHE-WRITING] userId=${input.userId} Box4=${_finalAmounts[4]||0} Box5=${_finalAmounts[5]||0} allChunksSucceeded=${allChunksSucceeded}`);
     writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, currentBlock);
+    console.log(`[BOX-PERSISTENT-CACHE-WRITTEN] userId=${input.userId} Box4=${_finalAmounts[4]||0} Box5=${_finalAmounts[5]||0}`);
+  } else {
+    console.log(`[BOX-PERSISTENT-CACHE-SKIPPED] userId=${input.userId} allChunksSucceeded=false Box4=${_finalAmounts[4]||0} Box5=${_finalAmounts[5]||0}`);
   }
   boxEarningsInFlight.delete(cacheKey);
   return pkgEarnings;

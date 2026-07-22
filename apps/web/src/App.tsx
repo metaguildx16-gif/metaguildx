@@ -1805,6 +1805,7 @@ function App() {
     _source = "unknown"
   ) {
     const _pkgs = Object.entries(boxResult.boxEarningsByPackage??{}).map(([k,v])=>`Box${k}=${v}`).join(' ');
+    console.log(`[BOX-APPLY-DEFERRED] BEFORE-REACT-STATE source=${_source} scanComplete=${boxResult.scanComplete} Box1=${boxResult.boxEarningsByPackage?.[1]||0} Box2=${boxResult.boxEarningsByPackage?.[2]||0} Box3=${boxResult.boxEarningsByPackage?.[3]||0} Box4=${boxResult.boxEarningsByPackage?.[4]||0} Box5=${boxResult.boxEarningsByPackage?.[5]||0} ts=${Date.now()}`);
     console.log(`[BOX-WRITE] source=${_source} scanComplete=${boxResult.scanComplete} ts=${Date.now()} ${_pkgs}`);
     const hasPositive = hasPositiveBoxEarnings(boxResult);
     // Mark scan as complete only when all chunks succeeded
