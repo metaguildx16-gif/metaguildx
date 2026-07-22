@@ -1909,10 +1909,14 @@ async function loadBoxEarnings(input: {
   const legacyDirectTopics = legacyInterface.encodeFilterTopics("DirectIncomeRecorded", [null, BigInt(input.userId)]);
   const legacyLevelTopics = legacyInterface.encodeFilterTopics("LevelIncomeRecorded", [null, BigInt(input.userId)]);
   let allChunksSucceeded = true;
+  const _scanStartTs = Date.now();
+  let _chunkCounter = 0;
+  console.log(`[BOX-SCAN-START] userId=${input.userId} startBlock=${startBlock} currentBlock=${currentBlock} ts=${_scanStartTs}`);
 
   for (let start = startBlock; start <= currentBlock; start += BLOCK_CHUNK_SIZE) {
     const end = Math.min(start + BLOCK_CHUNK_SIZE - 1, currentBlock);
     const isLastChunk = end >= currentBlock;
+    _chunkCounter++;
 
     try {
       let [modernDirectLogs, modernLevelLogs, crosslineLogs, legacyDirectLogs, legacyLevelLogs] = await Promise.all([
@@ -1950,6 +1954,10 @@ async function loadBoxEarnings(input: {
         const parsed = modernInterface.parseLog(log);
         const amount = BigInt(parsed?.args.amount ?? parsed?.args[2] ?? 0n);
         pkgEarnings[1] = (pkgEarnings[1] ?? 0n) + amount;
+      }
+      const _totalLogs = modernDirectLogs.length+modernLevelLogs.length+crosslineLogs.length+legacyDirectLogs.length+legacyLevelLogs.length;
+      if (_totalLogs > 0 || (pkgEarnings[4] || pkgEarnings[5])) {
+        console.log(`[BOX-CHUNK-RESULT] userId=${input.userId} chunk=${_chunkCounter} range=${start}-${end} logs=${_totalLogs} pkgs=[${Object.keys(pkgEarnings).join(',')}] elapsed=${Date.now()-_scanStartTs}ms ts=${Date.now()}`);
       }
 
       for (const log of legacyDirectLogs) {
@@ -1989,10 +1997,18 @@ async function loadBoxEarnings(input: {
     }
 
     if (!isLastChunk) {
+    if (!isLastChunk) {
+      const _td0 = Date.now();
       await new Promise((resolve) => setTimeout(resolve, 300));
+      const _tdActual = Date.now() - _td0;
+      if (_chunkCounter % 10 === 0 || _tdActual > 500 || (_chunkCounter >= 54 && _chunkCounter <= 58)) {
+        console.log(`[BOX-TIMER] chunk=${_chunkCounter} expected=300 actual=${_tdActual}ms pkgs=[${Object.keys(pkgEarnings).join(',')}] ts=${Date.now()}`);
+      }
+    }
     }
   }
 
+  console.log(`[BOX-SCAN-FINISH] userId=${input.userId} chunks=${_chunkCounter} allOK=${allChunksSucceeded} elapsed=${Date.now()-_scanStartTs}ms pkgs=[${Object.keys(pkgEarnings).join(',')}] amounts=${JSON.stringify(Object.fromEntries(Object.entries(pkgEarnings).map(([k,v])=>[k,Number(v)/10])))} ts=${Date.now()}`);
   // Always cache in-memory (partial or full — used within this 5-min session)
   boxEarningsCache.set(cacheKey, { data: pkgEarnings, timestamp: Date.now() });
   // Write persistent cache ONLY on full successful scan.
