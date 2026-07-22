@@ -1078,7 +1078,7 @@ function getDeploymentCacheNamespace() {
 
 export function clearBoxEarningsCache(userId?: number) {
   if (userId) {
-    // Remove all 5-min window keys for this user by scanning the cache
+    // Clear memory + inflight
     for (const key of boxEarningsCache.keys()) {
       if (key.startsWith(`${userId}-`)) {
         boxEarningsCache.delete(key);
@@ -1088,9 +1088,28 @@ export function clearBoxEarningsCache(userId?: number) {
     for (const key of boxEarningsInFlight.keys()) {
       if (key.startsWith(`${userId}-`)) boxEarningsInFlight.delete(key);
     }
+    // Clear localStorage persistent cache for this user
+    // Key format: BOX_EARNINGS_CACHE_PREFIX_namespace_routerAddr_userId_deployBlock
+    try {
+      const toDelete: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.includes(`_${userId}_`)) toDelete.push(k);
+      }
+      for (const k of toDelete) localStorage.removeItem(k);
+    } catch {}
   } else {
     boxEarningsCache.clear();
     boxEarningsInFlight.clear();
+    // Clear all box earnings localStorage keys
+    try {
+      const toDelete: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(BOX_EARNINGS_CACHE_PREFIX)) toDelete.push(k);
+      }
+      for (const k of toDelete) localStorage.removeItem(k);
+    } catch {}
   }
 }
 export function clearLevelBreakdownCache(userId?: number) {
