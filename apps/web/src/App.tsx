@@ -1540,6 +1540,10 @@ function App() {
     let isActive = true;
     const _lvlScanId = `lvl-${++_scanIdCounter.current}-${Date.now()}`;
     console.log(`[SCAN-START] scanId=${_lvlScanId} userId=${snapshot.userId} source=level-breakdown ts=${Date.now()}`);
+    // Auto-invalidate: if contract shows income but breakdown is zero, clear cache
+    const _contractLvl = parseDisplayNumber(snapshot.levelIncome);
+    const _breakdownTotal = levelBreakdown.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
+    if (_contractLvl > 0 && _breakdownTotal === 0) metaguildx.clearLevelBreakdownCache(snapshot.userId!);
     setLevelBreakdownProgress({chunks:0, total:0});
     function mergeLevelRows(
       prev: {level:number;amount:string;members:number}[],

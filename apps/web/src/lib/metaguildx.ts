@@ -629,6 +629,8 @@ const levelBreakdownCache = new Map<
   }
 >();
 const genealogyCache = new Map<string, { data: Set<number>; timestamp: number }>();
+const levelBreakdownInFlight = new Map<string, Promise<LevelBreakdownRow[]>>();
+const boxEarningsInFlight = new Map<string, Promise<Record<number,bigint>>>();
 const SNAPSHOT_CACHE_TTL = 300_000;
 const SNAPSHOT_LOCAL_CACHE_TTL = 30 * 60 * 1000;
 export const DASHBOARD_SNAPSHOT_REFRESH_EVENT = "mgx:dashboard-snapshot-refreshed";
@@ -1076,10 +1078,14 @@ function getDeploymentCacheNamespace() {
 
 export function clearLevelBreakdownCache(userId?: number) {
   if (userId) {
-    const key = `level-${getDeploymentCacheNamespace()}-${userId}`;
-    levelBreakdownCache.delete(key);
+    const memKey = `level-${getDeploymentCacheNamespace()}-${userId}`;
+    const persistKey = `mgx_level_breakdown_v1_${getDeploymentCacheNamespace()}_${userId}`;
+    levelBreakdownCache.delete(memKey);
+    levelBreakdownInFlight.delete(memKey);
+    try { localStorage.removeItem(persistKey); } catch {}
   } else {
     levelBreakdownCache.clear();
+    levelBreakdownInFlight.clear();
   }
 }
 function clearAnalyticsCaches() {
@@ -1836,7 +1842,11 @@ async function loadBoxEarnings(input: {
     return persisted.data;
   }
 
-  await waitForNonCriticalScanDelay();
+  // Dedup: return existing scan if already running
+  const _existingBox = boxEarningsInFlight.get(cacheKey);
+  if (_existingBox) return _existingBox;
+  const _boxPromise: Promise<Record<number,bigint>> = (async () => {
+
 
   const router = input.routerContract ?? new Contract(routerAddress, incomeRouterWriteAbi, input.provider);
   const currentBlock = await input.provider.getBlockNumber();
@@ -1958,7 +1968,11 @@ async function loadBoxEarnings(input: {
   if (allChunksSucceeded) {
     writePersistentBoxEarnings(persistentCacheKey, pkgEarnings, currentBlock);
   }
+  boxEarningsInFlight.delete(cacheKey);
   return pkgEarnings;
+  })();
+  boxEarningsInFlight.set(cacheKey, _boxPromise);
+  return _boxPromise;
 }
 
 export async function loadUserBoxEarnings(userId: number): Promise<Record<number, string>> {
@@ -3827,45 +3841,61 @@ export async function loadLevelIncomeBreakdown(
   }
 
   const levelCacheKey = `level-${getDeploymentCacheNamespace()}-${userId}`;
+  // Dedup: return existing scan if already running
+  const _existingLvl = levelBreakdownInFlight.get(levelCacheKey);
+  if (_existingLvl) return _existingLvl;
+  // Memory cache: only use if has real data
   const cachedLevelBreakdown = levelBreakdownCache.get(levelCacheKey);
   if (cachedLevelBreakdown && Date.now() - cachedLevelBreakdown.timestamp < SNAPSHOT_CACHE_TTL) {
     const _lvlTotal = cachedLevelBreakdown.data.reduce((s:number,r:any)=>s+(parseFloat(r.amount)||0),0);
-    console.log(`[LVL-PIPELINE] userId=${userId} source=MEMORY-CACHE rows=${cachedLevelBreakdown.data.length} total=${_lvlTotal.toFixed(2)} ts=${Date.now()}`);
-    return cachedLevelBreakdown.data;
+    if (_lvlTotal > 0) {
+      console.log(`[LVL-PIPELINE] userId=${userId} source=MEMORY-CACHE rows=${cachedLevelBreakdown.data.length} total=${_lvlTotal.toFixed(2)} ts=${Date.now()}`);
+      return cachedLevelBreakdown.data;
+    }
+    levelBreakdownCache.delete(levelCacheKey);
   }
 
+  const _lvlPromise: Promise<LevelBreakdownRow[]> = (async () => {
   try {
     const provider = await getReadProvider();
     const currentBlock = await provider.getBlockNumber();
     const persistentCacheKey = `mgx_level_breakdown_v1_${getDeploymentCacheNamespace()}_${userId}`;
     const persisted = readPersistentJson<PersistedLevelBreakdown>(persistentCacheKey);
+    // Part 1+2: Validate cache completeness — reject legacy format
+    const cacheOk = persisted &&
+      persisted.amountRawByLevel && Object.keys(persisted.amountRawByLevel).length > 0 &&
+      persisted.memberIdsByLevel && Object.keys(persisted.memberIdsByLevel).length > 0 &&
+      persisted.data?.some((r:any) => parseFloat(r.amount) > 0);
+    if (persisted && !cacheOk) {
+      console.warn(`[LVL] userId=${userId} legacy cache — deleting`);
+      try { localStorage.removeItem(persistentCacheKey); } catch {}
+      levelBreakdownCache.delete(levelCacheKey);
+    }
+    const validPersisted = cacheOk ? persisted : null;
     if (
-      persisted &&
-      Date.now() - persisted.timestamp < SNAPSHOT_LOCAL_CACHE_TTL &&
-      Number.isFinite(persisted.lastScannedBlock) &&
-      persisted.lastScannedBlock >= currentBlock
+      validPersisted &&
+      Date.now() - validPersisted.timestamp < SNAPSHOT_LOCAL_CACHE_TTL &&
+      Number.isFinite(validPersisted.lastScannedBlock) &&
+      validPersisted.lastScannedBlock >= currentBlock
     ) {
-      levelBreakdownCache.set(levelCacheKey, {
-        data: persisted.data,
-        timestamp: Date.now()
-      });
-      const _pTotal = persisted.data.reduce((s:number,r:any)=>s+(parseFloat(r.amount)||0),0);
-      console.log(`[LVL-PIPELINE] userId=${userId} source=PERSISTENT-CACHE rows=${persisted.data.length} total=${_pTotal.toFixed(2)} lastBlock=${persisted.lastScannedBlock} ts=${Date.now()}`);
-      return persisted.data;
+      const _rows = validPersisted!.data;
+      levelBreakdownCache.set(levelCacheKey, { data: _rows, timestamp: Date.now() });
+      const _pTotal = _rows.reduce((s:number,r:any)=>s+(parseFloat(r.amount)||0),0);
+      console.log(`[LVL-PIPELINE] userId=${userId} source=PERSISTENT-CACHE total=${_pTotal.toFixed(2)} ts=${Date.now()}`);
+      return _rows;
     }
 
     const routerAddresses = getHistoricalIncomeRouterAddresses(configuredIncomeRouterAddress);
     console.log(`[LVL-PIPELINE] userId=${userId} source=FRESH-SCAN-START startBlock=pending currentBlock=${await provider.getBlockNumber()} ts=${Date.now()}`);
     // Use deployment start block — income events exist from first registration tx
     // joinedAt-based calculation is WRONG: joinedAt ≠ registration block timestamp
-    let startBlock = Math.max(
-      persisted && Number.isFinite(persisted.lastScannedBlock) ? persisted.lastScannedBlock + 1 : 0,
-      OPBNB_TESTNET_DEPLOYMENT_START_BLOCK
-    );
+    let startBlock = validPersisted && Number.isFinite(validPersisted.lastScannedBlock)
+      ? Math.max(validPersisted.lastScannedBlock + 1, OPBNB_TESTNET_DEPLOYMENT_START_BLOCK)
+      : OPBNB_TESTNET_DEPLOYMENT_START_BLOCK;
     const amountByLevel: Record<number, bigint> = {};
     const membersByLevel: Record<number, Set<number>> = {};
-    const persistedAmountRawByLevel = persisted?.amountRawByLevel ?? {};
-    const persistedMemberIdsByLevel = persisted?.memberIdsByLevel ?? {};
+    const persistedAmountRawByLevel = validPersisted?.amountRawByLevel ?? {};
+    const persistedMemberIdsByLevel = validPersisted?.memberIdsByLevel ?? {};
 
     for (let level = 1; level <= 10; level++) {
       amountByLevel[level] = BigInt(persistedAmountRawByLevel[String(level)] ?? "0");
@@ -3874,17 +3904,8 @@ export async function loadLevelIncomeBreakdown(
 
     if (startBlock > currentBlock) {
       // Validate persisted data — never treat all-zero cache as authoritative.
-      const persistedHasRealData = persisted?.data?.some((r: any) => parseFloat(r.amount) > 0) ?? false;
-      if (!persistedHasRealData) {
-        // Stale zero cache — force fresh full scan from deployment block
-        console.warn(`[LVL] userId=${userId} stale zero cache — forcing fresh scan from deploy block`);
-        // Reset startBlock so scan covers full history
-        startBlock = OPBNB_TESTNET_DEPLOYMENT_START_BLOCK;
-      } else {
-        const rows = persisted!.data;
-        levelBreakdownCache.set(levelCacheKey, { data: rows, timestamp: Date.now() });
-        return rows;
-      }
+      // No valid cache and scan range exhausted — return empty for now
+      startBlock = OPBNB_TESTNET_DEPLOYMENT_START_BLOCK;
     }
 
     let events: any[] = [];
@@ -4037,7 +4058,12 @@ export async function loadLevelIncomeBreakdown(
   } catch (e) {
     console.warn("loadLevelIncomeBreakdown failed", e);
     return fallbackRows;
+  } finally {
+    levelBreakdownInFlight.delete(levelCacheKey);
   }
+  })();
+  levelBreakdownInFlight.set(levelCacheKey, _lvlPromise);
+  return _lvlPromise;
 }
 
 export async function loadPersonalTreePreview(
