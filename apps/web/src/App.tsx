@@ -812,8 +812,12 @@ function App() {
             setLoadStage("income");
             beginLoadPhase("loading analytics", "Loading analytics...");
             console.log(`[BOOT-TIMING] setSnapshot(restored) ts=${Date.now()}`);
+            const _BR0=Date.now();
+            console.log(`[BOOT] setSnapshot(restored) ts=${Date.now()}`);
             setSnapshot(restoredSnapshot);
+            console.log(`[BOOT] dashboard visible (restored) ts=${Date.now()}`);
             if (restoredSnapshot.isRegistered && restoredSnapshot.userId) {
+              console.log(`[BOOT] loadBoxEarnings(restored) START userId=${restoredSnapshot.userId} ts=${Date.now()}`);
               const _boxProvider = new JsonRpcProvider(activeNetworkConfig.rpcUrl || PUBLIC_TESTNET_RPC);
               const _boxScanId1 = `box-boot-${++_scanIdCounter.current}-${Date.now()}`;
               console.log(`[SCAN-START] scanId=${_boxScanId1} source=boot-restored ts=${Date.now()}`);
@@ -871,26 +875,33 @@ function App() {
           }
         }
 
+        const _B0=Date.now();
+        console.log(`[BOOT] loadDashboardSnapshot START ts=${_B0}`);
         beginLoadPhase("loading user profile", "Loading user profile...");
         const nextSnapshot = await withDashboardTimeout(
           metaguildx.loadDashboardSnapshot(null),
           "fetchDashboardData"
         );
+        console.log(`[BOOT] loadDashboardSnapshot END elapsed=${Date.now()-_B0}ms ts=${Date.now()}`);
         if (!isActive) {
           return;
         }
         setLoadStage("income");
         beginLoadPhase("loading analytics", "Loading analytics...");
+        console.log(`[BOOT] setSnapshot START ts=${Date.now()}`);
         setSnapshot(nextSnapshot);
+        console.log(`[BOOT] setSnapshot END → dashboard visible ts=${Date.now()}`);
         if (nextSnapshot.isRegistered && nextSnapshot.userId) {
           const _boxProvider = new JsonRpcProvider(activeNetworkConfig.rpcUrl || PUBLIC_TESTNET_RPC);
           const _boxScanId2 = `box-boot-fresh-${++_scanIdCounter.current}-${Date.now()}`;
+          console.log(`[BOOT] loadBoxEarnings START userId=${nextSnapshot.userId} ts=${Date.now()}`);
           console.log(`[SCAN-START] scanId=${_boxScanId2} source=boot-fresh ts=${Date.now()}`);
           metaguildx.loadBoxEarningsForUser({
             userId: nextSnapshot.userId,
             provider: _boxProvider,
             incomeAddress: metaguildx.getConfiguredIncomeAddress
           }).then((boxResult) => {
+            console.log(`[BOOT] loadBoxEarnings END elapsed=${Date.now()-_B0}ms scanComplete=${boxResult.scanComplete} ts=${Date.now()}`);
             console.log(`[SCAN-FINISH] scanId=${_boxScanId2} source=boot-fresh scanComplete=${boxResult.scanComplete} ts=${Date.now()}`);
             if (isActive) {
               applyDeferredBoxEarnings(nextSnapshot.walletAddress, nextSnapshot.userId!, {...boxResult, _scanId: _boxScanId2} as any, "boot-fresh");
@@ -900,6 +911,7 @@ function App() {
         beginLoadPhase("loading tree", "Loading tree...");
         beginLoadPhase("loading earnings", "Loading earnings...");
         setLoadStage("complete");
+        console.log(`[BOOT] finishLoadingSession ts=${Date.now()} totalBoot=${Date.now()-_B0}ms`);
         finishLoadingSession("complete");
       };
 
@@ -1144,11 +1156,14 @@ function App() {
     let isActive = true;
     deferredDashboardAnalyticsInFlight.current = key;
     const timeoutId = window.setTimeout(() => {
+      const _DA0=Date.now();
+      console.log(`[BOOT] loadDeferredDashboardAnalytics START userId=${snapshot.userId} ts=${_DA0}`);
       metaguildx.loadDeferredDashboardAnalytics({
         userId: snapshot.userId!,
         walletAddress: snapshot.walletAddress
       })
         .then((analytics) => {
+          console.log(`[BOOT] loadDeferredDashboardAnalytics END elapsed=${Date.now()-_DA0}ms ts=${Date.now()}`);
           if (isActive) {
             applyDeferredDashboardAnalytics(snapshot.userId!, analytics);
           }
@@ -1539,7 +1554,9 @@ function App() {
       return;
     }
     let isActive = true;
+    const _LV0=Date.now();
     const _lvlScanId = `lvl-${++_scanIdCounter.current}-${Date.now()}`;
+    console.log(`[BOOT] loadLevelIncomeBreakdown START userId=${snapshot.userId} ts=${_LV0}`);
     console.log(`[SCAN-START] scanId=${_lvlScanId} userId=${snapshot.userId} source=level-breakdown ts=${Date.now()}`);
     // Auto-invalidate: if contract shows income but breakdown is zero, clear cache
     const _contractLvl = parseDisplayNumber(snapshot.levelIncome);
@@ -2169,7 +2186,10 @@ function App() {
     setBgLostEarnings("0");
     setBgLostEarningsLoading(true);
     setBoxEarningsScanComplete(false);  // reset on wallet/user change
+    const _LE0=Date.now();
+    console.log(`[BOOT] loadLostEarnings START userId=${userId} ts=${_LE0}`);
     metaguildx.loadLostEarnings(userId, walletAddress).then(val=>{
+      console.log(`[BOOT] loadLostEarnings END val=${val} elapsed=${Date.now()-_LE0}ms ts=${Date.now()}`);
       if(cancelled)return;
       setBgLostEarnings(val);
       // Store pkgLevel as cache key — invalidates on package upgrade
