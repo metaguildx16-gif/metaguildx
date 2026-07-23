@@ -557,16 +557,33 @@ function App() {
   }
 
   async function withDashboardTimeout<T>(promise: Promise<T>, label: string) {
-    // timing disabled
+    const _t0=Date.now();
+    console.log(`[BOOT-ENTER] function=${label} ts=${_t0}`);
+    const _pendingTimer=window.setTimeout(()=>{
+      console.log(`[BOOT-PENDING>5s] function=${label} elapsed=${Date.now()-_t0}ms ts=${Date.now()}`);
+    },5000);
+    const _pendingTimer2=window.setTimeout(()=>{
+      console.log(`[BOOT-PENDING>30s] function=${label} elapsed=${Date.now()-_t0}ms ts=${Date.now()}`);
+    },30000);
+    const _pendingTimer3=window.setTimeout(()=>{
+      console.log(`[BOOT-PENDING>60s] function=${label} elapsed=${Date.now()-_t0}ms ts=${Date.now()}`);
+    },60000);
     try {
-      return await Promise.race<T>([
+      const _result = await Promise.race<T>([
         promise,
         new Promise<T>((_, reject) =>
           window.setTimeout(() => reject(new Error(`${label} timed out after 90s`)), DASHBOARD_LOAD_TIMEOUT_MS)
         )
       ]);
+      console.log(`[BOOT-EXIT] function=${label} elapsed=${Date.now()-_t0}ms ts=${Date.now()}`);
+      return _result;
+    } catch(e:any) {
+      console.log(`[BOOT-THROW] function=${label} elapsed=${Date.now()-_t0}ms err=${e?.message?.slice(0,60)} ts=${Date.now()}`);
+      throw e;
     } finally {
-      // timing disabled
+      window.clearTimeout(_pendingTimer);
+      window.clearTimeout(_pendingTimer2);
+      window.clearTimeout(_pendingTimer3);
     }
   }
 
@@ -774,10 +791,14 @@ function App() {
     startTransition(() => {
       const { savedWallet, wasConnected, isExpired } = hasValidWalletSession();
       const boot = async () => {
+        console.log(`[BOOT-ENTER] function=boot() ts=${Date.now()}`);
         // Startup validation: if MetaMask active account differs from saved session, clear stale session
         if (savedWallet && wasConnected && !isExpired) {
           try {
+            console.log(`[BOOT-ENTER] function=eth_accounts(pre-check) ts=${Date.now()}`);
+            const _eaT0=Date.now();
             const accs = await (window.ethereum as any)?.request({method:"eth_accounts"}).catch(()=>[] as string[]) as string[];
+            console.log(`[BOOT-EXIT] function=eth_accounts(pre-check) elapsed=${Date.now()-_eaT0}ms ts=${Date.now()}`);
             const active = accs?.[0]?.toLowerCase() ?? null;
             if (active && active !== savedWallet.toLowerCase()) {
               clearWalletSession();
@@ -792,10 +813,12 @@ function App() {
         if (savedWallet && wasConnected && !isExpired) {
           try {
             beginLoadPhase("connecting wallet", "Connecting wallet...");
+            console.log(`[BOOT-ENTER] function=connectWalletSilently ts=${Date.now()}`);
             const restoredAddress = await withDashboardTimeout(
               metaguildx.connectWalletSilently(savedWallet),
               "wallet reconnect"
             );
+            console.log(`[BOOT-EXIT] function=connectWalletSilently ts=${Date.now()}`);
             beginLoadPhase("loading user profile", "Loading user profile...");
             const restoredSnapshot = await withDashboardTimeout(
               metaguildx.loadDashboardSnapshot(restoredAddress),
@@ -923,6 +946,7 @@ function App() {
           }
         })
         .finally(() => {
+          console.log(`[BOOT-FINALLY] isActive=${isActive} loadFailure=${loadFailure} ts=${Date.now()}`);
           if (isActive) {
             if (!loadFailure) {
               setIsLoading(false);

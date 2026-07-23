@@ -3297,12 +3297,19 @@ export async function connectWalletSilently(expectedWallet?: string | null) {
       throw new Error(getWalletUnavailableMessage());
     }
 
+    console.log(`[BOOT-ENTER] function=ensureConfiguredChain ts=${Date.now()}`);
+    const _ec0=Date.now();
     await withTimeout(ensureConfiguredChain(), 15000);
-
+    console.log(`[BOOT-EXIT] function=ensureConfiguredChain elapsed=${Date.now()-_ec0}ms ts=${Date.now()}`);
+    console.log(`[BOOT-ENTER] function=eth_accounts(silent) ts=${Date.now()}`);
+    const _ea0=Date.now();
+    const _eaP=window.setTimeout(()=>console.log(`[BOOT-PENDING>5s] function=eth_accounts(silent) elapsed=${Date.now()-_ea0}ms ts=${Date.now()}`),5000);
     const currentAccounts = await withTimeout(
       window.ethereum.request({ method: "eth_accounts" }) as Promise<unknown>,
       15000
     );
+    window.clearTimeout(_eaP);
+    console.log(`[BOOT-EXIT] function=eth_accounts(silent) elapsed=${Date.now()-_ea0}ms ts=${Date.now()}`);
     if (!Array.isArray(currentAccounts) || currentAccounts.length === 0 || typeof currentAccounts[0] !== "string") {
       throw new Error("Wallet session not found");
     }
