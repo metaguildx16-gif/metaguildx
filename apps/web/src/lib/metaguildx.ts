@@ -3871,7 +3871,7 @@ export async function loadLevelTreePreview(connectedUserId: number | null): Prom
   const queue: Array<{ userId: number; depth: number }> = [{ userId: levelRootId, depth: 0 }];
   const levelNodes: TreePreviewNode[] = [];
 
-  while (queue.length > 0 && levelNodes.length < 15) {
+  while (queue.length > 0) {
     const current = queue.shift()!;
     if (current.userId <= 0 || visited.has(current.userId)) {
       continue;
