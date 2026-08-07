@@ -4623,7 +4623,7 @@ function App() {
             <span>MetaGuildX is a decentralized platform. Participation involves financial risk. This is not financial advice. © 2026 MetaGuildX</span>
             <div className="lp-socials">
               <a href="#" className="lp-soc"></a>
-              <a href="#" className="lp-soc">tg</a>
+              <a href="https://t.me/MetaGuildX" target="_blank" rel="noopener noreferrer" className="lp-soc">tg</a>
               <a href="#" className="lp-soc">dc</a>
               <a href="#" className="lp-soc">yt</a>
             </div>
