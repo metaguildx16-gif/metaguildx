@@ -1132,7 +1132,15 @@ function App() {
 
       isDashboardPolling.current = true;
       Promise.resolve(metaguildx.loadDashboardSnapshot(snapshot.walletAddress))
-        .then((newSnap) => setSnapshot((prev) => mergeSnapshotPreservingDeferredAnalytics(prev, newSnap)))
+        .then((newSnap) => setSnapshot((prev) => {
+          // Guard: reject stale response if wallet changed since refresh started
+          const prevWallet = (prev.walletAddress ?? "").toLowerCase();
+          const snapWallet = (newSnap.walletAddress ?? "").toLowerCase();
+          if (prevWallet && snapWallet && prevWallet !== snapWallet) {
+            return prev;
+          }
+          return mergeSnapshotPreservingDeferredAnalytics(prev, newSnap);
+        }))
         .catch(() => undefined)
         .finally(() => {
           isDashboardPolling.current = false;
