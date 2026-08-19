@@ -1,4 +1,4 @@
-import { BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEther, formatUnits, getAddress, getBytes, parseUnits, solidityPackedKeccak256, verifyMessage, type ContractRunner } from "ethers";
+import { AbiCoder, BrowserProvider, Contract, Interface, JsonRpcProvider, Wallet, formatEther, formatUnits, getAddress, getBytes, parseUnits, solidityPackedKeccak256, verifyMessage, type ContractRunner } from "ethers";
 import { activeNetworkConfig, toHexChainId } from "../config/networks";
 
 const DEBUG_EVENTS = false;
@@ -4858,35 +4858,64 @@ async function computeLostEarnings(
   directReferralIds: number[],
   provider: BrowserProvider | JsonRpcProvider,
   routerAddress: string
-): Promise<bigint> {
-  if (!routerAddress || userId <= 0) return 0n;
+): Promise<{ total: bigint; allChunksSucceeded: boolean; failedChunks: {fromBlock:number;toBlock:number}[] }> {
+  if (!routerAddress || userId <= 0) return { total: 0n, allChunksSucceeded: true, failedChunks: [] };
   const CHUNK = 45_000;
-  const routerAbi = [
-    "event LevelIncomeSkipped(uint256 indexed skippedUserId, uint256 indexed fromUserId, uint8 indexed level, address asset, uint256 amount, uint256 timestamp)"
-  ];
-  const router = new Contract(routerAddress, routerAbi, provider);
+  const MAX_ATTEMPTS = 3;
+  // Use getLogs directly with withTimeout for timeout protection
+  // Correct topic hash for LevelIncomeSkipped(uint256,uint256,uint8,address,uint256,uint256)
+  const skipEventTopic = "0x74ba71463004d86aa5830a688701e74c83eae76919b30f68eabed75c13d43dc9";
+  const userTopicPad = "0x" + userId.toString(16).padStart(64, "0");
+
   let totalLost = 0n;
+  let allChunksSucceeded = true;
+  const failedChunks: {fromBlock:number;toBlock:number}[] = [];
+
   try {
-    const currentBlock = await provider.getBlockNumber();
-    const fromBlock = Math.max(0, currentBlock - 5_000_000);
+    const currentBlock = await withTimeout(provider.getBlockNumber(), 15000);
+    // Fix 1: Scan from deployment block, not currentBlock - 5M
+    const fromBlock = getDeploymentAnalyticsStartBlock();
+
     for (let b = fromBlock; b <= currentBlock; b += CHUNK) {
       const end = Math.min(b + CHUNK - 1, currentBlock);
-      try {
-        const logs = await router.queryFilter(
-          router.filters.LevelIncomeSkipped(BigInt(userId)),
-          b,
-          end
-        );
-        for (const log of logs) {
-          const args = (log as unknown as { args: [bigint, bigint, bigint, string, bigint, bigint] }).args;
-          if (Number(args[0]) === userId) {
-            totalLost += BigInt(args[4]);
+      let chunkSucceeded = false;
+
+      // Fix 2: Retry up to 3 times with backoff + timeout
+      for (let attempt = 0; attempt < MAX_ATTEMPTS && !chunkSucceeded; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, attempt === 1 ? 500 : 800));
+        try {
+          const logs = await withTimeout(
+            provider.getLogs({
+              address: routerAddress,
+              fromBlock: b,
+              toBlock: end,
+              topics: [skipEventTopic, userTopicPad]
+            }),
+            15000
+          );
+          for (const log of logs) {
+            try {
+              const abiCoder = AbiCoder.defaultAbiCoder();
+              const decoded = abiCoder.decode(["address", "uint256", "uint256"], log.data);
+              const skippedId = Number(BigInt(log.topics[1]));
+              if (skippedId === userId) {
+                totalLost += BigInt(decoded[1]);
+              }
+            } catch { /* skip unparseable log */ }
+          }
+          chunkSucceeded = true;
+        } catch {
+          if (attempt === MAX_ATTEMPTS - 1) {
+            // All attempts failed — mark scan incomplete
+            allChunksSucceeded = false;
+            failedChunks.push({ fromBlock: b, toBlock: end });
           }
         }
-      } catch { /* skip failed chunk */ }
+      }
     }
-  } catch { /* non-fatal, return 0 */ }
-  return totalLost;
+  } catch { /* provider.getBlockNumber failed — non-fatal */ }
+
+  return { total: totalLost, allChunksSucceeded, failedChunks };
 }
 
 
@@ -4902,11 +4931,14 @@ export async function loadLostEarnings(
   try {
     const directReferralIdsRaw = await coreContract.getDirectReferralIds(userId) as bigint[];
     const directReferralIds = directReferralIdsRaw.map(Number);
-    const raw = await computeLostEarnings(
+    const result = await computeLostEarnings(
       userId, directReferralIds, provider,
       configuredIncomeRouterAddress ?? TESTNET_INCOME_ROUTER_ADDRESS
     );
-    return formatTokenAmount(raw);
+    if (!result.allChunksSucceeded) {
+      console.warn(`[LOST-EARNINGS] userId=${userId} partial scan: ${result.failedChunks.length} failed chunks — result may be understated`);
+    }
+    return formatTokenAmount(result.total);
   } catch { return "0"; }
 }
 
