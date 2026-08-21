@@ -631,7 +631,7 @@ function App() {
       normalized.includes("close window") ||
       normalized.includes("rejected")
     ) {
-      return "MetaMask request was cancelled. Open MetaMask and approve the request to continue.";
+      return "Wallet request was cancelled. Please approve the request in your wallet to continue.";
     }
 
     if (normalized.includes("insufficient usdt")) {
@@ -639,7 +639,7 @@ function App() {
     }
 
     if (normalized.includes("approval is too low")) {
-      return "USDT approval is not complete yet. Approve the transaction in MetaMask and try again.";
+      return "USDT approval is not complete yet. Approve the transaction in your wallet and try again.";
     }
 
     if (normalized.includes("insufficient funds")) {
@@ -647,7 +647,7 @@ function App() {
     }
 
     if (normalized.includes("wallet connection failed")) {
-      return "Wallet connection failed. Open MetaMask, select the correct network, approve the connection request, and try again.";
+      return "Wallet connection failed. Open your wallet app, select the opBNB network, approve the connection request, and try again.";
     }
 
     if (normalized.includes("user_not_active") || normalized.includes("please complete registration first")) {
@@ -2629,7 +2629,7 @@ function App() {
   ];
 
   const transferFromLabel = "MGX Allocated (Free)";
-  const transferToLabel = "MetaMask wallet";
+  const transferToLabel = "External wallet";
   const transferFromBalance = displayedMgxAllocated;
   const totalTeamMembers =
   snapshot.leftBranchNodes + snapshot.rightBranchNodes > 0
@@ -3428,12 +3428,12 @@ function App() {
         (step) => {
           if (step === "approving") {
             setRegStep(1);
-            setStatus("Approving USDT in MetaMask...");
+            setStatus("Approving USDT — please confirm in your wallet...");
             return;
           }
           if (step === "confirming") {
             setRegStep(2);
-            setStatus("Confirm the registration in MetaMask.");
+            setStatus("Confirm the registration transaction in your wallet.");
             return;
           }
           if (step === "registering") {
@@ -4082,7 +4082,7 @@ function App() {
                   </div>
                   <div style={{marginTop:"1rem",display:"flex",flexDirection:"column",gap:10}}>
                     {[
-                      "Install a crypto wallet app (MetaMask recommended) on your smartphone or PC.",
+                      "Install a Web3 wallet app (MetaMask, TokenPocket, or similar) on your smartphone or PC.",
                       "Fund your wallet with USDT on opBNB network for registration.",
                       "Click the Register button below and confirm in your wallet.",
                       "Copy and share your referral link to grow your network."
@@ -4549,7 +4549,7 @@ function App() {
           <div className="lp-how-grid" style={{maxWidth:"860px",margin:"0 auto"}}>
             <div className="lp-steps">
               {[
-                ["01","Connect Your Wallet","Install MetaMask or a compatible wallet and connect it to the MetaGuildX platform."],
+                ["01","Connect Your Wallet","Install MetaMask, TokenPocket, or any compatible Web3 wallet and connect it to the MetaGuildX platform."],
                 ["02","Switch to opBNB Mainnet","Add opBNB Mainnet (Chain ID: 204) to your wallet. Low fees, fast transactions."],
                 ["03","Register and Join","Complete registration to join the MetaGuildX community and begin receiving MGX token allocations."],
               ].map(([n,t,d]) => (
@@ -5339,7 +5339,7 @@ function App() {
                   </div>
                 </div>
                 <p className="text-secondary">
-                  This is step 3. Only now will MetaMask ask for 10 USDT approval, followed by the registration transaction.
+                  This is step 3. Only now will your wallet ask for 10 USDT approval, followed by the registration transaction.
                 </p>
                 <div className="flow-modal-actions">
                   <button type="button" className="secondary-button" onClick={() => setShowActivationConfirm(false)}>

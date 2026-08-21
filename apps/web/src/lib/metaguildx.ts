@@ -2680,13 +2680,13 @@ function formatRegistrationError(error: unknown) {
     return "This wallet is already registered.";
   }
   if (normalized.includes("approve") || normalized.includes("allowance") || normalized.includes("insufficient usdt")) {
-    return `USDT approval is not complete yet. Approve the transaction in MetaMask and try again.`;
+    return `USDT approval is not complete yet. Approve the transaction in your wallet and try again.`;
   }
   if (normalized.includes("placement signing") || normalized.includes("signature")) {
     return `Registration failed. Please review the error and try again.`;
   }
   if (normalized.includes("user rejected") || normalized.includes("action_rejected") || normalized.includes("4001")) {
-    return "Registration was cancelled in MetaMask. Approve the request and try again.";
+    return "Registration was cancelled. Approve the request in your wallet and try again.";
   }
 
   return `Registration failed. Please review the error and try again.`;
@@ -3475,7 +3475,7 @@ export async function getRegistrationDistribution(
   txHash: string
 ): Promise<RegistrationDistribution> {
   if (!window.ethereum) {
-    throw new Error("MetaMask was not detected. Open MetaMask and try again.");
+    throw new Error(getWalletUnavailableMessage());
   }
 
   const provider = new BrowserProvider(window.ethereum);
