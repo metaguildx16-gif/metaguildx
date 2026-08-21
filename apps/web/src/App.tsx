@@ -1968,7 +1968,7 @@ function App() {
   }
 
   async function handleConnectWallet(targetView: DashboardView = "overview") {
-    startLoadingSession("connecting wallet", "Connecting wallet. Please approve the wallet connection in MetaMask, then sign the authentication message. No gas fee is charged for the signature.");
+    startLoadingSession("connecting wallet", "Connecting wallet. Please approve the connection in your wallet app, then sign the authentication message. No gas fee is charged for the signature.");
     setConnectError(null);
 
     try {

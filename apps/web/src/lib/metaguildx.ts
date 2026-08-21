@@ -3269,8 +3269,8 @@ function isLikelyMobileDevice() {
 
 function getWalletUnavailableMessage() {
   return isLikelyMobileDevice()
-    ? "MetaMask was not detected. Open this page in the MetaMask in-app browser and try again."
-    : "MetaMask was not detected. Install or open MetaMask and try again.";
+    ? "No Web3 wallet detected. Open this page in your wallet app browser (MetaMask, TokenPocket, Trust Wallet, etc.) and try again."
+    : "No Web3 wallet detected. Install MetaMask, TokenPocket, or another Web3 wallet and try again.";
 }
 
 async function verifyWalletOwnership(address: string) {
@@ -3357,7 +3357,7 @@ export async function connectWallet() {
       message.toLowerCase().includes("unsupported method");
 
     if (!unsupportedPermissionsRequest) {
-      throw error instanceof Error ? error : new Error("Wallet connection failed. Open MetaMask and try again.");
+      throw error instanceof Error ? error : new Error("Wallet connection failed. Please approve the connection in your wallet app and try again.");
     }
 
     accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
@@ -3368,13 +3368,13 @@ export async function connectWallet() {
   }
 
   if (!Array.isArray(accounts) || accounts.length === 0 || typeof accounts[0] !== "string") {
-    throw new Error("No wallet account was selected. Choose an account in MetaMask and try again.");
+    throw new Error("No wallet account was selected. Please choose an account in your wallet and try again.");
   }
 
   try {
     await ensureConfiguredChain();
   } catch (error) {
-    throw error instanceof Error ? error : new Error("Network switch failed. Switch to the correct network in MetaMask and try again.");
+    throw error instanceof Error ? error : new Error("Network switch failed. Please switch to the opBNB network in your wallet and try again.");
   }
 
   return verifyWalletOwnership(accounts[0]);
