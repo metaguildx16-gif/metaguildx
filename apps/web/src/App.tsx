@@ -978,7 +978,9 @@ function App() {
         ? accounts[0].toLowerCase()
         : "";
       const currentAccount = (snapshot.walletAddress ?? localStorage.getItem(WALLET_STORAGE_KEY) ?? "").toLowerCase();
-      if (nextAccount !== currentAccount) {
+      if (nextAccount && nextAccount !== currentAccount) {
+        // Guard: only reload on ACTUAL account switch, not on temporary empty emission
+        // TokenPocket emits accountsChanged([]) when opening tx popup — must not reload
         // Phase 1: Clear previous userId-keyed caches before reload
         // Prevents localStorage accumulation across account switches
         const prevUserId = snapshot.userId;
