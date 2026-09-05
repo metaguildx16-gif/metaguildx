@@ -3018,10 +3018,14 @@ async function getWriteContracts() {
     throw new Error(getWalletUnavailableMessage());
   }
 
+  console.log("[REGISTER-TRACE] ensureConfiguredChain:start", { ts: Date.now() });
   await ensureConfiguredChain();
+  console.log("[REGISTER-TRACE] ensureConfiguredChain:complete", { ts: Date.now() });
   const provider = new BrowserProvider(window.ethereum);
   const signer = await provider.getSigner();
   const address = await signer.getAddress();
+  const _network = await provider.getNetwork();
+  console.log("[REGISTER-TRACE] wallet-context:getWriteContracts", { address, chainId: _network.chainId.toString(), providerType: "BrowserProvider/EIP-1193", ts: Date.now() });
   const code = await provider.getCode(coreAddress);
   if (code === "0x") {
     throw new Error(`The configured contract is not live on ${activeNetworkConfig.label}. Check the RPC URL, redeploy if needed, and restart the frontend.`);
@@ -3114,11 +3118,18 @@ async function ensureErc20Approval(input: {
 
   if (currentAllowance < requiredRaw) {
     try {
+      console.log("[REGISTER-TRACE] approve:start", { spender: spenderAddress, required: requiredRaw.toString(), ts: Date.now() });
       input.onProgress?.("approving");
+      const _approveT0 = Date.now();
       const approveTx = await token.approve(spenderAddress, requiredRaw);
+      console.log("[REGISTER-TRACE] approve:submitted", { txHash: approveTx.hash, submittedAt: Date.now(), ts: Date.now() });
       input.onProgress?.("confirming");
-      await approveTx.wait();
+      const _approveWaitT0 = Date.now();
+      console.log("[REGISTER-TRACE] approve:wait:start", { txHash: approveTx.hash, ts: Date.now() });
+      const approveReceipt = await approveTx.wait();
+      console.log("[REGISTER-TRACE] approve:wait:complete", { txHash: approveTx.hash, status: approveReceipt?.status, durationMs: Date.now()-_approveWaitT0, ts: Date.now() });
     } catch (error) {
+      console.error("[REGISTER-TRACE] approve:FAILED", { message: (error as any)?.message?.slice(0,100), code: (error as any)?.code, ts: Date.now() });
       console.error("USDT approval failed:", error);
       throw new Error("USDT approval failed or rejected");
     }
@@ -3384,15 +3395,20 @@ export async function registerUser(
   input: { sponsorId: number; packageLevel: number; selectedBox: number },
   onProgress?: (step: "approving" | "confirming" | "registering" | "success") => void
 ): Promise<RegistrationResult> {
+  console.log("[REGISTER-TRACE] registerUser:start", { sponsorId: input.sponsorId, ts: Date.now() });
   if (input.packageLevel !== 1 || input.selectedBox !== 1) {
     throw new Error("Initial registration must start with Package 1 in the active box.");
   }
 
   try {
+    console.log("[REGISTER-TRACE] getWriteContracts:start", { ts: Date.now() });
     const { provider, signer, core, address } = await getWriteContracts();
     const normalizedAddress = normalizeAddress(address);
+    console.log("[REGISTER-TRACE] getWriteContracts:complete", { address: normalizedAddress, ts: Date.now() });
     const sponsorId = normalizeSponsorId(input.sponsorId);
+    console.log("[REGISTER-TRACE] userIdByAddress:start", { address: normalizedAddress, ts: Date.now() });
     const existingUserId = (await core.userIdByAddress(normalizedAddress)) as bigint;
+    console.log("[REGISTER-TRACE] userIdByAddress:result", { existingUserId: existingUserId.toString(), ts: Date.now() });
     if (existingUserId > 0n) {
       throw new Error("This wallet is already registered.");
     }
@@ -3410,9 +3426,15 @@ export async function registerUser(
       assetLabel: "USDT",
       onProgress
     });
+    console.log("[REGISTER-TRACE] ensureErc20Approval:complete", { ts: Date.now() });
 
+    console.log("[REGISTER-TRACE] nonce:start", { ts: Date.now() });
     const nonce = Number(await core.nonces(normalizedAddress));
+    console.log("[REGISTER-TRACE] nonce:complete", { nonce, ts: Date.now() });
+    console.log("[REGISTER-TRACE] findPlacementSlot:start", { sponsorId: Number(sponsorId), ts: Date.now() });
     const { placementParentId, isLeft } = await findPlacementSlot(core, Number(sponsorId));
+    console.log("[REGISTER-TRACE] findPlacementSlot:complete", { placementParentId, isLeft, ts: Date.now() });
+    console.log("[REGISTER-TRACE] signPlacementInstruction:start", { ts: Date.now() });
 
     const { signature, deadline } = await signPlacementInstruction({
       provider,
@@ -3424,6 +3446,8 @@ export async function registerUser(
       nonce
     });
 
+    console.log("[REGISTER-TRACE] signPlacementInstruction:complete", { deadline: deadline.toString(), ts: Date.now() });
+    console.log("[REGISTER-TRACE] staticCall:start", { ts: Date.now() });
     try {
       await core.registerWithPlacement.staticCall(
         sponsorId,
@@ -3434,10 +3458,12 @@ export async function registerUser(
         deadline,
         { from: normalizedAddress }
       );
+      console.log("[REGISTER-TRACE] staticCall:complete:success", { ts: Date.now() });
     } catch (staticErr: any) {
       void staticErr;
     }
 
+    console.log("[REGISTER-TRACE] registerWithPlacement:send:start", { ts: Date.now() });
     const tx = await core.registerWithPlacement(
       sponsorId,
       BigInt(placementParentId),
@@ -3446,7 +3472,13 @@ export async function registerUser(
       BigInt(nonce),
       deadline,
       { gasLimit: 16_000_000n }
-    );    await tx.wait();    onProgress?.("success");
+    );
+    console.log("[REGISTER-TRACE] registerWithPlacement:submitted", { txHash: tx.hash, ts: Date.now() });
+    console.log("[REGISTER-TRACE] registerTx:wait:start", { txHash: tx.hash, ts: Date.now() });
+    await tx.wait();
+    console.log("[REGISTER-TRACE] registerTx:wait:complete", { txHash: tx.hash, ts: Date.now() });
+    onProgress?.("success");
+    console.log("[REGISTER-TRACE] registration:success", { txHash: tx.hash, ts: Date.now() });
 
     return {
       txHash: tx.hash,

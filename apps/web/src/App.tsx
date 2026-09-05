@@ -978,6 +978,7 @@ function App() {
         ? accounts[0].toLowerCase()
         : "";
       const currentAccount = (snapshot.walletAddress ?? localStorage.getItem(WALLET_STORAGE_KEY) ?? "").toLowerCase();
+      console.log("[REGISTER-TRACE] WALLET_EVENT accountsChanged", { accounts, nextAccount, currentAccount, isLoading, ts: Date.now() });
       if (nextAccount && nextAccount !== currentAccount) {
         // Guard: only reload on ACTUAL account switch, not on temporary empty emission
         // TokenPocket emits accountsChanged([]) when opening tx popup — must not reload
@@ -1002,10 +1003,13 @@ function App() {
           keysToRemove.forEach(k=>{ try{localStorage.removeItem(k);}catch{} });
         }
         clearWalletSession();
+        console.log("[REGISTER-TRACE] PAGE_RELOAD", { reason: "accountsChanged:walletSwitch", nextAccount, currentAccount, isLoading, timestamp: Date.now() });
         window.location.reload();
       }
     };
-    const handleChainChanged = () => {
+    const handleChainChanged = (chainId: unknown) => {
+      console.log("[REGISTER-TRACE] WALLET_EVENT chainChanged", { chainId, isLoading, ts: Date.now() });
+      console.log("[REGISTER-TRACE] PAGE_RELOAD", { reason: "chainChanged", isLoading, timestamp: Date.now() });
       window.location.reload();
     };
 
@@ -2144,6 +2148,7 @@ function App() {
   }
 
   async function handleActivate() {
+    console.log("[REGISTER-TRACE] handleActivate:start", { ts: Date.now() });
     setShowActivationConfirm(false);
     await handleRegisterUser();
   }
@@ -3414,10 +3419,12 @@ function App() {
   }
 
   async function handleRegisterUser() {
+    console.log("[REGISTER-TRACE] handleRegisterUser:start", { ts: Date.now() });
     setIsLoading(true);
     setActionFeedback(null);
     setRegistrationSummary(null);
     setStatus("Starting registration. Approving USDT first.");
+    console.log("[REGISTER-TRACE] regStep", { from: 0, to: 1, reason: "handleRegisterUser start", ts: Date.now() });
     setRegStep(1);
 
     try {
@@ -3429,20 +3436,24 @@ function App() {
         },
         (step) => {
           if (step === "approving") {
+            console.log("[REGISTER-TRACE] regStep", { to: 1, reason: "onProgress:approving", ts: Date.now() });
             setRegStep(1);
             setStatus("Approving USDT — please confirm in your wallet...");
             return;
           }
           if (step === "confirming") {
+            console.log("[REGISTER-TRACE] regStep", { to: 2, reason: "onProgress:confirming", ts: Date.now() });
             setRegStep(2);
             setStatus("Confirm the registration transaction in your wallet.");
             return;
           }
           if (step === "registering") {
+            console.log("[REGISTER-TRACE] regStep", { to: 3, reason: "onProgress:registering", ts: Date.now() });
             setRegStep(3);
             setStatus("Registering your account on-chain...");
             return;
           }
+          console.log("[REGISTER-TRACE] regStep", { to: 4, reason: "onProgress:success", ts: Date.now() });
           setRegStep(4);
           setStatus("Registration complete. Welcome to MetaGuildX.");
         }
@@ -3481,6 +3492,8 @@ function App() {
       setSelectedTreeUserId(nextSnapshot.userId ?? nextSnapshot.rootUserId ?? null);
       return nextSnapshot;
     } catch (error) {
+      console.error("[REGISTER-TRACE] REGISTRATION_ERROR", { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code, reason: (error as any)?.reason, shortMessage: (error as any)?.shortMessage, ts: Date.now() });
+      console.log("[REGISTER-TRACE] regStep", { to: 0, reason: "catch:registration failed", ts: Date.now() });
       setRegStep(0);
       setStatus(getFriendlyErrorMessage(error));
       setActionFeedback(null);
