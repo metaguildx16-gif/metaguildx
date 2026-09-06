@@ -2982,16 +2982,20 @@ async function ensureConfiguredChain() {
 
   const chainIdHex = toHexChainId(activeNetworkConfig.chainId);
   const chainId = (await window.ethereum.request({ method: "eth_chainId" })) as string;
+  console.log("[TP-CHAIN] current:result", { current: chainId, expected: chainIdHex, needsSwitch: chainId !== chainIdHex, ts: Date.now() });
   if (chainId === chainIdHex) {
     return;
   }
 
+  console.log("[TP-CHAIN] switch:start", { target: chainIdHex, ts: Date.now() });
   try {
     await window.ethereum.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: chainIdHex }]
     });
-  } catch {
+    console.log("[TP-CHAIN] switch:resolved", { ts: Date.now() });
+  } catch (switchErr) {
+    console.warn("[TP-CHAIN] switch:error", { code: (switchErr as any)?.code, ts: Date.now() });
     await window.ethereum.request({
       method: "wallet_addEthereumChain",
       params: [{
@@ -3118,17 +3122,49 @@ async function ensureErc20Approval(input: {
 
   if (currentAllowance < requiredRaw) {
     try {
+      // Log provider identity to detect if TokenPocket replaces window.ethereum
+      const _providerInfo = {
+        hasEthereum: typeof window !== "undefined" && !!window.ethereum,
+        isMetaMask: (window.ethereum as any)?.isMetaMask,
+        isTokenPocket: (window.ethereum as any)?.isTokenPocket,
+        isTrust: (window.ethereum as any)?.isTrust,
+        providerName: (window.ethereum as any)?.__TokenPocket ?? (window.ethereum as any)?._metamask ?? "unknown",
+        ts: Date.now()
+      };
+      console.log("[TP-PROVIDER] before-approve", _providerInfo);
       console.log("[REGISTER-TRACE] approve:start", { spender: spenderAddress, required: requiredRaw.toString(), ts: Date.now() });
       input.onProgress?.("approving");
       const _approveT0 = Date.now();
-      const approveTx = await token.approve(spenderAddress, requiredRaw);
-      console.log("[REGISTER-TRACE] approve:submitted", { txHash: approveTx.hash, submittedAt: Date.now(), ts: Date.now() });
+      // Add 30s hung-promise detector
+      const _approveHungTimer = window.setTimeout(() => {
+        console.error("[TP-APPROVE] HUNG — approve() has not resolved after 30s. TokenPocket may not be returning tx hash.", { elapsed: Date.now()-_approveT0, ts: Date.now() });
+      }, 30000);
+      let approveTx: any;
+      try {
+        approveTx = await token.approve(spenderAddress, requiredRaw);
+      } finally {
+        window.clearTimeout(_approveHungTimer);
+      }
+      console.log("[REGISTER-TRACE] approve:submitted", { txHash: approveTx.hash, submittedAt: Date.now(), elapsedMs: Date.now()-_approveT0, ts: Date.now() });
+      console.log("[TP-APPROVE] promise:resolved — token.approve() returned tx hash", { hash: approveTx.hash, ts: Date.now() });
       input.onProgress?.("confirming");
+      console.log("[TP-APPROVE] step:2 — onProgress(confirming) called", { ts: Date.now() });
       const _approveWaitT0 = Date.now();
       console.log("[REGISTER-TRACE] approve:wait:start", { txHash: approveTx.hash, ts: Date.now() });
       const approveReceipt = await approveTx.wait();
       console.log("[REGISTER-TRACE] approve:wait:complete", { txHash: approveTx.hash, status: approveReceipt?.status, durationMs: Date.now()-_approveWaitT0, ts: Date.now() });
     } catch (error) {
+      console.error("[TP-APPROVE] error — full details", {
+        name: (error as any)?.name,
+        message: (error as any)?.message?.slice(0,200),
+        code: (error as any)?.code,
+        reason: (error as any)?.reason,
+        shortMessage: (error as any)?.shortMessage,
+        action: (error as any)?.action,
+        data: (error as any)?.data,
+        transactionHash: (error as any)?.transactionHash,
+        ts: Date.now()
+      });
       console.error("[REGISTER-TRACE] approve:FAILED", { message: (error as any)?.message?.slice(0,100), code: (error as any)?.code, ts: Date.now() });
       console.error("USDT approval failed:", error);
       throw new Error("USDT approval failed or rejected");

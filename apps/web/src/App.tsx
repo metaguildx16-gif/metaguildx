@@ -1009,6 +1009,7 @@ function App() {
     };
     const handleChainChanged = (chainId: unknown) => {
       console.log("[REGISTER-TRACE] WALLET_EVENT chainChanged", { chainId, isLoading, ts: Date.now() });
+      console.log("[TP-EVENT] chainChanged — WILL RELOAD", { chainId, isLoading, ts: Date.now() });
       console.log("[REGISTER-TRACE] PAGE_RELOAD", { reason: "chainChanged", isLoading, timestamp: Date.now() });
       window.location.reload();
     };
@@ -1027,10 +1028,15 @@ function App() {
     }
 
     const timeoutId = window.setTimeout(() => {
+      console.log("[TP-WALLET] wallet_revokePermissions:firing", { screen, ts: Date.now() });
       window.ethereum?.request({
         method: "wallet_revokePermissions",
         params: [{ eth_accounts: {} }]
-      }).catch(() => undefined);
+      }).then(() => {
+        console.log("[TP-WALLET] wallet_revokePermissions:resolved", { ts: Date.now() });
+      }).catch((e: any) => {
+        console.log("[TP-WALLET] wallet_revokePermissions:rejected (unsupported or denied)", { code: e?.code, ts: Date.now() });
+      });
     }, 500);
 
     return () => window.clearTimeout(timeoutId);
