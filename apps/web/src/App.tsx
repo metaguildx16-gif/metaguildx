@@ -1022,19 +1022,29 @@ function App() {
     };
   }, [isAdminRoute, snapshot.walletAddress]);
 
+  // DIAGNOSTIC FLAG: Build B = false (revoke disabled), Build A = true (revoke enabled)
+  const ENABLE_REVOKE_DIAGNOSTIC = false;
+
   useEffect(() => {
     if (screen !== "landing" || !window.ethereum) {
       return;
     }
 
     const timeoutId = window.setTimeout(() => {
+      if (!ENABLE_REVOKE_DIAGNOSTIC) {
+        console.log("[TP-REVOKE-TEST] enabled=false skipped", { screen, ts: Date.now() });
+        return;
+      }
+      console.log("[TP-REVOKE-TEST] enabled=true firing", { screen, ts: Date.now() });
       console.log("[TP-WALLET] wallet_revokePermissions:firing", { screen, ts: Date.now() });
       window.ethereum?.request({
         method: "wallet_revokePermissions",
         params: [{ eth_accounts: {} }]
       }).then(() => {
+        console.log("[TP-REVOKE-TEST] resolved", { ts: Date.now() });
         console.log("[TP-WALLET] wallet_revokePermissions:resolved", { ts: Date.now() });
       }).catch((e: any) => {
+        console.log("[TP-REVOKE-TEST] rejected", { code: e?.code, ts: Date.now() });
         console.log("[TP-WALLET] wallet_revokePermissions:rejected (unsupported or denied)", { code: e?.code, ts: Date.now() });
       });
     }, 500);
