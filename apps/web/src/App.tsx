@@ -983,11 +983,11 @@ function App() {
         : "";
       const currentAccount = (snapshot.walletAddress ?? localStorage.getItem(WALLET_STORAGE_KEY) ?? "").toLowerCase();
       console.log("[REGISTER-TRACE] WALLET_EVENT accountsChanged", { accounts, nextAccount, currentAccount, isLoading, ts: Date.now() });
-      if (nextAccount && nextAccount !== currentAccount) {
-        // Guard: only reload on ACTUAL account switch, not on temporary empty emission
-        // TokenPocket emits accountsChanged([]) when opening tx popup — must not reload
-        // Phase 1: Clear previous userId-keyed caches before reload
-        // Prevents localStorage accumulation across account switches
+      // Guard 1: nextAccount must be non-empty (TokenPocket emits [] during tx popup)
+      // Guard 2: currentAccount must be non-empty (initial connect — not a wallet switch)
+      // Guard 3: addresses must actually differ (not the same wallet re-emitting)
+      if (nextAccount && currentAccount && nextAccount !== currentAccount) {
+        // Genuine wallet switch — clear old session and reload
         const prevUserId = snapshot.userId;
         if (prevUserId && typeof window !== "undefined") {
           const ns = (window as any).__MGX_CACHE_NS__ ?? "";
@@ -1009,11 +1009,25 @@ function App() {
         clearWalletSession();
         console.log("[REGISTER-TRACE] PAGE_RELOAD", { reason: "accountsChanged:walletSwitch", nextAccount, currentAccount, isLoading, timestamp: Date.now() });
         window.location.reload();
+      } else if (nextAccount && !currentAccount) {
+        console.log("[TP-RELOAD-BLOCKED] accountsChanged:initial-connect — not reloading (no previous account)", { nextAccount, ts: Date.now() });
+      } else if (!nextAccount) {
+        console.log("[TP-RELOAD-BLOCKED] accountsChanged:empty — not reloading (transient TP event)", { ts: Date.now() });
+      } else if (nextAccount === currentAccount) {
+        console.log("[TP-RELOAD-BLOCKED] accountsChanged:same-account — not reloading", { nextAccount, ts: Date.now() });
       }
     };
     const handleChainChanged = (chainId: unknown) => {
       console.log("[REGISTER-TRACE] WALLET_EVENT chainChanged", { chainId, isLoading, ts: Date.now() });
-      console.log("[TP-EVENT] chainChanged — WILL RELOAD", { chainId, isLoading, ts: Date.now() });
+      // Guard: only reload on genuine wrong-network — skip if already on expected chain
+      // Prevents reload loop when TokenPocket emits chainChanged during normal connection
+      const expectedChainHex = "0x" + (204).toString(16); // opBNB mainnet
+      const incomingChain = typeof chainId === "string" ? chainId.toLowerCase() : "";
+      if (incomingChain && incomingChain === expectedChainHex.toLowerCase()) {
+        console.log("[TP-RELOAD-BLOCKED] chainChanged:already-on-expected-chain — not reloading", { chainId, expected: expectedChainHex, ts: Date.now() });
+        return;
+      }
+      console.log("[TP-EVENT] chainChanged — WILL RELOAD", { chainId, expected: expectedChainHex, ts: Date.now() });
       console.log("[REGISTER-TRACE] PAGE_RELOAD", { reason: "chainChanged", isLoading, timestamp: Date.now() });
       window.location.reload();
     };
