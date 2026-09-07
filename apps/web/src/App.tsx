@@ -779,9 +779,13 @@ function App() {
     return () => window.clearInterval(intervalId);
   }, [isLoading, loadStartedAt]);
 
+  // Startup diagnostics — run once on initial load only (not on every snapshot change)
+  const _startupDiagRan = useRef(false);
   useEffect(() => {
+    if (_startupDiagRan.current) return;
+    _startupDiagRan.current = true;
     void refreshStartupDiagnostics(Boolean(snapshot.walletAddress), snapshot.userId ?? null);
-  }, [snapshot.walletAddress, snapshot.userId]);
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -2674,12 +2678,7 @@ function App() {
   const packageOneBucketEarnings = parseDisplayNumber(snapshot.packageOneBucketEarnings);
   const currentPackageEscrow = parseDisplayNumber(snapshot.currentPackageEscrow);
   const pkg1UnitsToRebirth = Math.max(((snapshot.packagePrices?.[0] ?? 10) * 5) - packageOneBucketEarnings, 0);
-  _renderCount.current += 1;
-  const _rc = _renderCount.current;
-  const _lvlTotal = levelBreakdown.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-  const _boxPkgs = Object.keys(snapshot.boxEarningsByPackage??{}).length;
-  const _boxTotal = Object.values(snapshot.boxEarningsByPackage??{}).reduce((s,v)=>s+(parseFloat(v as string)||0),0);
-  console.log(`[RENDER] #${_rc} ts=${Date.now()} levelRows=${levelBreakdown.length} levelTotal=${_lvlTotal.toFixed(2)} boxPkgs=${_boxPkgs} boxTotal=${_boxTotal.toFixed(2)} scanComplete=${boxEarningsScanComplete}`);
+  // [RENDER] log removed — was firing on every render and flooding console
 
   const boxEarningsDisplay = (() => {
     const result: Record<number, string> = { ...(snapshot.boxEarningsByPackage ?? {}) };
