@@ -328,7 +328,7 @@ export function RegisterPage(props: DashboardPageProps) {
         <p style={{ fontSize: "13px", color: "#8899BB", marginBottom: "20px" }}>
           Registration steps & rules
         </p>
-        {isLoading && regStep > 0 ? (
+        {((isLoading && regStep > 0) || regStep === 4) ? (
           <div style={{ marginBottom: "20px" }}>
             {[
               { step: 1, label: "Approve USDT", icon: "✅" },
