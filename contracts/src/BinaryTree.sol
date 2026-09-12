@@ -204,6 +204,11 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function handleSurrender(uint256 userId) external {
         require(msg.sender == coreContract, "Only core contract");
         _handleSurrenderPlacement(userId);
+        // Clear Level Tree so surrendered user cannot receive future level income.
+        isLevelEligible[userId] = false;
+        delete levelChildren[userId];
+        levelParent[userId] = 0;
+        levelEligibleAt[userId] = 0;
     }
 
     function removeNode(uint256 userId) external {
@@ -351,7 +356,7 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _refreshDepths(uint256 userId, uint256 depthValue, uint8 iterations) internal {
-        if (userId == 0 || iterations >= 20) {
+        if (userId == 0 || iterations > 20) {
             return;
         }
 

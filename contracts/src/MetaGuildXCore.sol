@@ -526,13 +526,33 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
 
         uint256 mgx = tokenAllocationsByUser[userId];
         if (mgx > 0) {
-            futurePool += mgx;
+            // Physical MGX reclaim: user must own and have approved the allocation amount.
+            // If either check fails, the entire surrender reverts — no partial state.
+            require(
+                mgxTokenAddress != address(0),
+                "MGX token not configured"
+            );
+            require(
+                IERC20(mgxTokenAddress).balanceOf(user.account) >= mgx,
+                "Insufficient MGX balance for surrender"
+            );
+            require(
+                IERC20(mgxTokenAddress).allowance(user.account, address(this)) >= mgx,
+                "Insufficient MGX allowance for surrender"
+            );
+            // Transfer MGX from user wallet back to Core before any state mutation.
+            _safeTransferFromExact(mgxTokenAddress, user.account, address(this), mgx, "MGX_RECLAIM_FAILED");
+            // Zero Core allocation accounting only after successful transfer.
             tokenAllocationsByUser[userId] = 0;
+            // Sync TokenEngine allocation (does not touch lifetime totals or box accounting).
+            IMetaGuildXTokenEngine(tokenEngineContract).reclaimTokenAllocation(userId);
+            // futurePool is intentionally not incremented: MGX is physically held by Core.
         }
 
         if (binaryTreeContract != address(0)) {
             IMetaGuildXBinaryTree(binaryTreeContract).handleSurrender(userId);
         }
+        user.surrendered = true;
         ICashbackPool(cashbackPoolContract).surrenderForCashback(msg.sender, userId);
     }
 

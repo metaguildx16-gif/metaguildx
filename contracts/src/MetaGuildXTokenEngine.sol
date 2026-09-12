@@ -143,6 +143,15 @@ contract MetaGuildXTokenEngine is
         return (allocatedTokens, appliedBoxId);
     }
 
+    function reclaimTokenAllocation(uint256 userId) external onlyCore {
+        uint256 amount = tokenAllocationsByUser[userId];
+        if (amount == 0) return;
+        tokenAllocationsByUser[userId] = 0;
+        activeBoxByUser[userId] = 0;
+        // totalTokenDistributed and distributedTokensByBox are lifetime cumulative counters
+        // and must NOT be decremented on surrender.
+    }
+
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     uint256[50] private __gap;

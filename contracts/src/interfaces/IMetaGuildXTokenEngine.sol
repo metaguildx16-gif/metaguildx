@@ -10,4 +10,5 @@ interface IMetaGuildXTokenEngine {
     function getTokenAllocation(uint256 userId) external view returns (uint256);
     function getActiveBox(uint256 userId) external view returns (uint8);
     function totalTokenDistributed() external view returns (uint256);
+    function reclaimTokenAllocation(uint256 userId) external;
 }
