@@ -3366,6 +3366,24 @@ function App() {
     }
   }
 
+  async function handleSurrenderForCashback() {
+    if (!snapshot.userId || snapshot.isSurrendered) return;
+    try {
+      setIsLoading(true);
+      setStatus("Processing surrender transaction. Please confirm in your wallet...");
+      await metaguildx.surrenderForCashback(snapshot.userId);
+      const nextSnapshot = await refreshPostTransactionSnapshot(snapshot.walletAddress);
+      setSnapshot((prev) => mergeSnapshotPreservingDeferredAnalytics(prev, nextSnapshot));
+      setStatus("Surrender complete. You are now eligible to claim cashback rewards.");
+      setActionFeedback({ title: "Surrender Complete", detail: "Your ID has been surrendered. Claim cashback from the Cashback page." });
+    } catch (error) {
+      setStatus(getFriendlyErrorMessage(error));
+      setActionFeedback(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function handleRefreshRewards() {
     setIsLoading(true);
     setStatus("Refreshing wallet and staking data...");
@@ -4770,6 +4788,7 @@ function App() {
       handleLogout,
       handleRefreshRewards,
       handleRefreshSection,
+      handleSurrenderForCashback,
       handleShareReferralLink,
       hasClaimableReward,
       hasWithdrawableStake,
@@ -5047,6 +5066,7 @@ function App() {
                 { key: "upgrade",   icon: "⬆️", label: "Upgrade" },
                 { key: "rebirth",   icon: "♻️", label: "Rebirth" },
                 { key: "wallet",    icon: "👛", label: "Wallet" },
+                { key: "cashback",  icon: "🏦", label: "Cashback" },
               ].map(item => (
                 <button
                   key={item.key}

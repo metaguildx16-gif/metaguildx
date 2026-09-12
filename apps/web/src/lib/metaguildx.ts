@@ -1526,7 +1526,14 @@ async function buildMinimalRegisteredSnapshot(
     incomeDistributionPending: false,
     incomeDistributionPendingPackageLevel: null,
     isSurrendered: Boolean(input.profile.surrendered),
-    surrenderStatus: input.profile.surrendered ? "ID surrendered" : "Available after 3 months"
+    surrenderStatus: (() => {
+      if (input.profile.surrendered) return "ID surrendered";
+      const jAt = Number(input.profile.joinedAt) * 1000;
+      const now = Date.now();
+      const openAt = jAt + 90 * 24 * 60 * 60 * 1000;
+      const closeAt = jAt + 180 * 24 * 60 * 60 * 1000;
+      return now < openAt ? "Available after 3 months" : now > closeAt ? "Surrender window expired" : "Available now";
+    })()
   } satisfies DashboardSnapshot;
 }
 

@@ -122,6 +122,7 @@ export function CashbackPage(props: DashboardPageProps) {
     setWalletSubView,
     shortWalletAddress,
     showDashboardSkeleton,
+    handleSurrenderForCashback,
     snapshot,
     spilloverIncomeDisplay,
     stakeableMgxAllocated,
@@ -185,10 +186,10 @@ export function CashbackPage(props: DashboardPageProps) {
         </div>
         <button
           type="button"
-          title="Available after mainnet launch"
-          disabled
+          disabled={snapshot.surrenderStatus !== "Available now" || isLoading}
+          onClick={() => void handleSurrenderForCashback()}
         >
-          Surrender
+          {isLoading ? "Processing..." : "Surrender"}
         </button>
       </article>
 
@@ -202,8 +203,8 @@ export function CashbackPage(props: DashboardPageProps) {
         </ul>
         <button
           type="button"
-          title="Available after mainnet launch"
           disabled
+          title="Claim Cashback — coming soon"
         >
           Claim Cashback
         </button>
