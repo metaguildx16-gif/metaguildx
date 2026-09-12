@@ -102,6 +102,7 @@ const metaGuildXCoreAbi = [
   "function userIdByAddress(address) view returns (uint256)",
   "function activeUsers(uint256) view returns (bool)",
   "function usersById(uint256) view returns (uint256 id, address account, uint256 sponsorId, uint8 packageLevel, uint8 originalPackageLevel, uint256 totalContribution, uint256 totalEarnings, uint256 directReferrals, uint256 totalTeamBusiness, uint256 rebirthCount, uint256 xCount, uint256 joinedAt, bool surrendered)",
+  "function surrenderForCashback(uint256) external",
   "function treeNodes(uint256) view returns (uint256 userId, uint256 parentId, uint256 leftChildId, uint256 rightChildId, uint8 depth)",
   "function activeBoxByUser(uint256) view returns (uint8)",
   "function distributedTokensByBox(uint8) view returns (uint256)",
@@ -3700,11 +3701,29 @@ export async function claimReward(pendingReward?: string, rewardWindowReady?: bo
 }
 
 export async function surrenderForCashback(userId: number) {
-  const { cashback, address } = await getWriteContracts();
-  if (!cashback) {
-    throw new Error("Cashback contract address not configured");
+  const { core, signer, address } = await getWriteContracts();
+
+  // Read the user's current MGX allocation — this is the exact amount to approve
+  const mgxAllocation = (await core.tokenAllocationsByUser(BigInt(userId))) as bigint;
+
+  // If user has an MGX allocation, ensure Core is approved to reclaim it
+  if (mgxAllocation > 0n) {
+    if (!configuredMgxTokenAddress || configuredMgxTokenAddress === "0x0000000000000000000000000000000000000000") {
+      throw new Error("MGX token address is not configured");
+    }
+    const coreAddress = await core.getAddress();
+    await ensureErc20Approval({
+      tokenAddress: configuredMgxTokenAddress,
+      signer,
+      ownerAddress: address,
+      spenderAddress: coreAddress,
+      requiredRaw: mgxAllocation,
+      assetLabel: "MGX",
+    });
   }
-  const tx = await cashback.surrenderForCashback(address, BigInt(userId));
+
+  // Call Core.surrenderForCashback — Core handles MGX transferFrom + CashbackPool internally
+  const tx = await core.surrenderForCashback(BigInt(userId));
   await tx.wait();
 }
 
