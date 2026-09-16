@@ -46,3 +46,4 @@ contracts/cache-local/
 !*.env.mainnet.example
 *.bak.*
 *.backup.*
+contracts/migration-data/

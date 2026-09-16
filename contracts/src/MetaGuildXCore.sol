@@ -228,6 +228,9 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     event DistributionFailedReason(uint256 indexed userId, bytes reason);
     event DistributionRetried(uint256 indexed userId, bool success);
     event WalletMigrated(uint256 indexed userId, address indexed oldWallet, address indexed newWallet);
+    event QualifyingIncomePaid(uint256 indexed userId, uint256 amount, address indexed paymentAsset, address indexed caller);
+    event HistoricalIncomeInitialized(uint256 indexed userId, uint256 historicalAmount, uint256 resultingLifetimeIncome);
+    event MigrationFinalized(uint256 timestamp);
 
     modifier onlyIncomeEngine() {
         if (msg.sender != incomeEngineContract) revert OnlyIncomeEngine();
@@ -362,7 +365,37 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         }
         address wallet = usersById[userId].account;
         if (wallet == address(0)) revert UserNotFound(userId);
+        // Track qualifying income for net surrender cap.
+        // CashbackPool payouts are excluded — they are post-surrender distributions,
+        // not project income. Crossline never reaches here (swept to creator).
+        if (msg.sender != cashbackPoolContract) {
+            totalLifetimeQualifyingIncome[userId] += amount;
+            emit QualifyingIncomePaid(userId, amount, paymentAsset, msg.sender);
+        }
         _payoutSettlement(wallet, paymentAsset, _platformToSettlement(paymentAsset, amount));
+    }
+
+    function adminInitHistoricalIncome(
+        uint256[] calldata userIds,
+        uint256[] calldata amounts
+    ) external onlyOwner {
+        require(!migrationFinalized, "Migration already finalized");
+        require(userIds.length == amounts.length, "Array length mismatch");
+        for (uint256 i = 0; i < userIds.length; i++) {
+            uint256 userId = userIds[i];
+            uint256 amount = amounts[i];
+            require(userId != 0 && usersById[userId].joinedAt != 0, "Invalid userId");
+            require(!historicalIncomeInitialized[userId], "Already initialized");
+            historicalIncomeInitialized[userId] = true;
+            totalLifetimeQualifyingIncome[userId] += amount;
+            emit HistoricalIncomeInitialized(userId, amount, totalLifetimeQualifyingIncome[userId]);
+        }
+    }
+
+    function finalizeMigration() external onlyOwner {
+        require(!migrationFinalized, "Already finalized");
+        migrationFinalized = true;
+        emit MigrationFinalized(block.timestamp);
     }
 
     function routeCreatorFallbackIncome(
@@ -1183,6 +1216,10 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     address public adminAddress;
     mapping(uint256 => uint256) public rebirthOriginalUserId;
     mapping(uint256 => uint8) public failedDistributionPackageLevel;
-    uint256[31] private __gap;
+    // Net-surrender accounting — appended storage (slots 42-44)
+    mapping(uint256 => uint256) public totalLifetimeQualifyingIncome;
+    mapping(uint256 => bool)    public historicalIncomeInitialized;
+    bool                        public migrationFinalized;
+    uint256[28] private __gap;
 }
 

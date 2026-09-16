@@ -35,6 +35,8 @@ interface ISystemCashbackCore {
         uint256 userId,
         address paymentAsset
     ) external returns (uint256 platformAmount, uint256 settlementAmount);
+    function totalLifetimeQualifyingIncome(uint256 userId) external view returns (uint256);
+    function migrationFinalized() external view returns (bool);
 }
 
 contract CashbackPool is Initializable, UUPSUpgradeable, OwnableUpgradeable, MetaGuildReentrancyGuardUpgradeable {
@@ -221,7 +223,10 @@ contract CashbackPool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Met
         (, address account, , , , uint256 investedAmount, , , , , , , ) = core.usersById(userId);
         require(account != address(0), "User not found");
         require(account == caller, "Not your account");
-        require(cashbackClaimed[userId] < investedAmount, "Max cashback reached");
+        require(core.migrationFinalized(), "Migration not finalized");
+        uint256 lifetimeIncome = core.totalLifetimeQualifyingIncome(userId);
+        uint256 netEntitlement = lifetimeIncome >= investedAmount ? 0 : investedAmount - lifetimeIncome;
+        require(cashbackClaimed[userId] < netEntitlement, "Max cashback reached");
 
         address _asset = core.defaultPaymentAsset();
         bool productionMode = core.productionMode();
@@ -239,7 +244,7 @@ contract CashbackPool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Met
         require(platformAmount > 0, "No cashback");
 
         uint256 claimed = cashbackClaimed[userId];
-        uint256 remaining = investedAmount - claimed;
+        uint256 remaining = claimed >= netEntitlement ? 0 : netEntitlement - claimed;
         require(remaining > 0, "Max cashback reached");
         if (platformAmount > remaining) {
             platformAmount = remaining;
