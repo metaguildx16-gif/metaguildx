@@ -10,6 +10,9 @@ import "./interfaces/IMetaGuildXTokenEngine.sol";
 import {MetaGuildXRebirthLib} from "./MetaGuildXRebirthLib.sol";
 import {MetaGuildXUpgradeFlowLib} from "./MetaGuildXUpgradeFlowLib.sol";
 import {MetaGuildXAdminLib} from "./MetaGuildXAdminLib.sol";
+import {MetaGuildXAdminDistributionLib} from "./MetaGuildXAdminDistributionLib.sol";
+import {MetaGuildXSurrenderLib} from "./MetaGuildXSurrenderLib.sol";
+import {MetaGuildXCoreLib} from "./MetaGuildXCoreLib.sol";
 import "./libs/MetaGuildXPaymentLib.sol";
 import "./libs/MetaGuildXPlacementLib.sol";
 import "./libraries/MGXTypes.sol";
@@ -149,6 +152,9 @@ error InvalidAddress();
 error ZeroAmount();
 error InsufficientBalance();
 error LengthMismatch();
+error ZeroAddress();
+error AssetNotEnabled();
+error SignatureExpired();
 error NoTree();
 error InsufficientCoreBalance();
 error UpgradeOnlyToNextLevel();
@@ -292,7 +298,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         if (userIdByAddress[msg.sender] != 0) revert AlreadyRegistered();
         if (placementSigner == address(0)) revert PlacementSignerNotSet();
         if (nonce != nonces[msg.sender]) revert InvalidNonce();
-        if (deadline != 0 && block.timestamp > deadline) revert("Signature expired");
+        if (deadline != 0 && block.timestamp > deadline) revert SignatureExpired();
         _verifyPlacementSignature(msg.sender, sponsorId, placementParentId, isLeft, nonce, deadline, signature);
 
         if (nextUserId == 1) {
@@ -548,45 +554,12 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function surrenderForCashback(uint256 userId) external nonReentrant whenNotPaused {
-        MGXTypes.UserProfile storage user = usersById[userId];
-        if (user.account != msg.sender) revert NotOwnerOfUser();
-
-        uint256 joinedAt = user.joinedAt;
-        uint256 currentTime = block.timestamp;
-
-        if (currentTime < joinedAt + 90 days) revert NotYetAvailable();
-        if (currentTime > joinedAt + 180 days) revert WindowExpired();
-
-        uint256 mgx = tokenAllocationsByUser[userId];
-        if (mgx > 0) {
-            // Physical MGX reclaim: user must own and have approved the allocation amount.
-            // If either check fails, the entire surrender reverts — no partial state.
-            require(
-                mgxTokenAddress != address(0),
-                "MGX token not configured"
-            );
-            require(
-                IERC20(mgxTokenAddress).balanceOf(user.account) >= mgx,
-                "Insufficient MGX balance for surrender"
-            );
-            require(
-                IERC20(mgxTokenAddress).allowance(user.account, address(this)) >= mgx,
-                "Insufficient MGX allowance for surrender"
-            );
-            // Transfer MGX from user wallet back to Core before any state mutation.
-            _safeTransferFromExact(mgxTokenAddress, user.account, address(this), mgx, "MGX_RECLAIM_FAILED");
-            // Zero Core allocation accounting only after successful transfer.
-            tokenAllocationsByUser[userId] = 0;
-            // Sync TokenEngine allocation (does not touch lifetime totals or box accounting).
-            IMetaGuildXTokenEngine(tokenEngineContract).reclaimTokenAllocation(userId);
-            // futurePool is intentionally not incremented: MGX is physically held by Core.
-        }
-
-        if (binaryTreeContract != address(0)) {
-            IMetaGuildXBinaryTree(binaryTreeContract).handleSurrender(userId);
-        }
-        user.surrendered = true;
-        ICashbackPool(cashbackPoolContract).surrenderForCashback(msg.sender, userId);
+        MetaGuildXSurrenderLib.surrenderForCashback(
+            usersById, tokenAllocationsByUser,
+            mgxTokenAddress, tokenEngineContract,
+            binaryTreeContract, cashbackPoolContract,
+            msg.sender, userId
+        );
     }
 
     function claimCashback(uint256 userId) external whenNotPaused {
@@ -637,7 +610,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function setBinaryTreeContract(address target) external onlyOwner {
-        require(target != address(0), "Zero address");
+        if (target == address(0)) revert ZeroAddress();
         _validateContract(target);
         binaryTreeContract = target;
     }
@@ -655,19 +628,19 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function setIncomeRouterContract(address target) external onlyOwner {
-        require(target != address(0), "Zero address");
+        if (target == address(0)) revert ZeroAddress();
         _validateContract(target);
         incomeRouterContract = target;
     }
 
     function setIncomeEngineContract(address target) external onlyOwner {
-        require(target != address(0), "Zero address");
+        if (target == address(0)) revert ZeroAddress();
         _validateContract(target);
         incomeEngineContract = target;
     }
 
     function setUpgradeEngineContract(address target) external onlyOwner {
-        require(target != address(0), "Zero address");
+        if (target == address(0)) revert ZeroAddress();
         _validateContract(target);
         upgradeEngineContract = target;
     }
@@ -683,7 +656,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function setTokenEngineContract(address target) external onlyOwner {
-        require(target != address(0), "Zero address");
+        if (target == address(0)) revert ZeroAddress();
         _validateContract(target);
         tokenEngineContract = target;
     }
@@ -712,7 +685,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function setStakingContract(address target) external onlyOwner {
-        require(target != address(0), "Zero address");
+        if (target == address(0)) revert ZeroAddress();
         stakingContract = target;
     }
 
@@ -728,8 +701,8 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
 
     function setProductionMode(bool enabled, address paymentAsset) external onlyOwner {
         if (enabled) {
-            require(paymentAsset != address(0), "Zero address");
-            require(enabledPaymentAssets[paymentAsset], "Asset not enabled");
+            if (paymentAsset == address(0)) revert ZeroAddress();
+            if (!enabledPaymentAssets[paymentAsset]) revert AssetNotEnabled();
         }
         productionMode = enabled;
         defaultPaymentAsset = paymentAsset;
@@ -754,32 +727,24 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         uint256[] calldata userIds,
         uint256[] calldata sponsorIds
     ) external onlyOwner {
-        revert("Removed: migration only");
+        revert();
     }
 
 
     function adminForceDistributeJoinIncome(uint256 userId) external onlyOwnerOrAdmin {
-        MGXTypes.UserProfile storage profile = usersById[userId];
-        if (profile.id == 0) revert UserNotFound(userId);
-        uint256 packageAmount = this.getPackagePriceByLevel(profile.packageLevel);
-        uint256 placedUnderId = binaryTreeContract != address(0)
-            ? IMetaGuildXBinaryTree(binaryTreeContract).getParent(userId) : 0;
-        uint256 originalUserId = profile.rebirthCount > 0 ? rebirthOriginalUserId[userId] : 0;
-        try IMetaGuildXRouter(incomeRouterContract).distributeJoinIncome(
-            userId,
-            profile.sponsorId,
-            placedUnderId,
-            packageAmount,
-            defaultPaymentAsset,
-            originalUserId
-        ) {
-            failedDistribution[userId] = false;
-            _distributeCashbackAndCreator(packageAmount, defaultPaymentAsset);
-            emit DistributionRetried(userId, true);
-        } catch (bytes memory reason) {
-            emit DistributionRetried(userId, false);
-            emit DistributionFailedReason(userId, reason);
-        }
+        MetaGuildXAdminDistributionLib.adminForceDistributeJoinIncome(
+            usersById, rebirthOriginalUserId, failedDistribution,
+            packagePricesArray, paymentAssetUnitPrice, nativePaymentAssets,
+            MetaGuildXAdminDistributionLib.DistConfig({
+                incomeRouterContract:  incomeRouterContract,
+                binaryTreeContract:    binaryTreeContract,
+                cashbackPoolContract:  cashbackPoolContract,
+                creatorFeeWallet:      creatorFeeWallet,
+                defaultPaymentAsset:   defaultPaymentAsset,
+                productionMode:        productionMode
+            }),
+            userId
+        );
     }
     function adminRetryDistribution(uint256 userId) external onlyOwnerOrAdmin {
         MetaGuildXRebirthLib.adminRetryDistribution(
@@ -804,29 +769,10 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     // level is already above the original failed package level. Does not touch
     // level income, binary tree, MGX distribution, or any other live flow.
     function adminForceResolveFailedDistribution(uint256 userId) external onlyOwnerOrAdmin {
-        if (!failedDistribution[userId]) revert NotFailedDistribution(userId);
-
-        MGXTypes.UserProfile storage profile = usersById[userId];
-        if (profile.id == 0) revert UserNotFound(userId);
-
-        uint8 origLevel = profile.originalPackageLevel;
-        uint256 packageAmount = this.getPackagePriceByLevel(origLevel);
-
-        address paymentAsset = userPrimaryAsset[userId];
-        if (paymentAsset == address(0)) paymentAsset = defaultPaymentAsset;
-
-        uint256 directIncome = (packageAmount * 4600) / 10000;
-
-        IMetaGuildXRouter(incomeRouterContract).adminDirectPayout(
-            userId,
-            profile.sponsorId,
-            directIncome,
-            paymentAsset,
-            origLevel
+        MetaGuildXAdminDistributionLib.adminForceResolveFailedDistribution(
+            usersById, failedDistribution, userPrimaryAsset,
+            packagePricesArray, incomeRouterContract, defaultPaymentAsset, userId
         );
-
-        failedDistribution[userId] = false;
-        emit DistributionRetried(userId, true);
     }
 
     // Admin-only scoped fix path: distributes the remainder (level income,
@@ -836,28 +782,9 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     // registration flow uses, so X-slot/escrow/rebirth eligibility checks run
     // unmodified - any rebirth that should naturally trigger still triggers.
     function adminRemainderDistribution(uint256 userId) external onlyOwnerOrAdmin {
-        MGXTypes.UserProfile storage profile = usersById[userId];
-        if (profile.id == 0) revert UserNotFound(userId);
-
-        uint8 origLevel = profile.originalPackageLevel;
-        uint256 packageAmount = this.getPackagePriceByLevel(origLevel);
-
-        address paymentAsset = userPrimaryAsset[userId];
-        if (paymentAsset == address(0)) paymentAsset = defaultPaymentAsset;
-
-        uint256 placedUnderId = 0;
-        if (binaryTreeContract != address(0)) {
-            placedUnderId = IMetaGuildXBinaryTree(binaryTreeContract).getParent(userId);
-        }
-
-        IMetaGuildXRouter(incomeRouterContract).adminRemainderDistribution(
-            userId,
-            profile.sponsorId,
-            placedUnderId,
-            origLevel,
-            packageAmount,
-            paymentAsset,
-            0
+        MetaGuildXAdminDistributionLib.adminRemainderDistribution(
+            usersById, packagePricesArray, userPrimaryAsset,
+            incomeRouterContract, binaryTreeContract, defaultPaymentAsset, userId
         );
     }
 
@@ -890,7 +817,7 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function setPackagePrices(uint256[] calldata prices) external onlyOwner {
-        require(prices.length == packagePricesArray.length, "Length mismatch");
+        if (prices.length != packagePricesArray.length) revert LengthMismatch();
         for (uint256 i = 0; i < prices.length; i++) {
             packagePricesArray[i] = prices[i];
         }
@@ -1019,32 +946,11 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
     }
 
     function _distributeCashbackAndCreator(uint256 packageAmount, address paymentAsset) internal {
-        uint256 cashbackPlatformShare = (packageAmount * CASHBACK_JOIN_SHARE_BPS) / 10_000;
-        uint256 cashbackSettlementShare = paymentAsset == address(0)
-            ? 0
-            : (_platformToSettlement(paymentAsset, packageAmount) * CASHBACK_JOIN_SHARE_BPS) / 10_000;
-
-        if (
-            cashbackPoolContract != address(0) &&
-            IMetaGuildXCashbackPool(cashbackPoolContract).totalSurrenderedUsers() > 0
-        ) {
-            IMetaGuildXCashbackPool(cashbackPoolContract).notifyCashbackAccrued(
-                packageAmount,
-                paymentAsset,
-                cashbackSettlementShare
-            );
-            // Distribute accumulated pool to surrendered users immediately
-            if (paymentAsset != address(0)) {
-                IMetaGuildXCashbackPool(cashbackPoolContract).distribute(
-                    paymentAsset,
-                    productionMode
-                );
-            }
-        } else {
-            _payoutCreatorAmount(cashbackPlatformShare, paymentAsset, creatorFeeWallet, 10_000);
-        }
-
-        _payoutCreatorAmount(packageAmount, paymentAsset, creatorFeeWallet, CREATOR_SHARE_BPS);
+        MetaGuildXCoreLib.distributeCashbackAndCreator(
+            packageAmount, paymentAsset,
+            cashbackPoolContract, creatorFeeWallet,
+            paymentAssetUnitPrice, nativePaymentAssets, productionMode
+        );
     }
 
     function _placeInSpecifiedSlot(uint256 userId, uint256 sponsorId) internal returns (uint256 placedUnderId, bool actualPlacedLeft) {
@@ -1113,23 +1019,11 @@ contract MetaGuildXCore is Initializable, UUPSUpgradeable, OwnableUpgradeable, P
         address recipient,
         uint256 bps
     ) internal {
-        if (paymentAsset == address(0) || platformAmount == 0) {
-            return;
-        }
-
         address payoutRecipient = recipient == address(0) ? creatorFeeWallet : recipient;
-        MetaGuildXPaymentLib.payoutCreatorAmount(
-            paymentAsset,
-            nativePaymentAssets[paymentAsset],
-            paymentAssetUnitPrice[paymentAsset],
-            platformAmount,
-            payoutRecipient,
-            bps
+        MetaGuildXCoreLib.payoutCreatorAmount(
+            platformAmount, paymentAsset, payoutRecipient, bps,
+            paymentAssetUnitPrice, nativePaymentAssets
         );
-        uint256 settlementAmount = (_platformToSettlement(paymentAsset, platformAmount) * bps) / 10_000;
-        if (settlementAmount > 0) {
-            emit PaymentWithdrawn(payoutRecipient, paymentAsset, 0, settlementAmount);
-        }
     }
 
     function _validatePaymentAsset(address paymentAsset) internal view {

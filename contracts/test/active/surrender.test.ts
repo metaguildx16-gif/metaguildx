@@ -25,12 +25,27 @@ describe("Surrender — MGX Reclaim + Refund", function () {
       }
     })).deploy();
     await upgradeLib.waitForDeployment();
+    const adminDistLib = await (await ethers.getContractFactory("MetaGuildXAdminDistributionLib", {
+      libraries: { "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib": await payLib.getAddress() }
+    })).deploy();
+    await adminDistLib.waitForDeployment();
+    const surrenderLib = await (await ethers.getContractFactory("MetaGuildXSurrenderLib", {
+      libraries: { "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib": await payLib.getAddress() }
+    })).deploy();
+    await surrenderLib.waitForDeployment();
+    const coreLib = await (await ethers.getContractFactory("MetaGuildXCoreLib", {
+      libraries: { "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib": await payLib.getAddress() }
+    })).deploy();
+    await coreLib.waitForDeployment();
     return {
-      "src/MetaGuildXAdminLib.sol:MetaGuildXAdminLib":             await adminLib.getAddress(),
-      "src/MetaGuildXRebirthLib.sol:MetaGuildXRebirthLib":         await rebirthLib.getAddress(),
-      "src/MetaGuildXUpgradeFlowLib.sol:MetaGuildXUpgradeFlowLib": await upgradeLib.getAddress(),
-      "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib":     await payLib.getAddress(),
-      "src/libs/MetaGuildXPlacementLib.sol:MetaGuildXPlacementLib": await placeLib.getAddress(),
+      "src/MetaGuildXAdminLib.sol:MetaGuildXAdminLib":                             await adminLib.getAddress(),
+      "src/MetaGuildXRebirthLib.sol:MetaGuildXRebirthLib":                         await rebirthLib.getAddress(),
+      "src/MetaGuildXUpgradeFlowLib.sol:MetaGuildXUpgradeFlowLib":                 await upgradeLib.getAddress(),
+      "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib":                    await payLib.getAddress(),
+      "src/libs/MetaGuildXPlacementLib.sol:MetaGuildXPlacementLib":                await placeLib.getAddress(),
+      "src/MetaGuildXAdminDistributionLib.sol:MetaGuildXAdminDistributionLib":     await adminDistLib.getAddress(),
+      "src/MetaGuildXSurrenderLib.sol:MetaGuildXSurrenderLib":                     await surrenderLib.getAddress(),
+      "src/MetaGuildXCoreLib.sol:MetaGuildXCoreLib":                               await coreLib.getAddress(),
     };
   }
 
@@ -151,8 +166,16 @@ describe("Surrender — MGX Reclaim + Refund", function () {
       coreAddr, owner.address, owner.address
     )).wait();
 
+    // Get deployed library instances for custom error decoding
+    const CoreFactory = await ethers.getContractFactory("MetaGuildXCore", { libraries });
+    const SurrenderLibFactory = await ethers.getContractFactory("MetaGuildXSurrenderLib", {
+      libraries: { "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib": libraries["src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib"] }
+    });
+    const surrenderLibContract = await SurrenderLibFactory.attach(
+      libraries["src/MetaGuildXSurrenderLib.sol:MetaGuildXSurrenderLib"]
+    );
     return { owner, creator, users, mgxToken, usdt, binaryTree, router,
-             cashback, staking, core, income, upgrade, tokenEngine };
+             cashback, staking, core, income, upgrade, tokenEngine, surrenderLibContract };
   }
 
   // ─── registration helper ──────────────────────────────────────────────────
@@ -296,10 +319,10 @@ describe("Surrender — MGX Reclaim + Refund", function () {
     const coreMgxBefore  = await mgxToken.balanceOf(coreAddr);
     const coreAllocBefore = await core.tokenAllocationsByUser(userId);
 
-    // Must revert
+    // Must revert with InsufficientMgxBalance from SurrenderLib
     await expect(
       core.connect(user).surrenderForCashback(userId)
-    ).to.be.revertedWith("Insufficient MGX balance for surrender");
+    ).to.be.revertedWithCustomError(ctx.surrenderLibContract, "InsufficientMgxBalance");
 
     // Verify NO state changed
     expect(await core.tokenAllocationsByUser(userId)).to.equal(coreAllocBefore, "Core alloc unchanged");
@@ -333,7 +356,7 @@ describe("Surrender — MGX Reclaim + Refund", function () {
 
     await expect(
       core.connect(user).surrenderForCashback(userId)
-    ).to.be.revertedWith("Insufficient MGX allowance for surrender");
+    ).to.be.revertedWithCustomError(ctx.surrenderLibContract, "InsufficientMgxAllowance");
 
     expect(await core.tokenAllocationsByUser(userId)).to.equal(mgxAlloc, "Core alloc unchanged");
     expect(await tokenEngine.tokenAllocationsByUser(userId)).to.equal(mgxAlloc, "TE alloc unchanged");
@@ -364,7 +387,7 @@ describe("Surrender — MGX Reclaim + Refund", function () {
 
     await expect(
       core.connect(user).surrenderForCashback(userId)
-    ).to.be.revertedWith("Insufficient MGX allowance for surrender");
+    ).to.be.revertedWithCustomError(ctx.surrenderLibContract, "InsufficientMgxAllowance");
 
     expect(await core.tokenAllocationsByUser(userId)).to.equal(mgxAlloc);
     expect((await core.usersById(userId)).surrendered).to.equal(false);
@@ -410,7 +433,7 @@ describe("Surrender — MGX Reclaim + Refund", function () {
 
     await expect(
       core.connect(users[0]).surrenderForCashback(userId)
-    ).to.be.revertedWithCustomError(core, "NotYetAvailable");
+    ).to.be.revertedWithCustomError(ctx.surrenderLibContract, "NotYetAvailable");
     console.log("T6 PASS: reverts before 90 days");
   });
 
@@ -431,7 +454,7 @@ describe("Surrender — MGX Reclaim + Refund", function () {
 
     await expect(
       core.connect(users[0]).surrenderForCashback(userId)
-    ).to.be.revertedWithCustomError(core, "WindowExpired");
+    ).to.be.revertedWithCustomError(ctx.surrenderLibContract, "WindowExpired");
     console.log("T7 PASS: reverts after 180 days");
   });
 

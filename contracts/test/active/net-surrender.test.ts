@@ -19,12 +19,27 @@ describe("Net Surrender — Lifetime Income Cap", function () {
       }
     })).deploy();
     await upgradeLib.waitForDeployment();
+    const adminDistLib = await (await ethers.getContractFactory("MetaGuildXAdminDistributionLib", {
+      libraries: { "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib": await payLib.getAddress() }
+    })).deploy();
+    await adminDistLib.waitForDeployment();
+    const surrenderLib = await (await ethers.getContractFactory("MetaGuildXSurrenderLib", {
+      libraries: { "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib": await payLib.getAddress() }
+    })).deploy();
+    await surrenderLib.waitForDeployment();
+    const coreLib = await (await ethers.getContractFactory("MetaGuildXCoreLib", {
+      libraries: { "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib": await payLib.getAddress() }
+    })).deploy();
+    await coreLib.waitForDeployment();
     return {
-      "src/MetaGuildXAdminLib.sol:MetaGuildXAdminLib":             await adminLib.getAddress(),
-      "src/MetaGuildXRebirthLib.sol:MetaGuildXRebirthLib":         await rebirthLib.getAddress(),
-      "src/MetaGuildXUpgradeFlowLib.sol:MetaGuildXUpgradeFlowLib": await upgradeLib.getAddress(),
-      "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib":    await payLib.getAddress(),
-      "src/libs/MetaGuildXPlacementLib.sol:MetaGuildXPlacementLib": await placeLib.getAddress(),
+      "src/MetaGuildXAdminLib.sol:MetaGuildXAdminLib":                             await adminLib.getAddress(),
+      "src/MetaGuildXRebirthLib.sol:MetaGuildXRebirthLib":                         await rebirthLib.getAddress(),
+      "src/MetaGuildXUpgradeFlowLib.sol:MetaGuildXUpgradeFlowLib":                 await upgradeLib.getAddress(),
+      "src/libs/MetaGuildXPaymentLib.sol:MetaGuildXPaymentLib":                    await payLib.getAddress(),
+      "src/libs/MetaGuildXPlacementLib.sol:MetaGuildXPlacementLib":                await placeLib.getAddress(),
+      "src/MetaGuildXAdminDistributionLib.sol:MetaGuildXAdminDistributionLib":     await adminDistLib.getAddress(),
+      "src/MetaGuildXSurrenderLib.sol:MetaGuildXSurrenderLib":                     await surrenderLib.getAddress(),
+      "src/MetaGuildXCoreLib.sol:MetaGuildXCoreLib":                               await coreLib.getAddress(),
     };
   }
 
@@ -264,7 +279,7 @@ describe("Net Surrender — Lifetime Income Cap", function () {
     expect(await (ctx.core as any).totalLifetimeQualifyingIncome(userId)).to.equal(20n);
     await (ctx.core as any).connect(ctx.owner).adminInitHistoricalIncome([userId],[250n]);
     expect(await (ctx.core as any).totalLifetimeQualifyingIncome(userId)).to.equal(270n);
-    console.log("T9 PASS: forward=20 + historical=250 = 270 (additive)");
+    console.log("T9 PASS: forward=20 + historical=250 = 270 (additive) OK");
   });
 
   // ── T10: duplicate historical initialization reverts ──────────────────────
@@ -273,9 +288,10 @@ describe("Net Surrender — Lifetime Income Cap", function () {
     await registerUser(ctx, ctx.owner, 0n);
     const userId = await (ctx.core as any).userIdByAddress(ctx.owner.address);
     await (ctx.core as any).connect(ctx.owner).adminInitHistoricalIncome([userId],[100n]);
+    // Core has historicalIncomeInitialized duplicate protection — string require
     await expect((ctx.core as any).connect(ctx.owner).adminInitHistoricalIncome([userId],[50n]))
       .to.be.revertedWith("Already initialized");
-    console.log("T10 PASS");
+    console.log("T10 PASS: duplicate historical initialization reverts");
   });
 
   // ── T11: duplicate userId in same batch reverts ───────────────────────────
@@ -283,9 +299,10 @@ describe("Net Surrender — Lifetime Income Cap", function () {
     const ctx = await deploySystem();
     await registerUser(ctx, ctx.owner, 0n);
     const userId = await (ctx.core as any).userIdByAddress(ctx.owner.address);
+    // Core has historicalIncomeInitialized — same-batch duplicate reverts (string require)
     await expect((ctx.core as any).connect(ctx.owner).adminInitHistoricalIncome([userId,userId],[100n,50n]))
       .to.be.revertedWith("Already initialized");
-    console.log("T11 PASS");
+    console.log("T11 PASS: same-batch duplicate reverts");
   });
 
   // ── T12: invalid userId reverts ───────────────────────────────────────────
@@ -345,6 +362,7 @@ describe("Net Surrender — Lifetime Income Cap", function () {
     await expect((ctx.core as any).connect(ctx.owner).adminInitHistoricalIncome([userId],[250n]))
       .to.emit(ctx.core,"HistoricalIncomeInitialized")
       .withArgs(userId,250n,250n);
+    expect(await (ctx.core as any).totalLifetimeQualifyingIncome(userId)).to.equal(250n);
     console.log("T17 PASS");
   });
 
@@ -537,8 +555,9 @@ describe("Net Surrender — Lifetime Income Cap", function () {
     await registerUser(ctx, ctx.users[0], userId1);
     const userId2 = await (ctx.core as any).userIdByAddress(ctx.users[0].address);
 
-    // Future user has no historical seed
-    expect(await (ctx.core as any).historicalIncomeInitialized(userId2)).to.equal(false);
+    // Future user has no historical seed — historicalIncomeInitialized[userId2] == false
+    expect(await (ctx.core as any).historicalIncomeInitialized(userId2)).to.equal(false,
+      "Future user has no historical seed");
 
     // Forward tracking works for future user
     const incomeAddr = await ctx.income.getAddress();
@@ -594,17 +613,16 @@ describe("Net Surrender — Lifetime Income Cap", function () {
     await ethers.provider.send("hardhat_stopImpersonatingAccount",[incomeAddr]);
     expect(await (ctx.core as any).totalLifetimeQualifyingIncome(userId)).to.equal(10n);
 
-    // Init with historical = 0 (user had no historical qualifying income)
+    // Init with historical = 0 (user had no qualifying income historically)
     await (ctx.core as any).connect(ctx.owner).adminInitHistoricalIncome([userId],[0n]);
     expect(await (ctx.core as any).historicalIncomeInitialized(userId)).to.equal(true,
       "historicalIncomeInitialized=true even for zero amount");
     expect(await (ctx.core as any).totalLifetimeQualifyingIncome(userId)).to.equal(10n,
       "Forward income preserved — 0 added = still 10");
 
-    // Cannot initialize again
+    // Second call reverts — historicalIncomeInitialized duplicate protection
     await expect((ctx.core as any).connect(ctx.owner).adminInitHistoricalIncome([userId],[0n]))
       .to.be.revertedWith("Already initialized");
-
-    console.log("T25 PASS: zero-income user marked initialized, income unchanged, duplicate rejected");
+    console.log("T25 PASS: zero-income user init, income unchanged, duplicate rejected");
   });
 });
