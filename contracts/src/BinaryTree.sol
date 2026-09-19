@@ -355,8 +355,8 @@ contract BinaryTree is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         }
     }
 
-    function _refreshDepths(uint256 userId, uint256 depthValue, uint8 iterations) internal {
-        if (userId == 0 || iterations > 20) {
+    function _refreshDepths(uint256 userId, uint256 depthValue, uint256 iterations) internal {
+        if (userId == 0 || iterations > maxDepth) {
             return;
         }
 
