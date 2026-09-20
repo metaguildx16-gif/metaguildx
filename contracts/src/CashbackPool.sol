@@ -28,6 +28,8 @@ interface ISystemCashbackCore {
             bool surrendered
         );
     function userPrimaryAsset(uint256 userId) external view returns (address);
+    function totalLifetimeQualifyingIncome(uint256 userId) external view returns (uint256);
+    function migrationFinalized() external view returns (bool);
     function defaultPaymentAsset() external view returns (address);
     function productionMode() external view returns (bool);
     function payoutUserIncome(uint256 userId, uint256 amount, address paymentAsset) external;
@@ -221,11 +223,23 @@ contract CashbackPool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Met
         (, address account, , , , uint256 investedAmount, , , , , , , ) = core.usersById(userId);
         require(account != address(0), "User not found");
         require(account == caller, "Not your account");
-        require(cashbackClaimed[userId] < investedAmount, "Max cashback reached");
 
         address _asset = core.defaultPaymentAsset();
         bool productionMode = core.productionMode();
         require(surrendered[userId], "User not surrendered");
+
+        // V2: net-entitlement cap requires migration to be finalized
+        require(core.migrationFinalized(), "Migration not finalized");
+
+        // Net entitlement = max(invested - lifetimeQualifyingIncome, 0)
+        uint256 lifetimeIncome = core.totalLifetimeQualifyingIncome(userId);
+        uint256 netEntitlement = investedAmount > lifetimeIncome
+            ? investedAmount - lifetimeIncome
+            : 0;
+
+        uint256 claimed = cashbackClaimed[userId];
+        uint256 remaining = netEntitlement > claimed ? netEntitlement - claimed : 0;
+        require(remaining > 0, "Max cashback reached");
 
         uint256 accumulated;
         if (productionMode) {
@@ -238,9 +252,7 @@ contract CashbackPool is Initializable, UUPSUpgradeable, OwnableUpgradeable, Met
         platformAmount = accumulated;
         require(platformAmount > 0, "No cashback");
 
-        uint256 claimed = cashbackClaimed[userId];
-        uint256 remaining = investedAmount - claimed;
-        require(remaining > 0, "Max cashback reached");
+        // Cap at remaining net entitlement
         if (platformAmount > remaining) {
             platformAmount = remaining;
         }
