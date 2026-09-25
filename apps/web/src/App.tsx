@@ -1,3 +1,4 @@
+import { devLog } from "./lib/devLog";
 ﻿import { Contract, JsonRpcProvider, ethers, formatUnits } from "ethers";
 import { Suspense, lazy, startTransition, useEffect, useMemo, useRef, useState } from "react";
 import logoMark from "./assets/mgx logo.png";
@@ -982,7 +983,7 @@ function App() {
         ? accounts[0].toLowerCase()
         : "";
       const currentAccount = (snapshot.walletAddress ?? localStorage.getItem(WALLET_STORAGE_KEY) ?? "").toLowerCase();
-      console.log("[REGISTER-TRACE] WALLET_EVENT accountsChanged", { accounts, nextAccount, currentAccount, isLoading, ts: Date.now() });
+      devLog("[REGISTER-TRACE] WALLET_EVENT accountsChanged", { accounts, nextAccount, currentAccount, isLoading, ts: Date.now() });
       // Guard 1: nextAccount must be non-empty (TokenPocket emits [] during tx popup)
       // Guard 2: currentAccount must be non-empty (initial connect — not a wallet switch)
       // Guard 3: addresses must actually differ (not the same wallet re-emitting)
@@ -1007,28 +1008,28 @@ function App() {
           keysToRemove.forEach(k=>{ try{localStorage.removeItem(k);}catch{} });
         }
         clearWalletSession();
-        console.log("[REGISTER-TRACE] PAGE_RELOAD", { reason: "accountsChanged:walletSwitch", nextAccount, currentAccount, isLoading, timestamp: Date.now() });
+        devLog("[REGISTER-TRACE] PAGE_RELOAD", { reason: "accountsChanged:walletSwitch", nextAccount, currentAccount, isLoading, timestamp: Date.now() });
         window.location.reload();
       } else if (nextAccount && !currentAccount) {
-        console.log("[TP-RELOAD-BLOCKED] accountsChanged:initial-connect — not reloading (no previous account)", { nextAccount, ts: Date.now() });
+        devLog("[TP-RELOAD-BLOCKED] accountsChanged:initial-connect — not reloading (no previous account)", { nextAccount, ts: Date.now() });
       } else if (!nextAccount) {
-        console.log("[TP-RELOAD-BLOCKED] accountsChanged:empty — not reloading (transient TP event)", { ts: Date.now() });
+        devLog("[TP-RELOAD-BLOCKED] accountsChanged:empty — not reloading (transient TP event)", { ts: Date.now() });
       } else if (nextAccount === currentAccount) {
-        console.log("[TP-RELOAD-BLOCKED] accountsChanged:same-account — not reloading", { nextAccount, ts: Date.now() });
+        devLog("[TP-RELOAD-BLOCKED] accountsChanged:same-account — not reloading", { nextAccount, ts: Date.now() });
       }
     };
     const handleChainChanged = (chainId: unknown) => {
-      console.log("[REGISTER-TRACE] WALLET_EVENT chainChanged", { chainId, isLoading, ts: Date.now() });
+      devLog("[REGISTER-TRACE] WALLET_EVENT chainChanged", { chainId, isLoading, ts: Date.now() });
       // Guard: only reload on genuine wrong-network — skip if already on expected chain
       // Prevents reload loop when TokenPocket emits chainChanged during normal connection
       const expectedChainHex = "0x" + (204).toString(16); // opBNB mainnet
       const incomingChain = typeof chainId === "string" ? chainId.toLowerCase() : "";
       if (incomingChain && incomingChain === expectedChainHex.toLowerCase()) {
-        console.log("[TP-RELOAD-BLOCKED] chainChanged:already-on-expected-chain — not reloading", { chainId, expected: expectedChainHex, ts: Date.now() });
+        devLog("[TP-RELOAD-BLOCKED] chainChanged:already-on-expected-chain — not reloading", { chainId, expected: expectedChainHex, ts: Date.now() });
         return;
       }
-      console.log("[TP-EVENT] chainChanged — WILL RELOAD", { chainId, expected: expectedChainHex, ts: Date.now() });
-      console.log("[REGISTER-TRACE] PAGE_RELOAD", { reason: "chainChanged", isLoading, timestamp: Date.now() });
+      devLog("[TP-EVENT] chainChanged — WILL RELOAD", { chainId, expected: expectedChainHex, ts: Date.now() });
+      devLog("[REGISTER-TRACE] PAGE_RELOAD", { reason: "chainChanged", isLoading, timestamp: Date.now() });
       window.location.reload();
     };
 
@@ -1050,20 +1051,20 @@ function App() {
 
     const timeoutId = window.setTimeout(() => {
       if (!ENABLE_REVOKE_DIAGNOSTIC) {
-        console.log("[TP-REVOKE-TEST] enabled=false skipped", { screen, ts: Date.now() });
+        devLog("[TP-REVOKE-TEST] enabled=false skipped", { screen, ts: Date.now() });
         return;
       }
-      console.log("[TP-REVOKE-TEST] enabled=true firing", { screen, ts: Date.now() });
-      console.log("[TP-WALLET] wallet_revokePermissions:firing", { screen, ts: Date.now() });
+      devLog("[TP-REVOKE-TEST] enabled=true firing", { screen, ts: Date.now() });
+      devLog("[TP-WALLET] wallet_revokePermissions:firing", { screen, ts: Date.now() });
       window.ethereum?.request({
         method: "wallet_revokePermissions",
         params: [{ eth_accounts: {} }]
       }).then(() => {
-        console.log("[TP-REVOKE-TEST] resolved", { ts: Date.now() });
-        console.log("[TP-WALLET] wallet_revokePermissions:resolved", { ts: Date.now() });
+        devLog("[TP-REVOKE-TEST] resolved", { ts: Date.now() });
+        devLog("[TP-WALLET] wallet_revokePermissions:resolved", { ts: Date.now() });
       }).catch((e: any) => {
-        console.log("[TP-REVOKE-TEST] rejected", { code: e?.code, ts: Date.now() });
-        console.log("[TP-WALLET] wallet_revokePermissions:rejected (unsupported or denied)", { code: e?.code, ts: Date.now() });
+        devLog("[TP-REVOKE-TEST] rejected", { code: e?.code, ts: Date.now() });
+        devLog("[TP-WALLET] wallet_revokePermissions:rejected (unsupported or denied)", { code: e?.code, ts: Date.now() });
       });
     }, 500);
 
@@ -1618,7 +1619,7 @@ function App() {
 
   useEffect(() => {
     if (!snapshot.userId || snapshot.userId <= 0) {
-      console.log(`[STATE-WRITE] setLevelBreakdown=[] source=userId-invalid ts=${Date.now()}`);
+      devLog(`[STATE-WRITE] setLevelBreakdown=[] source=userId-invalid ts=${Date.now()}`);
       setLevelBreakdown([]);
       return;
     }
@@ -1643,7 +1644,7 @@ function App() {
       const prevTotal = prev.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
       const nextTotal = next.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
       if (!next.length) {
-        console.log(`[LVL-MERGE] src=${_src} next=EMPTY returning prev total=${prevTotal.toFixed(2)}`);
+        devLog(`[LVL-MERGE] src=${_src} next=EMPTY returning prev total=${prevTotal.toFixed(2)}`);
         return prev;
       }
       const prevMap = new Map(prev.map(r=>[r.level,r]));
@@ -1659,7 +1660,7 @@ function App() {
         };
       });
       const mergedTotal = merged.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-      console.log(`[LVL-MERGE] src=${_src} prev=${prevTotal.toFixed(2)} next=${nextTotal.toFixed(2)} merged=${mergedTotal.toFixed(2)} ts=${Date.now()}`);
+      devLog(`[LVL-MERGE] src=${_src} prev=${prevTotal.toFixed(2)} next=${nextTotal.toFixed(2)} merged=${mergedTotal.toFixed(2)} ts=${Date.now()}`);
       return merged;
     }
     metaguildx.loadLevelIncomeBreakdown(
@@ -1673,7 +1674,7 @@ function App() {
           const result = mergeLevelRows(prev, partialRows, "onProgress");
           const prevT = prev.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
           const nextT = result.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-          console.log(`[STATE-WRITE] scanId=${_lvlScanId} setLevelBreakdown source=onProgress ts=${Date.now()} prevTotal=${prevT.toFixed(2)} nextTotal=${nextT.toFixed(2)} isActive=${isActive}`);
+          devLog(`[STATE-WRITE] scanId=${_lvlScanId} setLevelBreakdown source=onProgress ts=${Date.now()} prevTotal=${prevT.toFixed(2)} nextTotal=${nextT.toFixed(2)} isActive=${isActive}`);
           return result;
         });
       }
@@ -1684,7 +1685,7 @@ function App() {
         const result = mergeLevelRows(prev, rows, "scan-complete");
         const prevT = prev.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
         const nextT = result.reduce((s,r)=>s+(parseFloat(r.amount)||0),0);
-        console.log(`[STATE-WRITE] scanId=${_lvlScanId} setLevelBreakdown source=scan-complete ts=${Date.now()} prevTotal=${prevT.toFixed(2)} nextTotal=${nextT.toFixed(2)} isActive=${isActive}`);
+        devLog(`[STATE-WRITE] scanId=${_lvlScanId} setLevelBreakdown source=scan-complete ts=${Date.now()} prevTotal=${prevT.toFixed(2)} nextTotal=${nextT.toFixed(2)} isActive=${isActive}`);
         return result;
       });
     }).catch(() => {
@@ -1905,7 +1906,7 @@ function App() {
     setSnapshot((prev) => {
       const _prevPkgs = Object.entries(prev?.boxEarningsByPackage??{}).map(([k,v])=>`Box${k}=${v}`).join(' ') || 'empty';
       const _nextPkgs = Object.entries(boxResult.boxEarningsByPackage??{}).map(([k,v])=>`Box${k}=${v}`).join(' ') || 'empty';
-      console.log(`[STATE-WRITE] setSnapshot source=applyDeferredBoxEarnings scanId=${(boxResult as any)._scanId??_source} ts=${Date.now()} prev=[${_prevPkgs}] next=[${_nextPkgs}] hasPositive=${hasPositive}`);
+      devLog(`[STATE-WRITE] setSnapshot source=applyDeferredBoxEarnings scanId=${(boxResult as any)._scanId??_source} ts=${Date.now()} prev=[${_prevPkgs}] next=[${_nextPkgs}] hasPositive=${hasPositive}`);
       if (!prev || prev.userId !== userId || !prev.isRegistered) {
         return prev;
       }
@@ -1936,7 +1937,7 @@ function App() {
         boxEarningsByPackage: mergedBoxEarnings
       };
       metaguildx.updatePersistentDashboardSnapshotBoxEarnings(walletAddress ?? prev.walletAddress, boxResult);
-      console.log(`[BOX-STATE-MERGED] Box1=${mergedBoxEarnings[1]||0} Box2=${mergedBoxEarnings[2]||0} Box3=${mergedBoxEarnings[3]||0} Box4=${mergedBoxEarnings[4]||0} Box5=${mergedBoxEarnings[5]||0} ts=${Date.now()}`);
+      devLog(`[BOX-STATE-MERGED] Box1=${mergedBoxEarnings[1]||0} Box2=${mergedBoxEarnings[2]||0} Box3=${mergedBoxEarnings[3]||0} Box4=${mergedBoxEarnings[4]||0} Box5=${mergedBoxEarnings[5]||0} ts=${Date.now()}`);
       return next;
     });
   }
@@ -2182,7 +2183,7 @@ function App() {
   }
 
   async function handleActivate() {
-    console.log("[REGISTER-TRACE] handleActivate:start", { ts: Date.now() });
+    devLog("[REGISTER-TRACE] handleActivate:start", { ts: Date.now() });
     setShowActivationConfirm(false);
     await handleRegisterUser();
   }
@@ -3466,12 +3467,12 @@ function App() {
   }
 
   async function handleRegisterUser() {
-    console.log("[REGISTER-TRACE] handleRegisterUser:start", { ts: Date.now() });
+    devLog("[REGISTER-TRACE] handleRegisterUser:start", { ts: Date.now() });
     setIsLoading(true);
     setActionFeedback(null);
     setRegistrationSummary(null);
     setStatus("Starting registration. Approving USDT first.");
-    console.log("[REGISTER-TRACE] regStep", { from: 0, to: 1, reason: "handleRegisterUser start", ts: Date.now() });
+    devLog("[REGISTER-TRACE] regStep", { from: 0, to: 1, reason: "handleRegisterUser start", ts: Date.now() });
     setRegStep(1);
 
     try {
@@ -3483,24 +3484,24 @@ function App() {
         },
         (step) => {
           if (step === "approving") {
-            console.log("[REGISTER-TRACE] regStep", { to: 1, reason: "onProgress:approving", ts: Date.now() });
+            devLog("[REGISTER-TRACE] regStep", { to: 1, reason: "onProgress:approving", ts: Date.now() });
             setRegStep(1);
             setStatus("Approving USDT — please confirm in your wallet...");
             return;
           }
           if (step === "confirming") {
-            console.log("[REGISTER-TRACE] regStep", { to: 2, reason: "onProgress:confirming", ts: Date.now() });
+            devLog("[REGISTER-TRACE] regStep", { to: 2, reason: "onProgress:confirming", ts: Date.now() });
             setRegStep(2);
             setStatus("Confirm the registration transaction in your wallet.");
             return;
           }
           if (step === "registering") {
-            console.log("[REGISTER-TRACE] regStep", { to: 3, reason: "onProgress:registering", ts: Date.now() });
+            devLog("[REGISTER-TRACE] regStep", { to: 3, reason: "onProgress:registering", ts: Date.now() });
             setRegStep(3);
             setStatus("Registering your account on-chain...");
             return;
           }
-          console.log("[REGISTER-TRACE] regStep", { to: 4, reason: "onProgress:success", ts: Date.now() });
+          devLog("[REGISTER-TRACE] regStep", { to: 4, reason: "onProgress:success", ts: Date.now() });
           setRegStep(4);
           setStatus("Registration complete. Welcome to MetaGuildX.");
         }
@@ -3540,7 +3541,7 @@ function App() {
       return nextSnapshot;
     } catch (error) {
       console.error("[REGISTER-TRACE] REGISTRATION_ERROR", { message: error instanceof Error ? error.message : String(error), code: (error as any)?.code, reason: (error as any)?.reason, shortMessage: (error as any)?.shortMessage, ts: Date.now() });
-      console.log("[REGISTER-TRACE] regStep", { to: 0, reason: "catch:registration failed", ts: Date.now() });
+      devLog("[REGISTER-TRACE] regStep", { to: 0, reason: "catch:registration failed", ts: Date.now() });
       setRegStep(0);
       setStatus(getFriendlyErrorMessage(error));
       setActionFeedback(null);
@@ -5209,6 +5210,7 @@ function App() {
               ["⬆️","Upgrade","upgrade",()=>setDashboardView("upgrade")],
               ["♻️","Rebirth","rebirth",()=>setDashboardView("rebirth")],
               ["👛","Wallet","wallet",()=>{setDashboardView("wallet");setWalletSubView("main");}],
+              ["🏦","Cashback","cashback",()=>setDashboardView("cashback")],
               ["👥","My Team","team",()=>setDashboardView("team")],
               ["🔍","Search","usersearch",()=>setDashboardView("usersearch")],
               ["🎧","Support","support",()=>setDashboardView("support")],
