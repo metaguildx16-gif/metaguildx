@@ -4943,14 +4943,34 @@ async function computeLostEarnings(
   const skipEventTopic = "0x74ba71463004d86aa5830a688701e74c83eae76919b30f68eabed75c13d43dc9";
   const userTopicPad = "0x" + userId.toString(16).padStart(64, "0");
 
-  let totalLost = 0n;
+  // PROD-B-06: incremental persistent cache — same key/read/write helpers
+  // already used by crossline/spillover/direct-referral (PersistedBigIntTotal).
+  const cacheKey = getHotPathCacheKey("lost-earnings", routerAddress, userId);
+  const persisted = readPersistentJson<PersistedBigIntTotal>(cacheKey);
+  const validPersisted =
+    persisted &&
+    typeof persisted.total === "string" &&
+    Number.isFinite(persisted.lastScannedBlock) &&
+    Number.isFinite(persisted.timestamp)
+      ? persisted
+      : null;
+
+  let totalLost = validPersisted ? BigInt(validPersisted.total) : 0n;
   let allChunksSucceeded = true;
   const failedChunks: {fromBlock:number;toBlock:number}[] = [];
 
   try {
     const currentBlock = await withTimeout(provider.getBlockNumber(), 15000);
-    // Fix 1: Scan from deployment block, not currentBlock - 5M
-    const fromBlock = getDeploymentAnalyticsStartBlock();
+    // Fix 1: Scan from deployment block on first run; from cached lastScannedBlock+1 thereafter
+    const fromBlock = Math.max(
+      validPersisted ? validPersisted.lastScannedBlock + 1 : 0,
+      getDeploymentAnalyticsStartBlock()
+    );
+
+    if (fromBlock > currentBlock) {
+      // Cache already covers the current chain head — nothing new to scan.
+      return { total: totalLost, allChunksSucceeded: true, failedChunks: [] };
+    }
 
     for (let b = fromBlock; b <= currentBlock; b += CHUNK) {
       const end = Math.min(b + CHUNK - 1, currentBlock);
@@ -4988,6 +5008,16 @@ async function computeLostEarnings(
           }
         }
       }
+    }
+
+    // PROD-B-06: write cache ONLY on a fully successful scan — never advance
+    // lastScannedBlock or persist a total derived from a partial scan.
+    if (allChunksSucceeded) {
+      writePersistentJson<PersistedBigIntTotal>(cacheKey, {
+        total: totalLost.toString(),
+        lastScannedBlock: currentBlock,
+        timestamp: Date.now()
+      });
     }
   } catch { /* provider.getBlockNumber failed — non-fatal */ }
 
